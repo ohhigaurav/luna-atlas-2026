@@ -315,50 +315,27 @@ def preflight_dem_assets(
     return manifest, tuple(sorted(chosen, key=lambda item: item.asset.native_resolution_m))
 
 
-def _ray_latlon(
+def _ray_latlon_grid(
     latitude_deg: float,
     longitude_deg: float,
-    azimuth_deg: float,
-    distance_m: float,
-    body_radius_m: float,
-) -> tuple[float, float]:
-    """Spherical forward-geodesic point; azimuth is clockwise from local north."""
-    lat1 = math.radians(latitude_deg)
-    lon1 = math.radians(longitude_deg)
-    bearing = math.radians(azimuth_deg)
-    delta = distance_m / body_radius_m
-    sin_lat2 = math.sin(lat1) * math.cos(delta) + math.cos(lat1) * math.sin(delta) * math.cos(bearing)
-    lat2 = math.asin(max(-1.0, min(1.0, sin_lat2)))
-    lon2 = lon1 + math.atan2(
-        math.sin(bearing) * math.sin(delta) * math.cos(lat1),
-        math.cos(delta) - math.sin(lat1) * math.sin(lat2),
-    )
-    lon2_deg = (math.degrees(lon2) + 180.0) % 360.0 - 180.0
-    return math.degrees(lat2), lon2_deg
-
-
-def _ray_latlon_array(
-    latitude_deg: float,
-    longitude_deg: float,
-    azimuth_deg: float,
+    azimuths_deg: Any,
     distances_m: Any,
     body_radius_m: float,
 ) -> tuple[Any, Any]:
-    """Vectorised spherical forward-geodesic for a complete set of ray samples."""
+    """Spherical forward geodesic for paired azimuth/distance arrays (azimuth clockwise from north)."""
     import numpy as np
 
     lat1 = math.radians(latitude_deg)
     lon1 = math.radians(longitude_deg)
-    bearing = math.radians(azimuth_deg)
+    bearing = np.radians(np.asarray(azimuths_deg, dtype=float))
     delta = np.asarray(distances_m, dtype=float) / body_radius_m
-    sin_lat2 = math.sin(lat1) * np.cos(delta) + math.cos(lat1) * np.sin(delta) * math.cos(bearing)
+    sin_lat2 = math.sin(lat1) * np.cos(delta) + math.cos(lat1) * np.sin(delta) * np.cos(bearing)
     lat2 = np.arcsin(np.clip(sin_lat2, -1.0, 1.0))
     lon2 = lon1 + np.arctan2(
-        math.sin(bearing) * np.sin(delta) * math.cos(lat1),
+        np.sin(bearing) * np.sin(delta) * math.cos(lat1),
         np.cos(delta) - math.sin(lat1) * np.sin(lat2),
     )
-    lon2_deg = (np.degrees(lon2) + 180.0) % 360.0 - 180.0
-    return np.degrees(lat2), lon2_deg
+    return np.degrees(lat2), (np.degrees(lon2) + 180.0) % 360.0 - 180.0
 
 
 def _source_lunar_crs(body_radius_m: float) -> Any:
@@ -370,46 +347,6 @@ def _source_lunar_crs(body_radius_m: float) -> Any:
 
 
 _ELEVATION_TO_METRES = {"m": 1.0, "km": 1000.0, "cm": 0.01, "mm": 0.001}
-
-
-def _physical_elevation_m(dataset: Any, sample: Any, units: str) -> float | None:
-    """Convert a raw raster sample to metres, preserving NoData semantics.
-
-    GeoTIFF band scale/offset apply to encoded raster values. NoData must be checked on the
-    raw sample *before* applying those transforms; units are explicit in the DEM manifest.
-    """
-    import numpy as np
-
-    if units not in _ELEVATION_TO_METRES:
-        raise DEMManifestError(f"Unsupported DEM elevation units: {units!r}")
-    if np.ma.is_masked(sample):
-        return None
-    try:
-        raw_value = float(sample)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(raw_value):
-        return None
-    nodata = dataset.nodata
-    if nodata is not None and math.isclose(raw_value, float(nodata), rel_tol=0.0, abs_tol=1e-12):
-        return None
-
-    scales = getattr(dataset, "scales", (1.0,))
-    offsets = getattr(dataset, "offsets", (0.0,))
-    scale = float(scales[0] if scales else 1.0)
-    offset = float(offsets[0] if offsets else 0.0)
-    if not math.isfinite(scale) or not math.isfinite(offset):
-        raise DEMManifestError("DEM band scale/offset metadata must be finite")
-    physical = (raw_value * scale + offset) * _ELEVATION_TO_METRES[units]
-    return physical if math.isfinite(physical) else None
-
-
-def _sample_one(dataset: Any, x: float, y: float, units: str) -> float | None:
-    try:
-        sample = next(dataset.sample([(x, y)], masked=True))[0]
-    except Exception as exc:
-        raise DEMManifestError(f"Raster sample failed: {exc}") from exc
-    return _physical_elevation_m(dataset, sample, units)
 
 
 def _physical_elevation_array_m(dataset: Any, samples: Any, units: str) -> Any:
@@ -445,6 +382,137 @@ def _physical_elevation_array_m(dataset: Any, samples: Any, units: str) -> Any:
     invalid |= ~np.isfinite(physical)
     physical[invalid] = np.nan
     return physical
+
+
+# Upper bound on pixels read in one window (~128 MB once converted to float64 metres). Larger
+# point sets are split spatially into several windows, so this caps memory, not coverage.
+MAX_WINDOW_PIXELS = 16_000_000
+
+
+def _physical_grid_m(dataset: Any, raw: Any, units: str) -> Any:
+    """Convert a masked raster window to metres (float64), NoData/masked/non-finite -> NaN."""
+    import numpy as np
+
+    if units not in _ELEVATION_TO_METRES:
+        raise DEMManifestError(f"Unsupported DEM elevation units: {units!r}")
+    data = np.asarray(np.ma.getdata(raw), dtype=float)
+    invalid = np.ma.getmaskarray(raw) | ~np.isfinite(data)
+    nodata = dataset.nodata
+    if nodata is not None:
+        invalid |= np.isclose(data, float(nodata), rtol=0.0, atol=1e-12)
+    scales = getattr(dataset, "scales", (1.0,))
+    offsets = getattr(dataset, "offsets", (0.0,))
+    scale = float(scales[0] if scales else 1.0)
+    offset = float(offsets[0] if offsets else 0.0)
+    if not math.isfinite(scale) or not math.isfinite(offset):
+        raise DEMManifestError("DEM band scale/offset metadata must be finite")
+    physical = (data * scale + offset) * _ELEVATION_TO_METRES[units]
+    invalid |= ~np.isfinite(physical)
+    physical[invalid] = np.nan
+    return physical
+
+
+def _read_window(dataset: Any, row_off: int, col_off: int, height: int, width: int) -> Any:
+    """Read band 1 for a pixel window as a masked array (isolated so tests can substitute it)."""
+    from rasterio.windows import Window
+
+    return dataset.read(1, window=Window(col_off, row_off, width, height), masked=True)
+
+
+def _bilinear_from_grid(
+    grid: Any, row_off: int, col_off: int, rows_f: Any, cols_f: Any,
+    raster_height: int, raster_width: int,
+) -> Any:
+    """Bilinear interpolation between pixel centres; NaN where the answer is unknown.
+
+    ``rows_f``/``cols_f`` are fractional raster coordinates of pixel *edges* (pixel i spans
+    [i, i+1)), i.e. what the inverse affine transform returns. A point outside the raster footprint
+    is unknown. Inside the footprint, the outermost half pixel is clamped to the edge pixel (the
+    footprint semantics of nearest-neighbour sampling). Any contributing neighbour with a non-zero
+    weight that is NoData makes the result unknown; NoData is never averaged away.
+    """
+    import numpy as np
+
+    rows_f = np.asarray(rows_f, dtype=float)
+    cols_f = np.asarray(cols_f, dtype=float)
+    out = np.full(rows_f.shape, np.nan, dtype=float)
+    inside = (
+        np.isfinite(rows_f) & np.isfinite(cols_f)
+        & (cols_f >= 0.0) & (cols_f < raster_width) & (rows_f >= 0.0) & (rows_f < raster_height)
+    )
+    if not np.any(inside):
+        return out
+    grid_h, grid_w = grid.shape
+    c = np.clip(cols_f[inside] - 0.5, 0.0, raster_width - 1.0) - col_off
+    r = np.clip(rows_f[inside] - 0.5, 0.0, raster_height - 1.0) - row_off
+    c0 = np.floor(c).astype(int)
+    r0 = np.floor(r).astype(int)
+    if c0.min() < 0 or r0.min() < 0 or c0.max() >= grid_w or r0.max() >= grid_h:
+        raise DEMManifestError("internal error: bilinear sample falls outside the read window")
+    c1 = np.minimum(c0 + 1, grid_w - 1)
+    r1 = np.minimum(r0 + 1, grid_h - 1)
+    fc = c - c0
+    fr = r - r0
+    total = np.zeros(c.shape, dtype=float)
+    unknown = np.zeros(c.shape, dtype=bool)
+    for rr, cc, weight in (
+        (r0, c0, (1.0 - fr) * (1.0 - fc)), (r0, c1, (1.0 - fr) * fc),
+        (r1, c0, fr * (1.0 - fc)), (r1, c1, fr * fc),
+    ):
+        value = grid[rr, cc]
+        used = weight > 0.0
+        unknown |= used & ~np.isfinite(value)
+        total += np.where(used & np.isfinite(value), value * weight, 0.0)
+    total[unknown] = np.nan
+    out[inside] = total
+    return out
+
+
+def _sample_dataset_bilinear(dataset: Any, xs: Any, ys: Any, units: str) -> Any:
+    """Bilinear heights (metres) at projected x/y.
+
+    Reads the bounding window of the points; if that window exceeds ``MAX_WINDOW_PIXELS`` the
+    point set is split at its median along the longer side and each half is read separately.
+    Rays fill only a small part of their bounding box, so splitting also cuts the pixels read.
+    """
+    import numpy as np
+
+    xs = np.asarray(xs, dtype=float)
+    ys = np.asarray(ys, dtype=float)
+    cols_f, rows_f = (~dataset.transform) * (xs, ys)
+    cols_f = np.asarray(cols_f, dtype=float)
+    rows_f = np.asarray(rows_f, dtype=float)
+    height, width = int(dataset.height), int(dataset.width)
+    out = np.full(xs.shape, np.nan, dtype=float)
+    inside = (
+        np.isfinite(rows_f) & np.isfinite(cols_f)
+        & (cols_f >= 0.0) & (cols_f < width) & (rows_f >= 0.0) & (rows_f < height)
+    )
+    if not np.any(inside):
+        return out
+    flat_rows, flat_cols = rows_f.ravel(), cols_f.ravel()
+    flat_out = out.ravel()
+    centre_c = np.clip(flat_cols - 0.5, 0.0, width - 1.0)
+    centre_r = np.clip(flat_rows - 0.5, 0.0, height - 1.0)
+
+    pending = [np.flatnonzero(inside.ravel())]
+    while pending:
+        idx = pending.pop()
+        c, r = centre_c[idx], centre_r[idx]
+        col0, col1 = int(np.floor(c.min())), min(int(np.floor(c.max())) + 1, width - 1)
+        row0, row1 = int(np.floor(r.min())), min(int(np.floor(r.max())) + 1, height - 1)
+        win_h, win_w = row1 - row0 + 1, col1 - col0 + 1
+        if win_h * win_w > MAX_WINDOW_PIXELS and idx.size > 1:
+            key = c if win_w >= win_h else r
+            order = np.argsort(key, kind="stable")
+            half = idx.size // 2
+            pending.extend((idx[order[:half]], idx[order[half:]]))
+            continue
+        grid = _physical_grid_m(dataset, _read_window(dataset, row0, col0, win_h, win_w), units)
+        flat_out[idx] = _bilinear_from_grid(
+            grid, row0, col0, flat_rows[idx], flat_cols[idx], height, width,
+        )
+    return out
 
 
 def build_horizon_from_dem_assets(
@@ -489,8 +557,6 @@ def build_horizon_from_dem_assets(
     manifest, verified = preflight_dem_assets(dem_manifest_path, root, site_id)
     source_crs = _source_lunar_crs(manifest.body_radius_m)
 
-    bins: list[HorizonBin] = []
-    site_ground_elevation: float | None = None
     with ExitStack() as stack:
         open_assets: list[tuple[VerifiedDEMAsset, Any, Any]] = []
         for item in verified:
@@ -503,15 +569,16 @@ def build_horizon_from_dem_assets(
             # Metadata is recorded into the run manifest; CRS validity is not proof of datum correctness.
             open_assets.append((item, ds, transformer))
 
-        # Read actual ground elevation at the observer from the finest DEM covering the origin.
+        # Ground elevation at the observer from the finest DEM with a valid value there.
         origin_lat, origin_lon = latitude_deg, ((longitude_deg + 180) % 360) - 180
+        site_ground_elevation: float | None = None
         for item, ds, transformer in open_assets:
             if not (item.asset.min_range_m <= 0 <= item.asset.max_range_m):
                 continue
-            x, y = transformer.transform(origin_lon, origin_lat)
-            sampled = _sample_one(ds, x, y, item.asset.elevation_units)
-            if sampled is not None:
-                site_ground_elevation = sampled
+            x, y = transformer.transform(np.array([origin_lon]), np.array([origin_lat]))
+            sampled = _sample_dataset_bilinear(ds, x, y, item.asset.elevation_units)
+            if np.isfinite(sampled[0]):
+                site_ground_elevation = float(sampled[0])
                 break
         if site_ground_elevation is None:
             raise DEMManifestError(
@@ -559,97 +626,74 @@ def build_horizon_from_dem_assets(
             })
         distance_chunks.append(np.array([max_range_m], dtype=float))
         distances = np.unique(np.concatenate(distance_chunks))
+        azimuths = np.arange(count, dtype=float) * azimuth_step_deg
+
+        # One (azimuth x distance) grid for the whole horizon. Assets arrive sorted finest to
+        # coarsest; each asset is offered only the samples that are still unknown, so a NoData or
+        # out-of-footprint pixel in a fine tile can fall back to a valid coarser DEM, while a value
+        # unknown in every eligible asset stays NaN and makes its azimuth incomplete.
+        heights = np.full((count, distances.size), np.nan, dtype=float)
+        chosen = np.full((count, distances.size), -1, dtype=int)
         asset_sample_counts = {item.asset.asset_id: 0 for item, _ds, _tr in open_assets}
         fallback_sample_count = 0
+        for asset_index, (item, ds, transformer) in enumerate(open_assets):
+            asset = item.asset
+            in_range = (distances >= asset.min_range_m) & (distances <= min(asset.max_range_m, max_range_m))
+            if not np.any(in_range):
+                continue
+            eligible = in_range[None, :] & (chosen < 0)
+            az_idx, dist_idx = np.nonzero(eligible)
+            if az_idx.size == 0:
+                continue
+            lats, lons = _ray_latlon_grid(
+                latitude_deg, longitude_deg, azimuths[az_idx], distances[dist_idx], manifest.body_radius_m
+            )
+            xs, ys = transformer.transform(lons, lats)
+            sampled = _sample_dataset_bilinear(ds, xs, ys, asset.elevation_units)
+            known_here = np.isfinite(sampled)
+            heights[az_idx[known_here], dist_idx[known_here]] = sampled[known_here]
+            chosen[az_idx[known_here], dist_idx[known_here]] = asset_index
+            asset_sample_counts[asset.asset_id] += int(known_here.sum())
+            if asset_index > 0 and np.any(known_here):
+                finer_eligible = np.zeros(int(known_here.sum()), dtype=bool)
+                accepted_distances = distances[dist_idx[known_here]]
+                for finer_item, _fds, _ftr in open_assets[:asset_index]:
+                    finer_eligible |= (
+                        (accepted_distances >= finer_item.asset.min_range_m)
+                        & (accepted_distances <= min(finer_item.asset.max_range_m, max_range_m))
+                    )
+                fallback_sample_count += int(finer_eligible.sum())
+
+        known = np.isfinite(heights)
+        radii = reference_radius_m + np.where(known, heights, 0.0)
+        angles = distances[None, :] / reference_radius_m
+        apparent = np.arctan2(radii * np.cos(angles) - observer_radius_m, radii * np.sin(angles))
+        apparent = np.where(known, apparent, -np.inf)
+        reaches_origin = math.isclose(float(distances[0]), 0.0)
+        reaches_range = math.isclose(float(distances[-1]), max_range_m)
+        bins: list[HorizonBin] = []
         for az_index in range(count):
-            azimuth = az_index * azimuth_step_deg
-            heights = np.full(distances.shape, np.nan, dtype=float)
-            chosen_asset_index = np.full(distances.shape, -1, dtype=int)
-            # Assets arrive sorted finest-to-coarsest. Only samples that have not yet received a
-            # valid elevation are offered to the next asset. Therefore a masked/NoData pixel in a
-            # fine local DEM can use a valid coarser regional DEM, but missing values are never
-            # replaced with zero: if every eligible asset is unknown the ray remains incomplete.
-            for asset_index, (item, ds, transformer) in enumerate(open_assets):
-                asset = item.asset
-                eligible = (
-                    (distances >= asset.min_range_m)
-                    & (distances <= min(asset.max_range_m, max_range_m))
-                    & (chosen_asset_index < 0)
-                )
-                assigned = np.flatnonzero(eligible)
-                if not len(assigned):
-                    continue
-                lats, lons = _ray_latlon_array(
-                    latitude_deg, longitude_deg, azimuth, distances[assigned], manifest.body_radius_m
-                )
-                xs, ys = transformer.transform(lons, lats)
-                xs = np.asarray(xs, dtype=float)
-                ys = np.asarray(ys, dtype=float)
-                # Chunk Rasterio sample calls to bound coordinate and sample memory.
-                for offset in range(0, len(assigned), 25_000):
-                    subset = assigned[offset:offset + 25_000]
-                    end = min(offset + 25_000, len(assigned))
-                    xy = list(zip(xs[offset:end].tolist(), ys[offset:end].tolist()))
-                    samples = list(ds.sample(xy, masked=True))
-                    sampled_heights = _physical_elevation_array_m(ds, samples, asset.elevation_units)
-                    known_here = np.isfinite(sampled_heights)
-                    accepted = subset[known_here]
-                    heights[accepted] = sampled_heights[known_here]
-                    chosen_asset_index[accepted] = asset_index
-                    asset_sample_counts[asset.asset_id] += int(known_here.sum())
-                    if asset_index > 0:
-                        # Count any valid sample resolved by fallback when a finer asset would
-                        # otherwise have been preferred by resolution. This is diagnostic only.
-                        finer_eligible = np.zeros(len(accepted), dtype=bool)
-                        if len(accepted):
-                            for finer_item, _finer_ds, _finer_transformer in open_assets[:asset_index]:
-                                finer_eligible |= (
-                                    (distances[accepted] >= finer_item.asset.min_range_m)
-                                    & (distances[accepted] <= min(finer_item.asset.max_range_m, max_range_m))
-                                )
-                        fallback_sample_count += int(finer_eligible.sum())
-
-            known = np.isfinite(heights)
-            nodata_count = int((~known).sum())
-            elevations: list[tuple[float, float]] = []
-            if np.any(known):
-                radii = reference_radius_m + heights[known]
-                angles = distances[known] / reference_radius_m
-                apparent = np.arctan2(
-                    radii * np.cos(angles) - observer_radius_m,
-                    radii * np.sin(angles),
-                )
-                known_distances = distances[known]
-                maximum_index = int(np.argmax(apparent))
-                maximum_elevation = float(apparent[maximum_index])
-                controlling_distance = float(known_distances[maximum_index])
-                coverage_complete = nodata_count == 0 and math.isclose(float(distances[0]), 0.0) and math.isclose(float(distances[-1]), max_range_m)
+            nodata_count = int((~known[az_index]).sum())
+            if not np.any(known[az_index]):
                 bins.append(HorizonBin(
-                    azimuth_deg=float(azimuth),
-                    elevation_rad=maximum_elevation,
-                    controlling_distance_m=controlling_distance,
-                    coverage_status="complete" if coverage_complete else "incomplete",
-                    sample_count=int(len(distances)),
-                    nodata_count=nodata_count,
-                ))
-            else:
-                bins.append(HorizonBin(
-                    azimuth_deg=float(azimuth), elevation_rad=None,
+                    azimuth_deg=float(azimuths[az_index]), elevation_rad=None,
                     controlling_distance_m=None, coverage_status="none",
-                    sample_count=int(len(distances)), nodata_count=nodata_count,
+                    sample_count=int(distances.size), nodata_count=nodata_count,
                 ))
+                continue
+            maximum_index = int(np.argmax(apparent[az_index]))
+            complete = nodata_count == 0 and reaches_origin and reaches_range
+            bins.append(HorizonBin(
+                azimuth_deg=float(azimuths[az_index]),
+                elevation_rad=float(apparent[az_index, maximum_index]),
+                controlling_distance_m=float(distances[maximum_index]),
+                coverage_status="complete" if complete else "incomplete",
+                sample_count=int(distances.size),
+                nodata_count=nodata_count,
+            ))
 
-    horizon = TerrainHorizon(
-        reference_radius_m=reference_radius_m,
-        observer_radius_m=reference_radius_m + site_ground_elevation + observer_height_m,
-        observer_height_m=observer_height_m,
-        max_range_m=max_range_m,
-        bins=tuple(bins),
-    )
-    metadata = {
-        "manifest_sha256": sha256_file(dem_manifest_path),
-        "site_ground_elevation_m": site_ground_elevation,
-        "assets": [
+        # Captured while every dataset is still open.
+        asset_metadata = [
             {
                 "asset_id": item.asset.asset_id,
                 "path": item.asset.relative_path,
@@ -670,7 +714,23 @@ def build_horizon_from_dem_assets(
                 "samples_used_total": asset_sample_counts.get(item.asset.asset_id, 0),
             }
             for item, ds, _transformer in open_assets
-        ],
+        ]
+
+    horizon = TerrainHorizon(
+        reference_radius_m=reference_radius_m,
+        observer_radius_m=observer_radius_m,
+        observer_height_m=observer_height_m,
+        max_range_m=max_range_m,
+        bins=tuple(bins),
+    )
+    metadata = {
+        "manifest_sha256": sha256_file(dem_manifest_path),
+        "site_ground_elevation_m": site_ground_elevation,
+        "assets": asset_metadata,
+        "interpolation": (
+            "bilinear between pixel centres; unknown if any contributing pixel is NoData or the "
+            "point lies outside the raster footprint"
+        ),
         "azimuth_step_deg": azimuth_step_deg,
         "near_range_m": near_range_m,
         "near_step_m_requested": near_step_m,
@@ -685,7 +745,7 @@ def build_horizon_from_dem_assets(
     return horizon, site_ground_elevation, metadata
 
 
-HORIZON_ALGORITHM_VERSION = "terrain-horizon-1.5-valid-sample-nested-fallback"
+HORIZON_ALGORITHM_VERSION = "terrain-horizon-2.0-windowed-bilinear-nested-fallback"
 
 
 def _horizon_cache_key(
