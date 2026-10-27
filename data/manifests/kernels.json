@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "manifest_state": "not_configured",
+  "frame_contract": "MOON_ME; DE421-associated lunar orientation unless an alternative chain is documented and validated",
+  "kernels": []
+}

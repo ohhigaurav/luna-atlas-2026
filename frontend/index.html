@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17394a">
+  <meta name="description" content="Explore lunar south-pole landing locations, sunlight windows and geometric Earth visibility with transparent scientific status.">
+  <title>Luna Atlas · South Pole Mission Planner</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#compare" aria-label="Luna Atlas home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="#dce9e5"/><path d="M35 7a21 21 0 1 0 10 33A19 19 0 0 1 35 7Z" fill="#e6ae50"/><circle cx="13" cy="14" r="1.5" fill="#17394a"/><circle cx="39" cy="15" r="1" fill="#17394a"/></svg>
+        </span>
+        <span class="brand-copy"><b>LUNA ATLAS</b><small>MISSION PLANNER</small></span>
+      </a>
+      <div class="rail-section-label">YOUR WORKSPACE</div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="compare"><span class="nav-icon" aria-hidden="true">⌖</span><span><b>Compare places</b><small>Sunlight & Earth view</small></span><span class="nav-arrow">→</span></button>
+        <button class="nav-item" data-view="finder" aria-label="Landing-window finder"><span class="nav-icon" aria-hidden="true">◷</span><span><b>Pick a date</b><small>Find a mission window</small></span><span class="nav-arrow">→</span></button>
+        <button class="nav-item" data-view="assumptions" aria-label="Assumptions & sources"><span class="nav-icon" aria-hidden="true">⌁</span><span><b>Data & science</b><small>Sources and model checks</small></span><span class="nav-arrow">→</span></button>
+        <button class="nav-item" data-view="export" aria-label="Export & provenance"><span class="nav-icon" aria-hidden="true">↗</span><span><b>Saved results</b><small>Files & reproducibility</small></span><span class="nav-arrow">→</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection-card">
+          <div class="connection-top"><span class="pulse-dot" id="sidebarStatusDot"></span><span id="connectionTitle">Checking the instruments</span></div>
+          <p id="connectionDetail">Looking for local data and geometry kernels…</p>
+          <button class="text-button" id="refreshHealth">Check again <span aria-hidden="true">↻</span></button>
+        </div>
+        <div class="rail-footnote"><span class="rail-orbit" aria-hidden="true">◌</span><span>Built for careful exploration.<small>Not a landing-safety system.</small></span></div>
+        <div class="sidebar-footer"><span>LOCAL BUILD</span><span>v0.7 atlas</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="breadcrumbs"><span class="crumb-home">LUNA ATLAS</span><span class="crumb-sep">/</span><b id="breadcrumbCurrent">COMPARE PLACES</b></div>
+        <div class="topbar-right"><span class="utc-clock" id="utcClock">UTC —</span><span class="top-status ephemeris-status"><i id="statusDot"></i><span>EPHEMERIS <b id="geometryStatus">NOT CONFIGURED</b><small id="frameLabel">MOON_ME · DE421 contract</small></span></span><span class="top-status"><i></i> LOCAL INSTANCE</span></div>
+      </header>
+
+      <section class="view active" id="view-compare">
+        <div class="page-intro">
+          <div class="intro-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> THE LUNAR SOUTH POLE</div>
+            <h1>Find a place where<br><em>the light lasts.</em></h1>
+            <p class="lede">Compare candidate locations, see when the Sun and Earth rise above the local horizon, and look for mission dates with fewer long outages.</p>
+            <div class="intro-facts"><span><i class="fact-sun"></i> Sunlight</span><span><i class="fact-earth"></i> Earth visibility</span><span><i class="fact-terrain"></i> Terrain context</span></div>
+          </div>
+          <div class="hero-art" aria-label="Illustration of the lunar horizon, Earth and Sun" role="img">
+            <svg viewBox="0 0 520 320" aria-hidden="true">
+              <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dfe9e7"/><stop offset="1" stop-color="#f4f0e5"/></linearGradient><linearGradient id="ground" x1="0" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#c8c8bd"/><stop offset="1" stop-color="#a8b0a8"/></linearGradient><clipPath id="artClip"><rect x="1" y="1" width="518" height="318" rx="22"/></clipPath></defs>
+              <g clip-path="url(#artClip)"><rect width="520" height="320" fill="url(#sky)"/><circle cx="403" cy="72" r="27" fill="#e7b04e"/><circle cx="403" cy="72" r="37" fill="none" stroke="#e7b04e" stroke-width="1" opacity=".35"/><path d="M0 204 Q78 157 152 199 T305 188 T520 174 V320 H0Z" fill="#d2d4cb"/><path d="M0 233 Q74 208 149 236 T284 219 T402 235 T520 220 V320 H0Z" fill="url(#ground)"/><path d="M0 264 Q95 245 155 264 T298 261 T414 270 T520 249 V320 H0Z" fill="#8d9c98"/><path d="M0 291 Q120 271 217 295 T383 284 T520 286 V320 H0Z" fill="#718781"/>
+              <g transform="translate(114 94)"><ellipse cx="0" cy="0" rx="31" ry="29" fill="#5e9aa5"/><path d="M-21 -12q11 -10 18 -4l5 7 -10 7 -4 12 -13 -5 -4 -10Z" fill="#d7e2ce"/><path d="M7 -24l17 8 -3 10 -9 1 -8 9 -4 -9 4 -9Z" fill="#d7e2ce"/><path d="M9 4l10 6 -7 12 -12 -4 -2 -7Z" fill="#d7e2ce"/><ellipse cx="-5" cy="-8" rx="45" ry="42" fill="none" stroke="#6aa7af" opacity=".35"/></g>
+              <g fill="none" stroke="#6e9a9a" stroke-width="1.3" opacity=".8"><path d="M126 139 Q170 167 218 165" stroke-dasharray="3 6"/><path d="M407 110 Q386 145 360 160" stroke-dasharray="3 6"/></g><g fill="#496b6b" font-family="ui-monospace,monospace" font-size="10" letter-spacing="1.5"><text x="61" y="57">EARTH</text><text x="366" y="31">SUN</text><text x="24" y="302">SOUTH POLAR REGION</text><text x="497" y="302" text-anchor="end">ILLUSTRATION</text></g>
+              <g transform="translate(310 220)" stroke="#536d67" stroke-width="1.5" fill="none"><path d="M-18 19l8 -26 12 2 8 24M-5 -5l-1 -18 13 -7 11 10 -3 18M-13 4l-15 12M12 5l16 9"/><circle cx="7" cy="-32" r="4" fill="#e5b14e" stroke="none"/></g><path d="M246 218 Q278 206 303 218" fill="none" stroke="#f5f3e8" stroke-width="1.2" stroke-dasharray="3 4"/></g>
+            </svg>
+            <div class="art-caption"><span class="art-caption-dot"></span> An exploration tool, built around evidence.</div>
+          </div>
+        </div>
+
+        <div id="previewBanner" class="preview-banner is-hidden"><span class="preview-icon">i</span><div><b>Exploration preview — not a lunar prediction</b><span>Sample values let you explore the charts and controls. They are invented examples, not computed from NASA data, and cannot be exported as scientific results.</span></div><button class="outline-button compact" id="togglePreview">Hide preview</button></div>
+
+        <div class="howto-strip" aria-label="How to use Luna Atlas"><div class="howto-title"><span class="howto-number">01</span><span><b>Choose places</b><small>Pick up to four</small></span></div><span class="howto-connector">→</span><div class="howto-title"><span class="howto-number">02</span><span><b>Set the mission dates</b><small>Choose your time range</small></span></div><span class="howto-connector">→</span><div class="howto-title"><span class="howto-number">03</span><span><b>Compare the windows</b><small>Read the limits as well</small></span></div></div>
+
+        <section class="panel scenario-panel" aria-labelledby="scenarioTitle">
+          <div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">SETUP</span><div><h2 id="scenarioTitle">Set up your comparison</h2><p>Choose the places and time range you want to inspect.</p></div></div><span class="panel-note"><span class="note-dot"></span> One set of settings for every chart</span></div>
+          <div class="scenario-grid">
+            <div class="field field-sites"><label>Places <small id="siteCountNote">CHOOSE UP TO 4</small></label><div class="site-selector" id="siteSelector"><div class="loading-inline">Loading available reference locations…</div></div><p class="field-note">Reference landmarks are not official challenge candidates.</p></div>
+            <div class="form-fields-grid"><div class="time-conversion-note"><span>LOCAL DISPLAY → UTC API</span><small>Your chosen local times are converted to explicit UTC instants before computation.</small></div>
+              <div class="field"><label for="analysisStart">Start date and time <small>YOUR LOCAL TIME · LOCAL DISPLAY</small></label><input id="analysisStart" type="datetime-local" value="2027-01-01T05:30" step="60"><p class="field-note">We convert this instant to UTC for calculations.</p></div>
+              <div class="field"><label for="analysisEnd">End date and time <small>YOUR LOCAL TIME · LOCAL DISPLAY</small></label><input id="analysisEnd" type="datetime-local" value="2027-01-31T05:30" step="60"><p class="field-note">Stored results are always timestamped in UTC.</p></div>
+              <div class="field"><label for="coarseStep">Time sampling</label><select id="coarseStep"><option value="15">Every 15 minutes</option><option value="30" selected>Every 30 minutes</option><option value="60">Every hour</option><option value="120">Every 2 hours</option></select></div>
+              <div class="field"><label for="horizonMode">Horizon model</label><select id="horizonMode"><option value="flat" selected>Spherical Moon · approximate</option><option value="terrain">Measured terrain · needs data</option></select><p class="field-note">Terrain mode stays blocked until data are reviewed.</p></div>
+              <div class="field"><label for="earthClearance">Extra Earth clearance</label><div class="input-suffix"><input id="earthClearance" type="number" min="0" max="10" step="0.5" value="0"><span>degrees</span></div></div>
+            </div>
+          </div>
+          <div class="scenario-actions"><div class="calculation-note"><span class="calculation-icon">✓</span><span><b>Consistent calculations</b><small>All charts use the same time range and site selection.</small></span></div><div class="actions-right"><button class="secondary-button" id="loadPreview">Explore sample view</button><button class="primary-button" id="runAnalysis"><span class="button-icon">▶</span> Run analysis <span class="button-arrow">→</span></button></div></div>
+          <div class="form-message" id="analysisMessage" role="status" aria-live="polite"></div>
+        </section>
+
+        <div class="section-heading-row"><div><span class="section-kicker">YOUR SELECTED PLACES</span><h2>Explore the landscape</h2><p>Start with the regional context, then inspect the horizon and visibility through time.</p></div><span class="section-status" id="metricsStatus">NO COMPUTED RUN</span></div>
+        <div class="compare-layout">
+          <section class="panel map-panel">
+            <div class="panel-heading"><div><span class="panel-illustration map-icon">⌖</span><div><h2>Where are the places?</h2><p>South-polar context map</p></div></div><span class="panel-chip" id="mapSourceTag">REFERENCE POINTS</span></div>
+            <div class="map-frame"><svg id="polarMap" viewBox="0 0 460 360" role="img" aria-label="Schematic map showing selected lunar south-pole reference locations"><defs><radialGradient id="moonGradient" cx="50%" cy="48%" r="58%"><stop offset="0" stop-color="#deded3"/><stop offset="1" stop-color="#b9c2ba"/></radialGradient><pattern id="mapGrid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M 36 0 L 0 0 0 36" fill="none" stroke="#6f8987" stroke-width=".65" opacity=".45"/></pattern><clipPath id="moonClip"><circle cx="228" cy="177" r="148"/></clipPath></defs><rect width="460" height="360" fill="#f5f3eb"/><circle cx="228" cy="177" r="148" fill="url(#moonGradient)" stroke="#7a8e88" stroke-width="1"/><circle cx="228" cy="177" r="118" fill="none" stroke="#7b928e" stroke-dasharray="3 6"/><circle cx="228" cy="177" r="78" fill="none" stroke="#7b928e" stroke-dasharray="3 6"/><circle cx="228" cy="177" r="38" fill="none" stroke="#7b928e" stroke-dasharray="3 6"/><circle cx="228" cy="177" r="148" fill="url(#mapGrid)"/><path d="M80 177H376 M228 29V325" stroke="#617b78" stroke-width=".7" stroke-dasharray="2 6"/><circle cx="228" cy="177" r="5" fill="#f6f1e5" stroke="#345a61"/><circle cx="228" cy="177" r="10" fill="none" stroke="#345a61" opacity=".55"/><text x="228" y="192" text-anchor="middle" class="map-label">LUNAR SOUTH POLE</text><text x="228" y="17" text-anchor="middle" class="map-small">POLAR CONTEXT VIEW</text><text x="52" y="345" class="map-small">SCHEMATIC GRID</text><text x="405" y="345" text-anchor="end" class="map-small">NOT A HAZARD MAP</text><g id="mapCoverage" clip-path="url(#moonClip)"></g><g id="mapPoints"></g></svg><div class="map-legend"><span><i class="legend-dot selected"></i> Selected place</span><span><i class="legend-dot reference"></i> Other reference</span><span><i class="legend-coverage"></i> DEM footprint</span><span><i class="legend-provisional"></i> Review needed</span></div><div class="map-caption" id="mapCoverageCaption">No local terrain footprints are loaded. The map is a schematic context view.</div></div>
+            <div class="map-foot"><span>Longitude: east-positive</span><span id="mapSelectedCount">0 places selected</span></div>
+          </section>
+          <section class="panel horizon-panel">
+            <div class="panel-heading"><div><span class="panel-illustration horizon-icon">∿</span><div><h2>What can the site see?</h2><p>Sun and Earth position against the local horizon</p></div></div><div class="selected-site-select"><label for="horizonSite">INSPECT</label><select id="horizonSite"></select></div></div>
+            <div class="chart-legend"><span><i class="legend-line horizon"></i> Local horizon</span><span><i class="legend-line sun"></i> Sun</span><span><i class="legend-line earth"></i> Earth centre</span></div>
+            <div class="chart-wrap"><svg id="horizonChart" viewBox="0 0 720 300" role="img" aria-label="Chart of Sun and Earth elevations compared with the local horizon"><text x="360" y="150" text-anchor="middle" fill="#6b7d7b">Load sample view or run a configured analysis.</text></svg></div>
+            <div class="horizon-cursor"><span class="cursor-indicator"></span><span id="cursorReadout">Move the time marker below to inspect a timestamp.</span></div>
+          </section>
+        </div>
+
+        <section class="panel timeline-panel">
+          <div class="panel-heading"><div><span class="panel-illustration time-icon">◷</span><div><h2>When is the Sun or Earth visible?</h2><p>Each row is a place. Move the marker to inspect the same instant across the comparison.</p></div></div><div class="timeline-range-label" id="timelineRangeLabel">Choose a time range</div></div>
+          <div class="timeline-chart" id="timelineChart"><div class="empty-chart">Run an analysis or explore the labelled sample view.</div></div>
+          <div class="timeline-scrubber"><span class="time-min" id="timeStartLabel">START</span><input type="range" min="0" max="100" value="0" id="timeCursor" aria-label="Move through the timeline"><span class="time-max" id="timeEndLabel">END</span><span class="cursor-time" id="cursorTime">—</span></div>
+          <div class="timeline-legend"><span><i class="state-swatch sunlight"></i> Sun's upper edge visible</span><span><i class="state-swatch earthvisible"></i> Earth centre visible</span><span><i class="state-swatch outage"></i> Below the horizon</span></div>
+        </section>
+
+        <section class="metrics-section"><div class="section-heading-row compact-heading"><div><span class="section-kicker">THE NUMBERS, WITH CONTEXT</span><h2>Compare the results</h2><p>Fractions show the part of the selected time range; gaps are the longest continuous outage.</p></div><span class="section-status" id="metricsStatusSecondary">—</span></div><div class="metrics-grid" id="metricsGrid"><div class="empty-card"><span class="empty-card-icon">∿</span><b>No results yet</b><span>Run an analysis to calculate metrics. The sample view is illustrative only.</span></div></div></section>
+      </section>
+
+      <section class="view" id="view-finder">
+        <div class="page-intro page-intro-small"><div class="intro-copy"><div class="eyebrow"><span class="eyebrow-line"></span> CHOOSE A MISSION START</div><h1>Find a date that<br><em>fits your mission.</em></h1><p class="lede">Set the mission length and your limits. Luna Atlas checks each candidate start date and shows exactly which constraints pass or fail.</p></div><div class="mini-orbit-art" aria-hidden="true"><span class="mini-moon"></span><span class="mini-orbit"></span><span class="mini-sun"></span></div></div>
+        <div class="preview-banner"><span class="preview-icon">i</span><div><b>Pass means “fits these settings”</b><span>It does not certify a safe landing, a radio link, or guaranteed electrical power. Sample-date grids are illustrative, never real predictions.</span></div></div>
+        <section class="panel finder-form-panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">01</span><div><h2>Describe your mission</h2><p>These limits are checked independently; no hidden weighted score is used.</p></div></div><span class="panel-note">EDIT ANY TIME</span></div>
+          <div class="finder-form-grid">
+            <div class="field"><label for="finderStart">First date to check <small>UTC DATE</small></label><input id="finderStart" type="date" value="2027-01-01"></div>
+            <div class="field"><label for="finderEnd">Last date to check <small>UTC DATE</small></label><input id="finderEnd" type="date" value="2027-03-31"></div>
+            <div class="field"><label for="missionDuration">How long is the mission?</label><div class="input-suffix"><input id="missionDuration" type="number" min="1" max="30" value="14"><span>days</span></div></div>
+            <div class="field"><label for="candidateStep">How often to check</label><select id="candidateStep"><option value="1" selected>Every day</option><option value="2">Every 2 days</option><option value="3">Every 3 days</option><option value="7">Every week</option></select></div>
+            <div class="field"><label for="maxDarkness">Longest allowed darkness</label><div class="input-suffix"><input id="maxDarkness" type="number" min="0" max="1440" value="50"><span>hours</span></div></div>
+            <div class="field"><label for="maxEarthGap">Longest Earth-not-visible gap</label><div class="input-suffix"><input id="maxEarthGap" type="number" min="0" max="1440" value="24"><span>hours</span></div></div>
+            <div class="field"><label for="maxJointGap">Longest combined outage</label><div class="input-suffix"><input id="maxJointGap" type="number" min="0" max="1440" value="12"><span>hours</span></div></div>
+            <div class="field"><label for="minSunlit">Minimum time in sunlight</label><div class="input-suffix"><input id="minSunlit" type="number" min="0" max="1" step="0.05" value="0.6"><span>fraction</span></div></div>
+          </div>
+          <div class="finder-footer"><p>The finder checks the same selected places, horizon choice and geometry settings used on the Compare page.</p><div class="actions-right"><button class="secondary-button" id="finderPreview">Explore sample dates</button><button class="primary-button" id="runFinder"><span class="button-icon">⌕</span> Check dates <span class="button-arrow">→</span></button></div></div><div class="form-message" id="finderMessage" role="status" aria-live="polite"></div>
+        </section>
+        <section class="panel finder-results"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">02</span><div><h2>See which dates fit</h2><p>Choose any cell to read the constraints behind its result.</p></div></div><div class="grid-legend"><span><i class="legend-square pass"></i> Pass</span><span><i class="legend-square fail"></i> Needs a change</span></div></div><div class="finder-summary" id="finderSummary"><span class="empty-inline">No date search yet.</span></div><div class="grid-scroll" id="finderGrid"><div class="empty-chart">Check dates or explore the sample grid.</div></div><div class="failure-detail" id="failureDetail"><div class="detail-placeholder">Choose a date cell to see what passed and what failed.</div></div></section>
+      </section>
+
+      <section class="view" id="view-assumptions">
+        <div class="page-intro page-intro-small"><div class="intro-copy"><div class="eyebrow"><span class="eyebrow-line"></span> WHAT THE NUMBERS MEAN</div><h1>Good science starts<br><em>with honest inputs.</em></h1><p class="lede">See which datasets are present, what each calculation assumes, and what still needs independent verification.</p></div><div class="science-stamp"><span class="stamp-ring">DATA<br>≠<br>TRUTH</span><small>Verify the input.<br>Verify the model.</small></div></div>
+        <div class="status-strip" id="validationStrip"><div class="status-strip-icon">!</div><div><b>Checking scientific readiness</b><span>Reading kernel, catalogue and terrain manifests…</span></div></div>
+        <section class="panel data-setup-panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">NEXT STEP</span><div><h2>Connect the public data</h2><p>This downloads published files; it does not invent official sites or auto-approve terrain assumptions.</p></div></div><span class="warning-tag">REVIEW REQUIRED</span></div><div class="setup-command-row"><code id="bootstrapCommand">./scripts/bootstrap_public_reference.sh</code><button class="secondary-button" id="copyBootstrapCommand">Copy setup command</button></div><div class="setup-checklist"><div><span class="setup-step">1</span><span><b>Get the source files</b><small>Keep publisher URLs, file hashes and retrieval information.</small></span></div><div><span class="setup-step">2</span><span><b>Review terrain references</b><small>Confirm coordinate frame, raster registration and elevation datum.</small></span></div><div><span class="setup-step">3</span><span><b>Compare with JPL Horizons</b><small>Predeclare tolerances and store the exact reference queries.</small></span></div></div><div id="bootstrapMessage" class="form-message" role="status" aria-live="polite"></div></section>
+        <div class="assumption-cards" id="assumptionCards"></div>
+        <section class="panel terrain-inventory-panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">TERRAIN</span><div><h2>Local elevation-data inventory</h2><p>File presence and a map footprint are not proof that a DEM is suitable for the calculation.</p></div></div><span class="tiny-label" id="terrainInventoryStatus">CHECKING</span></div><div class="terrain-inventory-summary" id="terrainInventorySummary"><div class="loading-inline">Inspecting local rasters and their hashes…</div></div><div class="terrain-inventory-list" id="terrainInventory"><div class="loading-inline">Checking available DEM assets…</div></div><p class="inventory-footnote">Terrain analysis stays blocked unless the required checksum, coordinate reference and vertical-datum reviews have been recorded.</p><div class="resolution-caution"><span class="resolution-icon" aria-hidden="true">↗</span><div><b>A 5 m grid is not the same as 5 m terrain detail.</b><p>NASA notes that many 5 m LOLA grid cells are interpolated between laser tracks. A 2026 study found that coarser DEMs can systematically overstate cumulative sunlight in its study region. This planner does not apply a universal correction; it requires resolution and terrain-uncertainty checks.</p><span class="resolution-source-note">Publisher links are listed in the source register below.</span></div></div></section>
+        <section class="panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">SOURCES</span><div><h2>Where the data come from</h2><p>Open the publisher record and read its scope before using an asset.</p></div></div><span class="tiny-label">SOURCE REGISTER</span></div><div class="source-list" id="sourceList"><div class="loading-inline">Loading the data-source register…</div></div></section>
+        <section class="panel limitations-panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">LIMITS</span><div><h2>What this tool cannot promise</h2><p>These boundaries are part of the result, not fine print.</p></div></div></div><div class="limits-grid"><div><span class="limit-symbol">↗</span><b>Earth visible is not a radio link</b><p>Link budget, antenna pointing, relay support and network scheduling are outside this geometric model.</p></div><div><span class="limit-symbol">☼</span><b>Sunlight is not power output</b><p>Panel angle, efficiency, thermal conditions, storage capacity and energy demand are not modelled here.</p></div><div><span class="limit-symbol">±</span><b>Solver precision is not physical certainty</b><p>Root-finding tolerance is not the same as uncertainty in topography, interpolation, datum or ephemeris.</p></div><div><span class="limit-symbol">!</span><b>A feasible window is not a safe landing</b><p>This tool does not certify slope, hazards, navigation performance or flight safety.</p></div></div></section>
+      </section>
+
+      <section class="view" id="view-export">
+        <div class="page-intro page-intro-small"><div class="intro-copy"><div class="eyebrow"><span class="eyebrow-line"></span> KEEP THE EVIDENCE</div><h1>Results you can<br><em>trace and check.</em></h1><p class="lede">Open saved runs, download the inputs and settings, and keep the calculation provenance beside the result.</p></div><div class="export-illustration" aria-hidden="true"><span>JSON</span><span>CSV</span><span>SHA-256</span></div></div>
+        <section class="panel saved-run-panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">01</span><div><h2>Open a saved calculation</h2><p>Previously computed runs stay on this computer until you remove them.</p></div></div><button class="secondary-button" id="refreshSavedRuns">Refresh list ↻</button></div><div class="saved-run-controls"><label class="field" for="savedRunSelect"><span>Saved analysis or date search</span><select id="savedRunSelect"><option value="">Checking saved results…</option></select></label><button class="primary-button" id="loadSavedRun" disabled>Open result →</button></div><p class="saved-run-note" id="savedRunsMessage" role="status" aria-live="polite">Sample preview data is not saved as scientific output.</p></section>
+        <section class="panel export-current"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">02</span><div><h2>Current result</h2><p>Confirm the status before using or sharing any numbers.</p></div></div><span class="tiny-label" id="runStatusTag">NO RESULT LOADED</span></div><div id="exportRunCard" class="empty-export"><div class="empty-export-icon">↗</div><b>No computed result yet</b><p>Run Compare or the date finder. Sample preview data cannot be exported as scientific results.</p><button class="secondary-button" data-jump="compare">Go to comparisons</button></div></section>
+        <div class="export-grid"><article class="panel export-option"><div class="export-icon json">{ }</div><div class="export-option-head"><h3>Full audit file</h3><span class="format-badge">JSON</span></div><p>Settings, site records, samples, event windows, metrics, hashes and run metadata in one portable file.</p><button class="secondary-button full-width" id="downloadJSON" disabled>Download JSON ↗</button></article><article class="panel export-option"><div class="export-icon csv">▤</div><div class="export-option-head"><h3>Time-series table</h3><span class="format-badge">CSV</span></div><p>UTC timestamps and explicit units for independent checks in a spreadsheet or analysis script.</p><button class="secondary-button full-width" id="downloadCSV" disabled>Download CSV ↗</button></article></div>
+        <section class="panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">TRACE</span><div><h2>Calculation provenance</h2><p>What code, data and settings produced this record?</p></div></div></div><div class="provenance-table" id="provenanceTable"><div class="empty-inline">No run record to show.</div></div></section>
+        <section class="panel"><div class="panel-heading"><div class="panel-heading-copy"><span class="step-pill">RELEASE</span><div><h2>Scientific release checks</h2><p>Open gates should be resolved before making public claims.</p></div></div><span class="tiny-label">VALIDATION GATES</span></div><div class="release-gates" id="releaseGates"></div></section>
+      </section>
+      <footer class="main-footer"><span>LUNA ATLAS · LOCAL ENGINEERING BUILD</span><span>SPICE · LOLA · GEOMETRIC VISIBILITY</span><span id="footerCommit">DATA PROVENANCE REQUIRED</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

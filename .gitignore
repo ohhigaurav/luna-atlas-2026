@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+.env
+.DS_Store
+.vscode/
+.idea/
+# Do not commit downloaded kernels, DEM assets or generated run/cache artefacts.
+data/kernels/*
+!data/kernels/.gitkeep
+!data/kernels/README.md
+data/dems/assets/*
+!data/dems/assets/.gitkeep
+data/cache/horizons/*
+!data/cache/horizons/.gitkeep
+data/runs/*
+!data/runs/.gitkeep
+data/raw/
+data/derived/

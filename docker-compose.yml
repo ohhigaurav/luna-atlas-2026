@@ -1,0 +1,13 @@
+services:
+  lunar-planner:
+    build: .
+    ports:
+      - "8000:8000"
+    # Keep large inputs and outputs outside the image. Only mount trusted files/manifests.
+    volumes:
+      - ./data/kernels:/app/data/kernels:ro
+      - ./data/manifests:/app/data/manifests:ro
+      - ./data/dems:/app/data/dems:ro
+      - ./data/cache:/app/data/cache
+      - ./data/runs:/app/data/runs
+    restart: unless-stopped

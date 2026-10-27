@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "catalogue_kind": "literature_reference_points",
+  "note": "These are public-literature landmarks used to exercise the map and coordinate pipeline. They are not the official NASA Space Apps 2026 candidate-site catalogue, and coordinates may refer to a crater/region reference point rather than a landing ellipse.",
+  "sites": [
+    {
+      "site_id": "reference-malapert-massif",
+      "name": "Malapert Massif reference point",
+      "latitude_deg": -85.99,
+      "longitude_deg": 357.07,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://science.nasa.gov/image-detail/20100618/",
+      "source_record": "NASA Science image page: Malapert region (85.99 S, 357.07 E). Reference point only; not a defined landing ellipse.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-shackleton-crater",
+      "name": "Shackleton crater reference point",
+      "latitude_deg": -89.4,
+      "longitude_deg": 129.4,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10518707/",
+      "source_record": "Peer-reviewed open-access study reports Shackleton at approximately 89.4 S, 129.4 E. Crater reference point, not landing ellipse.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-de-gerlache-crater",
+      "name": "de Gerlache crater reference point",
+      "latitude_deg": -88.5,
+      "longitude_deg": 272.9,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10518707/",
+      "source_record": "Peer-reviewed open-access study reports de Gerlache at approximately 88.5 S, 87.1 W (272.9 E). Crater reference point, not landing ellipse.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-sverdrup-crater",
+      "name": "Sverdrup crater reference point",
+      "latitude_deg": -88.5,
+      "longitude_deg": 208.0,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10518707/",
+      "source_record": "Peer-reviewed open-access study describes Sverdrup at approximately 88.5 S, 152.0 W (208.0 E). Crater reference point, not landing ellipse.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-henson-crater",
+      "name": "Henson crater reference point",
+      "latitude_deg": -88.5,
+      "longitude_deg": 230.4,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10518707/",
+      "source_record": "Peer-reviewed open-access study describes Henson at approximately 88.5 S, 129.6 W (230.4 E). Crater reference point, not landing ellipse.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-lola-site-001",
+      "name": "LOLA Site 001 reference point (Connecting Ridge region)",
+      "latitude_deg": -89.45,
+      "longitude_deg": 222.69,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://doi.org/10.3847/psj/aca590",
+      "source_record": "Peer-reviewed Planetary Science Journal paper identifies Site 001 at 222.69 E, 89.45 S in the Shackleton/Connecting Ridge region. This point must not be treated as an exact official challenge site boundary.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    },
+    {
+      "site_id": "reference-lola-site-004",
+      "name": "LOLA Site 004 reference point (Shackleton region)",
+      "latitude_deg": -89.78,
+      "longitude_deg": 204.27,
+      "latitude_type": "planetocentric",
+      "longitude_direction": "east_positive",
+      "source_url": "https://doi.org/10.3847/psj/aca590",
+      "source_record": "Peer-reviewed Planetary Science Journal paper identifies Site 004 at 204.27 E, 89.78 S in the Shackleton region. This point must not be treated as an exact official challenge site boundary.",
+      "terrain_status": "none",
+      "kind": "literature_reference_point"
+    }
+  ]
+}

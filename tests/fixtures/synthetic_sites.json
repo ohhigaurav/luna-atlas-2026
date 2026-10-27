@@ -1,0 +1,30 @@
+[
+  {
+    "site_id": "synthetic-test-flat-001",
+    "name": "Synthetic Flat-Horizon Test Site",
+    "origin": "synthetic",
+    "latitude_deg": -89.5,
+    "longitude_deg": 0.0,
+    "latitude_type": "planetocentric",
+    "longitude_direction": "east_positive",
+    "source_url": "synthetic://fixtures/flat-horizon",
+    "source_record": "Test fixture only; not a real lunar candidate site.",
+    "retrieved_utc": null,
+    "terrain_status": "none",
+    "dem_assets": []
+  },
+  {
+    "site_id": "synthetic-test-ridge-002",
+    "name": "Synthetic Ridge Test Site",
+    "origin": "synthetic",
+    "latitude_deg": -89.0,
+    "longitude_deg": 45.0,
+    "latitude_type": "planetocentric",
+    "longitude_direction": "east_positive",
+    "source_url": "synthetic://fixtures/ridge-horizon",
+    "source_record": "Test fixture only; not a real lunar candidate site.",
+    "retrieved_utc": null,
+    "terrain_status": "incomplete",
+    "dem_assets": ["synthetic-dem-ridge-001"]
+  }
+]

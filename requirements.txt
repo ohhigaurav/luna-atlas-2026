@@ -1,0 +1,9 @@
+# Python 3.11–3.14 (Python 3.13 is the tested default in this build). Direct runtime dependencies are version pinned.
+fastapi==0.128.2
+numpy==2.3.5
+pydantic==2.13.5
+pyproj==3.7.2
+rasterio==1.5.0
+scipy==1.17.0
+spiceypy==8.3.0
+uvicorn==0.48.0

@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.13
+      - name: Install dependencies
+        run: uv sync
+      - name: Run contract tests
+        run: uv run pytest -q
+      - name: Lint
+        run: uv run ruff check backend tests tools
+      - name: Type-check science core
+        run: uv run mypy backend/lunar_core
+      - name: Validate default catalogue
+        run: uv run python -m lunar_core.cli validate-catalogue

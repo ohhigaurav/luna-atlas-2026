@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Test-design fixtures only; not lunar ephemeris output.",
+  "cases": [
+    {"id": "single_crossing", "margin": "g(t)=t-5", "interval_s": [0, 10], "expected_roots_s": [5]},
+    {"id": "short_window", "margin": "positive only on [4.0, 4.5]", "interval_s": [0, 10], "expected_window_s": [4.0, 4.5]},
+    {"id": "grazing_tangency", "margin": "g(t)=-(t-5)^2", "interval_s": [0, 10], "expected_event": "zero without sign change; requires grazing check"},
+    {"id": "left_truncated_outage", "margin": "g(t)=-1 for t in [0, 3), then positive", "interval_s": [0, 10], "expected_left_edge_flag": true},
+    {"id": "azimuth_wrap", "azimuths_deg": [359.5, 0.0, 0.5], "expected": "continuous interpolation across 0/360 degrees"},
+    {"id": "nodata_wedge", "expected": "horizon bin incomplete; no fill with zero or artificial wall"}
+  ]
+}

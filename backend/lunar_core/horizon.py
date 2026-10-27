@@ -1,0 +1,259 @@
+"""Terrain-horizon geometry with explicit coverage semantics.
+
+Terrain elevations are metres relative to the reference radius supplied by the caller. The
+formula follows PRD SR-04; the module does not inspect raster files or certify DEM provenance.
+A horizon calculated from partial/NoData rays is returned for diagnostics but is marked
+incomplete so the caller cannot silently treat it as terrain-verified.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from math import atan2, cos, isfinite, sin, sqrt
+from typing import Literal, Mapping, Sequence
+
+CoverageStatus = Literal["complete", "incomplete", "none"]
+
+
+@dataclass(frozen=True, slots=True)
+class TerrainSample:
+    distance_m: float
+    elevation_m: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class HorizonBin:
+    azimuth_deg: float
+    elevation_rad: float | None
+    controlling_distance_m: float | None
+    coverage_status: CoverageStatus
+    sample_count: int
+    nodata_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class TerrainHorizon:
+    reference_radius_m: float
+    observer_radius_m: float
+    observer_height_m: float
+    max_range_m: float
+    bins: tuple[HorizonBin, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class InterpolatedHorizon:
+    azimuth_deg: float
+    elevation_rad: float | None
+    coverage_complete: bool
+    contributing_azimuths_deg: tuple[float, ...]
+
+
+def flat_horizon_elevation_rad(reference_radius_m: float, observer_height_m: float) -> float:
+    """Analytical dip angle from a spherical surface, as defined in PRD SR-04."""
+    if not isfinite(reference_radius_m) or reference_radius_m <= 0:
+        raise ValueError("reference_radius_m must be finite and positive")
+    if not isfinite(observer_height_m) or observer_height_m < 0:
+        raise ValueError("observer_height_m must be finite and non-negative")
+    # Equivalent to -acos(R / (R + h)), but better conditioned for very small h/R.
+    return -atan2(sqrt(observer_height_m * (2.0 * reference_radius_m + observer_height_m)),
+                  reference_radius_m)
+
+
+def apparent_elevation_rad(
+    *,
+    reference_radius_m: float,
+    observer_radius_m: float,
+    distance_m: float,
+    terrain_elevation_m: float,
+) -> float:
+    """Apparent terrain elevation at ground distance ``distance_m`` using PRD SR-04."""
+    values = (reference_radius_m, observer_radius_m, distance_m, terrain_elevation_m)
+    if any(not isfinite(value) for value in values):
+        raise ValueError("terrain geometry inputs must be finite")
+    if reference_radius_m <= 0 or observer_radius_m <= 0:
+        raise ValueError("reference and observer radii must be positive")
+    if distance_m < 0:
+        raise ValueError("distance_m must be non-negative")
+    terrain_radius_m = reference_radius_m + terrain_elevation_m
+    if terrain_radius_m <= 0:
+        raise ValueError("terrain elevation puts the sample at a non-positive radius")
+    theta = distance_m / reference_radius_m
+    numerator = terrain_radius_m * cos(theta) - observer_radius_m
+    denominator = terrain_radius_m * sin(theta)
+    return atan2(numerator, denominator)
+
+
+def calculate_terrain_horizon(
+    rays: Mapping[float, Sequence[TerrainSample]],
+    *,
+    reference_radius_m: float,
+    site_ground_elevation_m: float = 0.0,
+    observer_height_m: float = 2.0,
+    max_range_m: float = 200_000.0,
+) -> TerrainHorizon:
+    """Calculate H(azimuth) from sampled terrain rays.
+
+    ``rays`` maps azimuth degrees clockwise from local north to ordered radial samples. An
+    elevation of ``None`` represents NoData. Any NoData sample makes that azimuth incomplete;
+    the implementation never substitutes zero or a synthetic wall for missing terrain.
+    The known-sample maximum is retained for debugging, but its status prevents treating it as a
+    complete horizon.
+    """
+    for name, value in (
+        ("reference_radius_m", reference_radius_m),
+        ("site_ground_elevation_m", site_ground_elevation_m),
+        ("observer_height_m", observer_height_m),
+        ("max_range_m", max_range_m),
+    ):
+        if not isfinite(value):
+            raise ValueError(f"{name} must be finite")
+    if reference_radius_m <= 0:
+        raise ValueError("reference_radius_m must be positive")
+    if observer_height_m < 0:
+        raise ValueError("observer_height_m must be non-negative")
+    if max_range_m <= 0:
+        raise ValueError("max_range_m must be positive")
+    observer_radius_m = reference_radius_m + site_ground_elevation_m + observer_height_m
+    if observer_radius_m <= 0:
+        raise ValueError("observer radius must be positive")
+
+    normalised: dict[float, Sequence[TerrainSample]] = {}
+    for raw_azimuth, samples in rays.items():
+        if not isfinite(raw_azimuth):
+            raise ValueError("azimuth values must be finite")
+        azimuth = raw_azimuth % 360.0
+        key = 0.0 if abs(azimuth - 360.0) < 1e-10 else azimuth
+        if any(abs(key - existing) < 1e-10 for existing in normalised):
+            raise ValueError(f"duplicate azimuth bin after wrap normalisation: {raw_azimuth}")
+        normalised[key] = samples
+
+    bins: list[HorizonBin] = []
+    for azimuth in sorted(normalised):
+        samples = normalised[azimuth]
+        previous_distance = -1.0
+        elevations: list[tuple[float, float]] = []
+        nodata_count = 0
+        for sample in samples:
+            if not isfinite(sample.distance_m) or sample.distance_m < 0:
+                raise ValueError(f"distances for azimuth {azimuth} must be finite and non-negative")
+            if sample.distance_m <= previous_distance:
+                raise ValueError(f"distances for azimuth {azimuth} must be strictly increasing")
+            if sample.distance_m > max_range_m:
+                raise ValueError(f"sample exceeds max_range_m for azimuth {azimuth}")
+            previous_distance = sample.distance_m
+            if sample.elevation_m is None:
+                nodata_count += 1
+                continue
+            if not isfinite(sample.elevation_m):
+                raise ValueError(f"terrain elevation for azimuth {azimuth} must be finite or None")
+            elevation = apparent_elevation_rad(
+                reference_radius_m=reference_radius_m,
+                observer_radius_m=observer_radius_m,
+                distance_m=sample.distance_m,
+                terrain_elevation_m=sample.elevation_m,
+            )
+            elevations.append((elevation, sample.distance_m))
+
+        if not elevations:
+            bins.append(HorizonBin(
+                azimuth_deg=azimuth,
+                elevation_rad=None,
+                controlling_distance_m=None,
+                coverage_status="none",
+                sample_count=len(samples),
+                nodata_count=nodata_count,
+            ))
+            continue
+        horizon_elevation, controlling_distance = max(elevations, key=lambda item: item[0])
+        # Coverage is complete only if the caller supplied the local origin and reached the
+        # declared maximum range. Otherwise unseen terrain could still control the horizon.
+        distance_epsilon_m = max(1e-6, max_range_m * 1e-9)
+        covers_origin = bool(samples) and samples[0].distance_m <= distance_epsilon_m
+        covers_range = bool(samples) and samples[-1].distance_m >= max_range_m - distance_epsilon_m
+        is_complete = not nodata_count and covers_origin and covers_range
+        bins.append(HorizonBin(
+            azimuth_deg=azimuth,
+            elevation_rad=horizon_elevation,
+            controlling_distance_m=controlling_distance,
+            coverage_status="complete" if is_complete else "incomplete",
+            sample_count=len(samples),
+            nodata_count=nodata_count,
+        ))
+
+    return TerrainHorizon(
+        reference_radius_m=reference_radius_m,
+        observer_radius_m=observer_radius_m,
+        observer_height_m=observer_height_m,
+        max_range_m=max_range_m,
+        bins=tuple(bins),
+    )
+
+
+def interpolate_horizon(horizon: TerrainHorizon, azimuth_deg: float) -> InterpolatedHorizon:
+    """Linearly interpolate H(a) with wrap-around at 0°/360° (PRD SR-04).
+
+    The returned coverage flag is false if any contributing bin is incomplete or has no valid
+    elevation. A numerical value may still be returned for diagnostic plots, but it is not a
+    verified terrain horizon.
+    """
+    if not isfinite(azimuth_deg):
+        raise ValueError("azimuth_deg must be finite")
+    if not horizon.bins:
+        return InterpolatedHorizon(azimuth_deg % 360.0, None, False, ())
+    azimuth = azimuth_deg % 360.0
+    bins = horizon.bins
+
+    for item in bins:
+        if abs(item.azimuth_deg - azimuth) < 1e-10:
+            complete = item.coverage_status == "complete" and item.elevation_rad is not None
+            return InterpolatedHorizon(
+                azimuth_deg=azimuth,
+                elevation_rad=item.elevation_rad,
+                coverage_complete=complete,
+                contributing_azimuths_deg=(item.azimuth_deg,),
+            )
+    if len(bins) < 2:
+        return InterpolatedHorizon(azimuth, None, False, (bins[0].azimuth_deg,))
+
+    left_bin: HorizonBin
+    right_bin: HorizonBin
+    left_azimuth: float
+    right_azimuth: float
+    azimuth_for_interpolation: float
+    if azimuth < bins[0].azimuth_deg:
+        left_bin, right_bin = bins[-1], bins[0]
+        left_azimuth = left_bin.azimuth_deg
+        right_azimuth = right_bin.azimuth_deg + 360.0
+        azimuth_for_interpolation = azimuth + 360.0
+    elif azimuth > bins[-1].azimuth_deg:
+        left_bin, right_bin = bins[-1], bins[0]
+        left_azimuth = left_bin.azimuth_deg
+        right_azimuth = right_bin.azimuth_deg + 360.0
+        azimuth_for_interpolation = azimuth
+    else:
+        for index in range(len(bins) - 1):
+            candidate_left, candidate_right = bins[index], bins[index + 1]
+            if candidate_left.azimuth_deg < azimuth < candidate_right.azimuth_deg:
+                left_bin, right_bin = candidate_left, candidate_right
+                left_azimuth, right_azimuth = left_bin.azimuth_deg, right_bin.azimuth_deg
+                break
+        else:  # Defensive: should be unreachable once exact matches and wrap are handled.
+            return InterpolatedHorizon(azimuth, None, False, ())
+        azimuth_for_interpolation = azimuth
+
+    if left_bin.elevation_rad is None or right_bin.elevation_rad is None:
+        value = None
+    else:
+        fraction = (azimuth_for_interpolation - left_azimuth) / (right_azimuth - left_azimuth)
+        value = left_bin.elevation_rad + fraction * (right_bin.elevation_rad - left_bin.elevation_rad)
+    complete = (
+        value is not None
+        and left_bin.coverage_status == "complete"
+        and right_bin.coverage_status == "complete"
+    )
+    return InterpolatedHorizon(
+        azimuth_deg=azimuth,
+        elevation_rad=value,
+        coverage_complete=complete,
+        contributing_azimuths_deg=(left_bin.azimuth_deg, right_bin.azimuth_deg),
+    )

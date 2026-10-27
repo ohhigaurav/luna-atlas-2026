@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "manifest_state": "not_configured",
+  "body_radius_m": 1737400.0,
+  "coordinate_contract": "Moon body-fixed latitude/longitude are transformed into each raster's declared CRS using a spherical lunar geographic CRS. Raster CRS, affine transform, unit, NoData and pixel metadata must be inspected before trusting a horizon.",
+  "assets": [],
+  "notes": [
+    "Add DEM assets only after download, metadata inspection, SHA-256 capture and a CRS round-trip check.",
+    "PGDA product 78 site DEMs are 5 m/pixel GeoTIFFs using south-polar stereographic X/Y in MOON_ME referenced to DE421; they have high interpolated-cell fractions, which are not the same as accuracy.",
+    "PGDA product 90 provides regional multi-resolution COG DEMs. Quantitative reads must use full-resolution raster data, not overview pyramid levels.",
+    "PGDA product 69 long-term average illumination products are sanity-check overlays only, not time-specific event truth."
+  ]
+}
