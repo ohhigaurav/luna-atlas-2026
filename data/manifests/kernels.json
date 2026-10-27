@@ -1,6 +1,79 @@
 {
   "schema_version": "1.0",
-  "manifest_state": "not_configured",
-  "frame_contract": "MOON_ME; DE421-associated lunar orientation unless an alternative chain is documented and validated",
-  "kernels": []
+  "manifest_state": "configured",
+  "frame_contract": "MOON_ME, DE421-associated orientation; check the loaded PCK radii and frame chain. Kernel presence and hashes do not constitute Horizons validation.",
+  "kernels": [
+    {
+      "kernel_id": "naif0012",
+      "relative_path": "data/kernels/naif0012.tls",
+      "kernel_type": "LSK",
+      "sha256": "678e32bdb5a744117a467cd9601cd6b373f0e9bc9bbde1371d5eee39600a039b",
+      "size_bytes": 5257,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF generic leap-seconds kernel; time conversion. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 0,
+      "coverage_frame": null
+    },
+    {
+      "kernel_id": "pck00011",
+      "relative_path": "data/kernels/pck00011.tpc",
+      "kernel_type": "PCK",
+      "sha256": "3dff7b1dbeceaa01f25467767d3fa25816051c85d162d1edf04acb310ee28bb1",
+      "size_bytes": 131226,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF generic text planetary constants kernel. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 1,
+      "coverage_frame": null
+    },
+    {
+      "kernel_id": "moon_080317",
+      "relative_path": "data/kernels/moon_080317.tf",
+      "kernel_type": "FK",
+      "sha256": "78732477b96f9863e7b0d65bcee3c22b8707ca5ed0db56d1173319cb2e8c7993",
+      "size_bytes": 21437,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_080317.tf",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF lunar frame definitions. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 2,
+      "coverage_frame": null
+    },
+    {
+      "kernel_id": "moon_assoc_me",
+      "relative_path": "data/kernels/moon_assoc_me.tf",
+      "kernel_type": "FK",
+      "sha256": "52c622043ce0447d575e59ee01642f1894921e68c10f934ceff065f362da6c1c",
+      "size_bytes": 8468,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_assoc_me.tf",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF DE421-associated Moon Mean-Earth frame alias. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 3,
+      "coverage_frame": null
+    },
+    {
+      "kernel_id": "de421",
+      "relative_path": "data/kernels/de421.bsp",
+      "kernel_type": "SPK",
+      "sha256": "08b20db2ae22488650641c5a9033e5bfda4b1c4b440cfeaf20f621cfa18ecdb3",
+      "size_bytes": 16790528,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF planetary ephemeris DE421. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 4,
+      "coverage_frame": null
+    },
+    {
+      "kernel_id": "moon_pa_de421_1900_2050",
+      "relative_path": "data/kernels/moon_pa_de421_1900-2050.bpc",
+      "kernel_type": "BPC",
+      "sha256": "656f90616403d75a75f0cd6c8830fc5b44f8cb4facb5ccb8915e752b397520cf",
+      "size_bytes": 1770496,
+      "source_url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de421_1900-2050.bpc",
+      "licence_credit": "NASA/JPL NAIF kernel. NAIF binary lunar orientation kernel associated with DE421. Cite NAIF and preserve source attribution.",
+      "retrieved_utc": "2026-10-27T17:01:32Z",
+      "load_order": 5,
+      "coverage_frame": "MOON_PA_DE421"
+    }
+  ]
 }

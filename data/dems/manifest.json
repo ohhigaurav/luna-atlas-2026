@@ -1,13 +1,89 @@
 {
   "schema_version": "1.0",
-  "manifest_state": "not_configured",
+  "manifest_state": "configured",
   "body_radius_m": 1737400.0,
   "coordinate_contract": "Moon body-fixed latitude/longitude are transformed into each raster's declared CRS using a spherical lunar geographic CRS. Raster CRS, affine transform, unit, NoData and pixel metadata must be inspected before trusting a horizon.",
-  "assets": [],
+  "assets": [
+    {
+      "asset_id": "pgda78-site01-surface",
+      "relative_path": "data/dems/assets/Site01_final_adj_5mpp_surf.tif",
+      "site_ids": [
+        "reference-lola-site-001"
+      ],
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_surf.tif",
+      "product_id": "NASA PGDA Product 78 \u2014 Site 01 / Connecting Ridge region",
+      "sha256": "3ba7b97cb00a2bcf21189c3aeb535f65afc21207154ab9f0d43c5bdc1f7e747e",
+      "retrieved_utc": "2026-10-27T17:05:59Z",
+      "size_bytes": 40980810,
+      "native_resolution_m": 5.0,
+      "min_range_m": 0.0,
+      "max_range_m": 8000.0,
+      "vertical_datum": "PGDA Product 78 surface-elevation raster; compatibility between raster elevation, reference radius, and observer-point model remains unverified.",
+      "crs_contract": "Publisher describes south-polar stereographic X/Y in metres and MOON_ME associated with DE421. Verify actual GeoTIFF CRS metadata, axis transform, sample coverage, and agreement with the selected lunar geographic source CRS before use.",
+      "crs_contract_verified": false,
+      "crs_verification_note": null,
+      "vertical_datum_verified": false,
+      "vertical_datum_verification_note": null,
+      "elevation_units": "m",
+      "nodata_policy": "unknown"
+    },
+    {
+      "asset_id": "pgda78-site04-surface",
+      "relative_path": "data/dems/assets/Site04_final_adj_5mpp_surf.tif",
+      "site_ids": [
+        "reference-lola-site-004"
+      ],
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_surf.tif",
+      "product_id": "NASA PGDA Product 78 \u2014 Site 04 / Shackleton region",
+      "sha256": "38ff70dbdf2f066c2cfa94a646c3a59d653ce7f6b4528b15fc1b43ee397ce758",
+      "retrieved_utc": "2026-10-27T17:08:35Z",
+      "size_bytes": 40980806,
+      "native_resolution_m": 5.0,
+      "min_range_m": 0.0,
+      "max_range_m": 8000.0,
+      "vertical_datum": "PGDA Product 78 Site 04 surface-elevation raster; compatibility between raster elevation, reference radius, and observer-point model remains unverified.",
+      "crs_contract": "Publisher describes south-polar stereographic X/Y in metres and MOON_ME associated with DE421. Verify actual GeoTIFF CRS metadata, axis transform, sample coverage, and agreement with the selected lunar geographic source CRS before use.",
+      "crs_contract_verified": false,
+      "crs_verification_note": null,
+      "vertical_datum_verified": false,
+      "vertical_datum_verification_note": null,
+      "elevation_units": "m",
+      "nodata_policy": "unknown"
+    },
+    {
+      "asset_id": "pgda90-60s-240m-regional",
+      "relative_path": "data/dems/assets/LDEM_60S_240MPP_ADJ.TIF",
+      "site_ids": [
+        "*"
+      ],
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF",
+      "product_id": "NASA PGDA Product 90 \u2014 regional 240 m/pixel DEM (60\u00b0S\u201390\u00b0S)",
+      "sha256": "3f9663257b63022f2b0d5a623482ff3cadddceb91594a4e4ca14a94d8cec8b34",
+      "retrieved_utc": "2026-10-27T17:21:27Z",
+      "size_bytes": 218961039,
+      "native_resolution_m": 240.0,
+      "min_range_m": 0.0,
+      "max_range_m": 200000.0,
+      "vertical_datum": "PGDA Product 90 regional surface-elevation raster in metres; compatibility between raster elevation, reference radius, and observer-point model remains unverified.",
+      "crs_contract": "Publisher describes COG south-polar stereographic X/Y in metres and MOON_ME associated with DE421. This 60S product gives sufficient latitude coverage for a 200 km polar-site horizon range. Verify actual GeoTIFF CRS, axis transform, source geographic CRS and datum contract before use. Quantitative sampling must read full-resolution pixels, not overviews.",
+      "crs_contract_verified": false,
+      "crs_verification_note": null,
+      "vertical_datum_verified": false,
+      "vertical_datum_verification_note": null,
+      "elevation_units": "m",
+      "nodata_policy": "unknown"
+    }
+  ],
   "notes": [
     "Add DEM assets only after download, metadata inspection, SHA-256 capture and a CRS round-trip check.",
     "PGDA product 78 site DEMs are 5 m/pixel GeoTIFFs using south-polar stereographic X/Y in MOON_ME referenced to DE421; they have high interpolated-cell fractions, which are not the same as accuracy.",
     "PGDA product 90 provides regional multi-resolution COG DEMs. Quantitative reads must use full-resolution raster data, not overview pyramid levels.",
-    "PGDA product 69 long-term average illumination products are sanity-check overlays only, not time-specific event truth."
+    "PGDA product 69 long-term average illumination products are sanity-check overlays only, not time-specific event truth.",
+    "2026-10-27T17:21:27Z: inspected public reference DEM pgda78-site01-surface; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-19000.0, -20000.0, -3000.0, -4000.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"unnamed\\\",GEOGCS[\\\"unnamed ellipse\\\",DATUM[\\\"unknown\\\",SPHEROID[\\\"unnamed\\\",1737400,0]],PRIMEM[\\\"Greenwich\\\",0],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 3200, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 1538, \"raw_value\": 1954.846923828125, \"row\": 1651, \"site_id\": \"reference-lola-site-001\", \"x\": -11308.187770988527, \"y\": -12258.857997599198}], \"scales\": [1.0], \"transform\": [5.0, 0.0, -19000.0, 0.0, -5.0, -4000.0], \"width\": 3200}",
+    "2026-10-27T17:21:27Z: inspected public reference DEM pgda78-site04-surface; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-9000.0, -15000.0, 7000.0, 1000.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"unnamed\\\",GEOGCS[\\\"unnamed ellipse\\\",DATUM[\\\"unknown\\\",SPHEROID[\\\"unnamed\\\",1737400,0]],PRIMEM[\\\"Greenwich\\\",0],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 3200, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 1251, \"raw_value\": 1728.342529296875, \"row\": 1416, \"site_id\": \"reference-lola-site-004\", \"x\": -2742.088164017559, \"y\": -6081.540263474295}], \"scales\": [1.0], \"transform\": [5.0, 0.0, -9000.0, 0.0, -5.0, 1000.0], \"width\": 3200}",
+    "2026-10-27T17:21:27Z: inspected public reference DEM pgda90-60s-240m-regional; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-931200.0, -931200.0, 931200.0, 931200.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"Moon (2015) - Sphere / Ocentric / South Polar\\\",GEOGCS[\\\"Moon (2015) - Sphere / Ocentric\\\",DATUM[\\\"Moon (2015) - Sphere\\\",SPHEROID[\\\"Moon (2015) - Sphere\\\",1737400,0,AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],PRIMEM[\\\"Reference Meridian\\\",0,AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]],AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1,AUTHORITY[\\\"EPSG\\\",\\\"9001\\\"]],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH],AUTHORITY[\\\"IAU\\\",\\\"30135\\\"]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 7760, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 3854, \"raw_value\": 4864.24951171875, \"row\": 3373, \"site_id\": \"reference-malapert-massif\", \"x\": -6218.055099986184, \"y\": 121487.26947610597}, {\"col\": 3938, \"raw_value\": -291.49700927734375, \"row\": 3928, \"site_id\": \"reference-shackleton-crater\", \"x\": 14059.251041217105, \"y\": -11548.399001537413}, {\"col\": 3690, \"raw_value\": -1013.505126953125, \"row\": 3870, \"site_id\": \"reference-de-gerlache-crater\", \"x\": -45429.37032785119, \"y\": 2301.352621421051}, {\"col\": 3791, \"raw_value\": -2872.4931640625, \"row\": 4047, \"site_id\": \"reference-sverdrup-crater\", \"x\": -21355.145798242447, \"y\": -40163.1878740841}, {\"col\": 3733, \"raw_value\": -2476.390625, \"row\": 4000, \"site_id\": \"reference-henson-crater\", \"x\": -35048.81646358169, \"y\": -28994.902599859393}, {\"col\": 3832, \"raw_value\": 1954.260986328125, \"row\": 3931, \"site_id\": \"reference-lola-site-001\", \"x\": -11308.187770988527, \"y\": -12258.857997599198}, {\"col\": 3868, \"raw_value\": 1734.3114013671875, \"row\": 3905, \"site_id\": \"reference-lola-site-004\", \"x\": -2742.088164017559, \"y\": -6081.540263474295}], \"scales\": [1.0], \"transform\": [240.0, 0.0, -931200.0, 0.0, -240.0, 931200.0], \"width\": 7760}",
+    "2026-10-27T17:38:40Z: inspected public reference DEM pgda78-site01-surface; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-19000.0, -20000.0, -3000.0, -4000.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"unnamed\\\",GEOGCS[\\\"unnamed ellipse\\\",DATUM[\\\"unknown\\\",SPHEROID[\\\"unnamed\\\",1737400,0]],PRIMEM[\\\"Greenwich\\\",0],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 3200, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 1538, \"raw_value\": 1954.846923828125, \"row\": 1651, \"site_id\": \"reference-lola-site-001\", \"x\": -11308.187770988527, \"y\": -12258.857997599198}], \"scales\": [1.0], \"transform\": [5.0, 0.0, -19000.0, 0.0, -5.0, -4000.0], \"width\": 3200}",
+    "2026-10-27T17:38:40Z: inspected public reference DEM pgda78-site04-surface; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-9000.0, -15000.0, 7000.0, 1000.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"unnamed\\\",GEOGCS[\\\"unnamed ellipse\\\",DATUM[\\\"unknown\\\",SPHEROID[\\\"unnamed\\\",1737400,0]],PRIMEM[\\\"Greenwich\\\",0],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 3200, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 1251, \"raw_value\": 1728.342529296875, \"row\": 1416, \"site_id\": \"reference-lola-site-004\", \"x\": -2742.088164017559, \"y\": -6081.540263474295}], \"scales\": [1.0], \"transform\": [5.0, 0.0, -9000.0, 0.0, -5.0, 1000.0], \"width\": 3200}",
+    "2026-10-27T17:38:40Z: inspected public reference DEM pgda90-60s-240m-regional; metadata={\"band_count\": 1, \"band_units\": [null], \"bounds\": [-931200.0, -931200.0, 931200.0, 931200.0], \"coverage_check\": \"all assigned reference points lie inside raster and sampled value is not NoData\", \"crs\": \"PROJCS[\\\"Moon (2015) - Sphere / Ocentric / South Polar\\\",GEOGCS[\\\"Moon (2015) - Sphere / Ocentric\\\",DATUM[\\\"Moon (2015) - Sphere\\\",SPHEROID[\\\"Moon (2015) - Sphere\\\",1737400,0,AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],PRIMEM[\\\"Reference Meridian\\\",0,AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]],AUTHORITY[\\\"IAU\\\",\\\"30100\\\"]],PROJECTION[\\\"Polar_Stereographic\\\"],PARAMETER[\\\"latitude_of_origin\\\",-90],PARAMETER[\\\"central_meridian\\\",0],PARAMETER[\\\"false_easting\\\",0],PARAMETER[\\\"false_northing\\\",0],UNIT[\\\"metre\\\",1,AUTHORITY[\\\"EPSG\\\",\\\"9001\\\"]],AXIS[\\\"Easting\\\",NORTH],AXIS[\\\"Northing\\\",NORTH],AUTHORITY[\\\"IAU\\\",\\\"30135\\\"]]\", \"datum_review\": \"NOT REVIEWED; sample presence does not prove height-datum compatibility\", \"driver\": \"GTiff\", \"dtype\": \"float32\", \"height\": 7760, \"nodata\": NaN, \"offsets\": [0.0], \"sampled_reference_points\": [{\"col\": 3854, \"raw_value\": 4864.24951171875, \"row\": 3373, \"site_id\": \"reference-malapert-massif\", \"x\": -6218.055099986184, \"y\": 121487.26947610597}, {\"col\": 3938, \"raw_value\": -291.49700927734375, \"row\": 3928, \"site_id\": \"reference-shackleton-crater\", \"x\": 14059.251041217105, \"y\": -11548.399001537413}, {\"col\": 3690, \"raw_value\": -1013.505126953125, \"row\": 3870, \"site_id\": \"reference-de-gerlache-crater\", \"x\": -45429.37032785119, \"y\": 2301.352621421051}, {\"col\": 3791, \"raw_value\": -2872.4931640625, \"row\": 4047, \"site_id\": \"reference-sverdrup-crater\", \"x\": -21355.145798242447, \"y\": -40163.1878740841}, {\"col\": 3733, \"raw_value\": -2476.390625, \"row\": 4000, \"site_id\": \"reference-henson-crater\", \"x\": -35048.81646358169, \"y\": -28994.902599859393}, {\"col\": 3832, \"raw_value\": 1954.260986328125, \"row\": 3931, \"site_id\": \"reference-lola-site-001\", \"x\": -11308.187770988527, \"y\": -12258.857997599198}, {\"col\": 3868, \"raw_value\": 1734.3114013671875, \"row\": 3905, \"site_id\": \"reference-lola-site-004\", \"x\": -2742.088164017559, \"y\": -6081.540263474295}], \"scales\": [1.0], \"transform\": [240.0, 0.0, -931200.0, 0.0, -240.0, 931200.0], \"width\": 7760}"
   ]
 }
