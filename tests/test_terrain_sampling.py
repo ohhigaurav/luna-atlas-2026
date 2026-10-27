@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-
 from lunar_core import terrain
 from lunar_core.terrain import (
     DEMManifestError,
@@ -23,7 +22,7 @@ class Affine2:
     def __init__(self, x0: float, y0: float, res: float, inverse: bool = False) -> None:
         self.x0, self.y0, self.res, self.inverse = x0, y0, res, inverse
 
-    def __invert__(self) -> "Affine2":
+    def __invert__(self) -> Affine2:
         return Affine2(self.x0, self.y0, self.res, not self.inverse)
 
     def __mul__(self, xy: tuple[Any, Any]) -> tuple[Any, Any]:

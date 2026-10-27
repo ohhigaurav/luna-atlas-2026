@@ -88,7 +88,8 @@ class SiteCatalogue(BaseModel):
     def catalogue_time_must_be_utc(cls, value: datetime | None) -> datetime | None:
         if value is not None and (value.tzinfo is None or value.utcoffset() is None):
             raise ValueError("catalogue retrieved_utc must include a timezone")
-        if value is not None and value.utcoffset().total_seconds() != 0:
+        offset = value.utcoffset() if value is not None else None
+        if offset is not None and offset.total_seconds() != 0:
             raise ValueError("catalogue retrieved_utc must be UTC")
         return value
 

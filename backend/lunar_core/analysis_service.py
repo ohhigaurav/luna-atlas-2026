@@ -7,7 +7,6 @@ never computes ephemerides or outage metrics.
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import math
 import os
@@ -45,8 +44,8 @@ from lunar_core.kernels import (
 )
 from lunar_core.metrics import AnalysisMetrics, compute_metrics
 from lunar_core.provenance import sha256_file
-from lunar_core.spk_coverage import SPKCoverageError, assert_required_spk_coverage
 from lunar_core.references import load_reference_catalogue
+from lunar_core.spk_coverage import SPKCoverageError, assert_required_spk_coverage
 from lunar_core.visibility import earth_centre_clear_margin_rad, sun_upper_limb_margin_rad
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -119,8 +118,8 @@ def _metrics_payload(metrics: AnalysisMetrics) -> dict[str, Any]:
 def _load_sites() -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     official = load_default_catalogue()
-    for site in official.sites:
-        records[site.site_id] = {**site.model_dump(mode="json"), "catalogue_kind": "official_challenge"}
+    for official_site in official.sites:
+        records[official_site.site_id] = {**official_site.model_dump(mode="json"), "catalogue_kind": "official_challenge"}
     reference_catalogue = load_reference_catalogue()
     for site in reference_catalogue.sites:
         records[site.site_id] = {
@@ -441,6 +440,8 @@ def _run_one_site(
             "earth_center_clear": earth_margin_value > 0,
         })
 
+    sun_horizon_profile: list[dict[str, Any]]
+    earth_horizon_profile: list[dict[str, Any]]
     if request.horizon_mode == "terrain":
         assert sun_terrain_horizon is not None and earth_terrain_horizon is not None
         sun_horizon_profile = [

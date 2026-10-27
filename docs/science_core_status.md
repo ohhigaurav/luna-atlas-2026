@@ -23,9 +23,9 @@ This is an integrated software prototype. It is not a completed real-site scient
 | `analysis_service.py` | Single shared geometry/horizon/margin/events/metrics path; same engine used for finder; saved runs and provenance | Type/unit tests, schema contracts and fail-closed API tests | Running it successfully with pinned real inputs; full science report and independent replay |
 | `api.py` + `frontend/` | Four views, analysis/finder requests, saved-run index/load, JSON/CSV exports, assumptions/sources | API/TestClient and frontend static contract tests; `node --check` | Browser usability, accessibility checks and real-result presentation review |
 
-## Critical mathematical limitation: event completeness
+## Event completeness (updated 0.7.1-dev)
 
-Brent's method refines a root once a continuous sign-changing bracket is known. The current solver additionally searches sampled local extrema to catch some windows hidden between same-sign coarse samples. This is a valuable defensive heuristic, **not a proof that every short visibility window is found**. A guarantee requires a justified bound on the margin's variation/derivative, conservative adaptive subdivision with a stopping certificate, or another demonstrably complete search method for the model. Until that is established, report sampled event-discovery limitations and test with multiple step sizes; do not claim that no window longer than a stated duration can be missed.
+When the geometry supplies angular rates (SPICE `azlcpo` does), discovery is rate-bounded: each same-sign coarse step is bisected until `|g_a + g_b|/2 > L (b - a)/2`, with `L = 1.5 x (|de/dt| bound + |dH/daz| bound x |daz/dt| bound)` from endpoint rates and the local horizon slope. Under that per-step rate assumption (D-17), no visible or non-visible interval longer than the event tolerance is missed; remaining sub-tolerance intervals are reported as possible grazing. Without rates the solver falls back to brackets plus extremum diagnostics and the run states `discovery_certified: false`. Still to do: confirm with real kernels that halving the coarse step leaves window counts unchanged.
 
 ## Data contract and geometry limitations
 

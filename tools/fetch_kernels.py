@@ -73,7 +73,7 @@ def _download(
             )
         return {"downloaded": False, "path": str(destination), "sha256": actual, "bytes": destination.stat().st_size}
     destination.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "lunar-south-pole-planner/0.7.0-dev"})
+    request = urllib.request.Request(url, headers={"User-Agent": "lunar-south-pole-planner/0.7.1-dev"})
     fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
     os.close(fd)
     temp = Path(temp_name)

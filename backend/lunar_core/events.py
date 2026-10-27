@@ -299,10 +299,10 @@ def find_visibility_windows(
                 xtol=tolerance_s, rtol=4.0 * 2.220446049250313e-16,
             )
             if expected_initial_sign > 0:
-                transitions = ((left_root, True, False), (right_root, False, True))
+                island = ((left_root, True, False), (right_root, False, True))
             else:
-                transitions = ((left_root, False, True), (right_root, True, False))
-            for root_time, before, after in transitions:
+                island = ((left_root, False, True), (right_root, True, False))
+            for root_time, before, after in island:
                 roots.append(EventRoot(
                     time_s=float(root_time),
                     residual=evaluate(float(root_time)),

@@ -12,8 +12,8 @@ import math
 import os
 import tempfile
 from contextlib import ExitStack
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -54,11 +54,12 @@ class DEMAsset(BaseModel):
     nodata_policy: Literal["unknown"] = "unknown"
 
     @model_validator(mode="after")
-    def ranges_valid(self) -> "DEMAsset":
+    def ranges_valid(self) -> DEMAsset:
         if self.retrieved_utc is not None:
             if self.retrieved_utc.tzinfo is None or self.retrieved_utc.utcoffset() is None:
                 raise ValueError("retrieved_utc must include a timezone")
-            if self.retrieved_utc.utcoffset().total_seconds() != 0:
+            offset = self.retrieved_utc.utcoffset()
+            if offset is not None and offset.total_seconds() != 0:
                 raise ValueError("retrieved_utc must be UTC (use Z or +00:00)")
         if self.max_range_m <= self.min_range_m:
             raise ValueError("max_range_m must be greater than min_range_m")
@@ -83,7 +84,7 @@ class DEMManifest(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def state_consistent(self) -> "DEMManifest":
+    def state_consistent(self) -> DEMManifest:
         if self.manifest_state == "not_configured" and self.assets:
             raise ValueError("not_configured DEM manifest must have no assets")
         if self.manifest_state == "configured" and not self.assets:

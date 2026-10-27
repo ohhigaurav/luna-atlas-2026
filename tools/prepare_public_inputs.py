@@ -125,7 +125,7 @@ def download_atomic(
             f"{destination} already exists. The importer will not invent provenance for existing bytes; "
             "verify its manifest entry or re-fetch explicitly with --force."
         )
-    request = urllib.request.Request(url, headers={"User-Agent": "lunar-south-pole-planner/0.7.0-dev"})
+    request = urllib.request.Request(url, headers={"User-Agent": "lunar-south-pole-planner/0.7.1-dev"})
     fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".part", dir=destination.parent)
     os.close(fd)
     temp = Path(temp_name)
