@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-
 from lunar_core.bpc_coverage import (
     BPCoverageError,
     assert_required_bpc_coverage,

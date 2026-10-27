@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from lunar_core.horizon import (
     TerrainSample,
     calculate_terrain_horizon,

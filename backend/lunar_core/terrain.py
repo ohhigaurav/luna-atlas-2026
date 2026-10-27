@@ -238,7 +238,7 @@ def dem_coverage_inventory(
                 transform = Transformer.from_crs(ds.crs, target_crs, always_xy=True)
                 longitudes, latitudes = transform.transform(xs, ys, errcheck=True)
                 footprint: list[dict[str, float]] = []
-                for longitude, latitude in zip(longitudes, latitudes):
+                for longitude, latitude in zip(longitudes, latitudes, strict=True):
                     lon = float(longitude)
                     lat = float(latitude)
                     if not (math.isfinite(lon) and math.isfinite(lat) and -90.000001 <= lat <= 90.000001):
@@ -605,7 +605,7 @@ def build_horizon_from_dem_assets(
         })
         distance_chunks: list[Any] = []
         sampling_segments: list[dict[str, float | None]] = []
-        for segment_start, segment_end in zip(boundaries[:-1], boundaries[1:]):
+        for segment_start, segment_end in zip(boundaries[:-1], boundaries[1:], strict=True):
             if segment_end <= segment_start:
                 continue
             midpoint = (segment_start + segment_end) / 2.0
@@ -824,7 +824,7 @@ def build_cached_horizon_from_dem_assets(
             metadata = dict(cached["metadata"])
             metadata.update({"cache_hit": True, "cache_key": cache_key, "cache_algorithm_version": HORIZON_ALGORITHM_VERSION})
             return horizon, float(cached["site_ground_elevation_m"]), metadata
-        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, DEMManifestError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, DEMManifestError):
             # A corrupted/obsolete cache is discarded and recalculated, never consumed silently.
             try:
                 cache_file.unlink(missing_ok=True)

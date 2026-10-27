@@ -10,10 +10,11 @@ latitude-type differences are immaterial only while the selected lunar PCK radii
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from math import cos, degrees, isfinite, radians, sin
-from typing import Any, Literal, Protocol, Sequence, cast
+from typing import Any, Literal, Protocol, cast
 
 from lunar_core.spice_runtime import SPICE_LOCK
 
@@ -155,7 +156,7 @@ class SpiceGeometry:
         observer_center: str,
         aberration_correction: str,
         radius_tolerance_m: float = 1e-3,
-    ) -> "SpiceGeometry":
+    ) -> SpiceGeometry:
         """Read lunar radii from the already-loaded PCK and enforce the spherical contract."""
         with SPICE_LOCK:
             dimension, radii_km = spice.bodvrd("MOON", "RADII", 3)
@@ -182,7 +183,7 @@ class SpiceGeometry:
         observer_center: str,
         aberration_correction: str,
         radius_tolerance_m: float = 1e-3,
-    ) -> "SpiceGeometry":
+    ) -> SpiceGeometry:
         """Build from SpiceyPy after the application has loaded and preflighted its kernels."""
         try:
             import spiceypy
@@ -225,7 +226,7 @@ class SpiceGeometry:
             raise ValueError("time must include a UTC timezone")
         if parsed.utcoffset() != timedelta(0):
             raise ValueError("time must be UTC; non-zero offsets are not accepted")
-        return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
     def directions(
         self,

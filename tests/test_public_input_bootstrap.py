@@ -92,6 +92,7 @@ def test_public_download_honors_size_cap(tmp_path: Path) -> None:
 
 def _write_reference_tif(path: Path, resolution: float, site_id: str, value: float = 10.0) -> None:
     import json
+
     import numpy as np
     import rasterio
     from pyproj import Transformer
@@ -125,6 +126,7 @@ def _write_reference_tif(path: Path, resolution: float, site_id: str, value: flo
 def test_prepare_public_dems_records_provenance_but_keeps_science_gates_closed(tmp_path: Path, monkeypatch) -> None:
     import json
     import shutil
+
     from tools import prepare_public_inputs as module
 
     root = tmp_path
@@ -174,8 +176,8 @@ def test_prepare_public_dems_records_provenance_but_keeps_science_gates_closed(t
 
 
 def test_dem_asset_provenance_timestamp_must_be_utc() -> None:
-    from pydantic import ValidationError
     from lunar_core.terrain import DEMAsset
+    from pydantic import ValidationError
 
     base = {
         "asset_id": "test", "relative_path": "data/dems/assets/test.tif",

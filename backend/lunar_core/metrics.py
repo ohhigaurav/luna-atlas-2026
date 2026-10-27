@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from statistics import median
-from typing import Iterable, Sequence
 
 from lunar_core.events import VisibilityWindow
 

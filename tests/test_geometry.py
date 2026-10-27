@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import pytest
-
 from lunar_core.geometry import ObserverSite, SpiceGeometry
 
 

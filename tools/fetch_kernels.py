@@ -13,7 +13,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -118,7 +118,7 @@ def _download(
 
 def fetch(project_root: Path, force: bool = False) -> dict[str, object]:
     destination_root = project_root / "data" / "kernels"
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     entries: list[dict[str, object]] = []
     outcomes: list[dict[str, object]] = []
     manifest_path = project_root / "data" / "manifests" / "kernels.json"

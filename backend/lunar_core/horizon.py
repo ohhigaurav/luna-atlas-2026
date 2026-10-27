@@ -8,9 +8,10 @@ incomplete so the caller cannot silently treat it as terrain-verified.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import atan2, cos, isfinite, sin, sqrt
-from typing import Literal, Mapping, Sequence
+from typing import Literal
 
 CoverageStatus = Literal["complete", "incomplete", "none"]
 

@@ -6,10 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
-from pyproj import CRS, Transformer
-from rasterio.transform import from_origin
-
 from lunar_core.terrain import dem_coverage_inventory
+from pyproj import CRS
+from rasterio.transform import from_origin
 
 BODY_RADIUS_M = 1_737_400.0
 

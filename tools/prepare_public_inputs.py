@@ -16,15 +16,16 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from lunar_core.terrain import DEMAsset, DEMManifest  # noqa: E402
 from lunar_core.provenance import sha256_file  # noqa: E402
+from lunar_core.terrain import DEMAsset, DEMManifest  # noqa: E402
 
 PGDA_HOSTS = {"pgda.gsfc.nasa.gov"}
 BODY_RADIUS_M = 1_737_400.0
@@ -98,7 +99,7 @@ DEM_SOURCES: tuple[dict[str, Any], ...] = (
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _is_allowed_https(url: str, allowed_hosts: set[str]) -> bool:
@@ -178,8 +179,8 @@ def download_atomic(
 def _metadata(path: Path, sites: list[dict[str, Any]]) -> dict[str, Any]:
     """Inspect raster metadata and prove each assigned reference point hits a non-NoData pixel."""
     try:
-        import rasterio
         import numpy as np
+        import rasterio
         from pyproj import CRS, Transformer
     except ImportError as exc:
         raise RuntimeError("Install the project runtime dependencies before registering DEMs") from exc
@@ -365,9 +366,9 @@ def prepare_dems(project_root: Path, *, include_regional: bool = True, force: bo
         tmp_manifest.replace(manifest_path)
         reference_site_ids = ("reference-lola-site-001", "reference-lola-site-004")
         terrain_allowed_by_site = {
-            site_id: bool((applicable := [
+            site_id: bool(applicable := [
                 asset for asset in parsed.assets if site_id in asset.site_ids or "*" in asset.site_ids
-            ])) and all(asset.crs_contract_verified and asset.vertical_datum_verified for asset in applicable)
+            ]) and all(asset.crs_contract_verified and asset.vertical_datum_verified for asset in applicable)
             for site_id in reference_site_ids
         }
         return {

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
-
 from lunar_core.kernels import (
     KernelLoadError,
     KernelManifestError,
@@ -58,7 +57,7 @@ def write_manifest(root: Path, *, mismatch_hash: bool = False) -> Path:
             "size_bytes": len(content),
             "source_url": f"https://example.nasa.gov/{kernel_id}",
             "licence_credit": "NAIF kernel; cite source and applicable data terms",
-            "retrieved_utc": datetime(2026, 10, 25, tzinfo=timezone.utc).isoformat(),
+            "retrieved_utc": datetime(2026, 10, 25, tzinfo=UTC).isoformat(),
             "load_order": order,
         }
         if kind == "BPC":
@@ -75,8 +74,8 @@ def write_manifest(root: Path, *, mismatch_hash: bool = False) -> Path:
     return manifest_path
 
 
-def test_empty_default_manifest_is_not_ready_to_load() -> None:
-    root = Path(__file__).resolve().parents[1]
+def test_empty_default_manifest_is_not_ready_to_load(unconfigured_project: Path) -> None:
+    root = unconfigured_project
     manifest = root / "data" / "manifests" / "kernels.json"
     report = preflight_kernel_files(manifest, root)
     assert not report.ready_to_load

@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lunar_core.catalogue import CatalogueIntegrityError, load_default_catalogue
 
 ROOT = Path(__file__).resolve().parents[1]

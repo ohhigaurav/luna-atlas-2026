@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 import rasterio
-from pyproj import Transformer
-from rasterio.transform import from_origin
-
 from lunar_core.provenance import sha256_file
 from lunar_core.terrain import (
     DEMManifestError,
+    _physical_elevation_array_m,
     build_cached_horizon_from_dem_assets,
     preflight_dem_assets,
-    _physical_elevation_array_m,
 )
+from pyproj import Transformer
+from rasterio.transform import from_origin
 
 RADIUS_M = 1_737_400.0
 
@@ -163,6 +161,7 @@ def test_vectorized_raster_samples_preserve_mask_nodata_scale_offset_and_units()
 def test_nested_dem_uses_coarser_valid_pixel_when_fine_asset_is_outside_footprint(tmp_path: Path) -> None:
     """A fine tile's NoData must not mask a valid overlapping regional DEM sample."""
     import json
+
     from rasterio.transform import from_origin
 
     root = tmp_path

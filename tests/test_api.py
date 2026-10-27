@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
-
 from lunar_core.api import app
 
 client = TestClient(app)
+
+# Every test here describes the behaviour of an unconfigured checkout, independent of whatever
+# kernels, DEMs, official sites or saved runs exist in the developer's real data/ folder.
+pytestmark = pytest.mark.usefixtures("unconfigured_project")
 
 
 def test_health_explicitly_reports_not_ready() -> None:

@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from lunar_core.visibility import (
     angular_semidiameter_rad,
     earth_centre_clear_margin_rad,

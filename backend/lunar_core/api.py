@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from lunar_core import __version__
+from lunar_core import __version__, analysis_service
 from lunar_core.analysis_service import (
     AnalysisNotReady,
     TerrainNotReady,
@@ -282,7 +282,7 @@ def export_json(run_id: str) -> FileResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    path = PROJECT_ROOT / "data" / "runs" / f"{payload['run_id']}.json"
+    path = analysis_service.RUNS_DIR / f"{payload['run_id']}.json"
     return FileResponse(path, media_type="application/json", filename=f"lunar-run-{run_id}.json")
 
 

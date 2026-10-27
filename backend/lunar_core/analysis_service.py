@@ -15,7 +15,7 @@ import tempfile
 import threading
 import uuid
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +72,7 @@ class TerrainNotReady(AnalysisNotReady):
 def _iso_utc(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("timestamp is not timezone-aware")
-    return value.astimezone(timezone.utc).isoformat(timespec="auto").replace("+00:00", "Z")
+    return value.astimezone(UTC).isoformat(timespec="auto").replace("+00:00", "Z")
 
 
 def _window_payload(window: VisibilityWindow, geometry: SpiceGeometry) -> dict[str, Any]:
@@ -594,7 +594,7 @@ def _run_analysis_locked(request: AnalysisRequest) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": "1.0",
         "run_id": str(uuid.uuid4()),
-        "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "created_utc": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "application": {"name": "Lunar South Pole Mission Planner", "version": __version__},
         "analysis_kind": "spice_backed_analysis",
         "validation_status": "computed_not_independently_validated",
@@ -732,7 +732,7 @@ def _run_finder_locked(request: FinderRequest) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": "1.0",
         "run_id": str(uuid.uuid4()),
-        "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "created_utc": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "application": {"name": "Lunar South Pole Mission Planner", "version": __version__},
         "analysis_kind": "landing_window_finder",
         "validation_status": "computed_not_independently_validated",

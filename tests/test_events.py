@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from lunar_core.events import find_visibility_windows
 
 

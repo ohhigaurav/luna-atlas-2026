@@ -17,7 +17,7 @@ import math
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +30,9 @@ REQUIRED = {"site_id", "target", "utc", "azimuth_deg", "elevation_deg", "range_k
 
 def canonical_utc(value: str) -> str:
     parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+    if parsed.tzinfo is None or parsed.utcoffset() != UTC.utcoffset(parsed):
         raise ValueError(f"timestamp must be explicit UTC: {value}")
-    return parsed.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return parsed.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def angular_difference_deg(actual: float, expected: float) -> float:
@@ -90,9 +90,9 @@ def compare_run(run_path: Path, reference_path: Path, tolerance_path: Path, outp
         run_created = datetime.fromisoformat(str(run["created_utc"]).replace("Z", "+00:00"))
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("predeclared_utc and run.created_utc must be explicit ISO-8601 timestamps") from exc
-    if declared_at.tzinfo is None or declared_at.utcoffset() != timezone.utc.utcoffset(declared_at):
+    if declared_at.tzinfo is None or declared_at.utcoffset() != UTC.utcoffset(declared_at):
         raise ValueError("predeclared_utc must be an explicit UTC timestamp")
-    if run_created.tzinfo is None or run_created.utcoffset() != timezone.utc.utcoffset(run_created):
+    if run_created.tzinfo is None or run_created.utcoffset() != UTC.utcoffset(run_created):
         raise ValueError("run.created_utc must be an explicit UTC timestamp")
     if declared_at >= run_created:
         raise ValueError(
@@ -153,7 +153,7 @@ def compare_run(run_path: Path, reference_path: Path, tolerance_path: Path, outp
     if too_few:
         raise ValueError(f"not enough distinct epochs per site; observed {too_few}, require >= {min_epochs}")
     result = {
-        "schema_version": "1.0", "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "schema_version": "1.0", "created_utc": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "run_id": run.get("run_id"), "run_created_utc": run.get("created_utc"),
         "run_sha256": sha256_file(run_path), "output_path": str(output_path),
         "reference_sha256": sha256_file(reference_path), "reference_count": len(reference),

@@ -1,40 +1,70 @@
 #!/usr/bin/env bash
-# Run portable checks. Missing optional static-analysis tools are reported as SKIPPED, never PASS.
-set -euo pipefail
+# Run every portable check and report all results, even when an earlier check fails.
+# A missing optional tool is reported as SKIPPED, never PASS. Exit status is non-zero if any
+# check failed.
+set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PYTHONPATH="$ROOT:$ROOT/backend${PYTHONPATH:+:$PYTHONPATH}"
-PYTHON_BIN="${PYTHON:-python3}"
+if [[ -n "${PYTHON:-}" ]]; then
+  PYTHON_BIN="$PYTHON"
+elif [[ -x .venv/bin/python ]]; then
+  PYTHON_BIN="$ROOT/.venv/bin/python"
+else
+  PYTHON_BIN="python3"
+fi
 
-printf '\n== Python compilation ==\n'
-"$PYTHON_BIN" -m compileall -q backend/lunar_core tools
-printf 'PASS: Python sources compile\n'
+declare -a SUMMARY=()
+FAILED=0
 
-printf '\n== Test suite ==\n'
-"$PYTHON_BIN" -m pytest -q
+step() {
+  local name="$1"; shift
+  printf '\n== %s ==\n' "$name"
+  if "$@"; then
+    SUMMARY+=("PASS     $name")
+  else
+    SUMMARY+=("FAIL     $name")
+    FAILED=1
+  fi
+}
 
-printf '\n== JavaScript syntax ==\n'
+skip() {
+  printf '\n== %s ==\nSKIPPED: %s\n' "$1" "$2"
+  SUMMARY+=("SKIPPED  $1 ($2)")
+}
+
+has_module() { "$PYTHON_BIN" -c "import $1" >/dev/null 2>&1; }
+
+printf 'Python: %s (%s)\n' "$PYTHON_BIN" "$("$PYTHON_BIN" --version 2>&1)"
+
+step "Python compilation" "$PYTHON_BIN" -m compileall -q backend/lunar_core tools
+step "Test suite" "$PYTHON_BIN" -m pytest -q
+
 if command -v node >/dev/null 2>&1; then
-  node --check frontend/app.js
-  printf 'PASS: frontend/app.js parses\n'
+  step "JavaScript syntax" node --check frontend/app.js
 else
-  printf 'SKIPPED: Node.js is not installed\n'
+  skip "JavaScript syntax" "Node.js is not installed"
 fi
 
-printf '\n== Ruff ==\n'
-if command -v ruff >/dev/null 2>&1; then
-  ruff check backend tests tools
+if has_module ruff; then
+  step "Ruff" "$PYTHON_BIN" -m ruff check backend tests tools
 else
-  printf 'SKIPPED: ruff is not installed; CI installs it from the dev dependency group\n'
+  skip "Ruff" "ruff is not installed in this Python environment"
 fi
 
-printf '\n== mypy ==\n'
-if command -v mypy >/dev/null 2>&1; then
-  mypy backend/lunar_core
+if has_module mypy; then
+  step "mypy" "$PYTHON_BIN" -m mypy backend/lunar_core
 else
-  printf 'SKIPPED: mypy is not installed; CI installs it from the dev dependency group\n'
+  skip "mypy" "mypy is not installed in this Python environment"
 fi
 
-printf '\n== Catalogue integrity ==\n'
-"$PYTHON_BIN" -m lunar_core.cli validate-catalogue
-printf '\nVerification complete. A skipped static-analysis tool is not a passing check.\n'
+step "Catalogue integrity" "$PYTHON_BIN" -m lunar_core.cli validate-catalogue
+
+printf '\n== Summary ==\n'
+printf '%s\n' "${SUMMARY[@]}"
+if (( FAILED )); then
+  printf '\nAt least one check FAILED.\n'
+else
+  printf '\nAll executed checks passed. A SKIPPED check is not a pass.\n'
+fi
+exit "$FAILED"

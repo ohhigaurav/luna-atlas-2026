@@ -15,7 +15,7 @@ import csv
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -57,7 +57,7 @@ def import_catalogue(source: Path, source_url: str, output: Path) -> dict[str, A
             "unofficial research references belong in data/reference, never the official catalogue"
         )
     source_hash = sha256_file(source)
-    retrieved = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    retrieved = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     sites: list[dict[str, Any]] = []
     seen: set[str] = set()
     with source.open("r", encoding="utf-8-sig", newline="") as stream:

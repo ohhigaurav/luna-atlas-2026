@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -51,14 +51,14 @@ class SiteRecord(BaseModel):
     def retrieved_time_must_be_aware(cls, value: datetime | None) -> datetime | None:
         if value is not None and (value.tzinfo is None or value.utcoffset() is None):
             raise ValueError("retrieved_utc must include a timezone")
-        if value is not None and value.utcoffset() != timezone.utc.utcoffset(value):
+        if value is not None and value.utcoffset() != UTC.utcoffset(value):
             # Normalize is a caller responsibility; requiring explicit UTC avoids ambiguous
             # retrieval timestamps in a provenance manifest.
             raise ValueError("retrieved_utc must be UTC (use Z or +00:00)")
         return value
 
     @model_validator(mode="after")
-    def check_origin_contract(self) -> "SiteRecord":
+    def check_origin_contract(self) -> SiteRecord:
         expected_prefix = "official-" if self.origin == "official" else "synthetic-"
         if not self.site_id.startswith(expected_prefix):
             raise ValueError(f"site_id for origin={self.origin!r} must start with {expected_prefix!r}")
@@ -94,7 +94,7 @@ class SiteCatalogue(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def check_catalogue_state(self) -> "SiteCatalogue":
+    def check_catalogue_state(self) -> SiteCatalogue:
         if any(site.origin != "official" for site in self.sites):
             raise ValueError("default catalogue must never contain synthetic test sites")
         if self.catalogue_state == "awaiting_official_source":

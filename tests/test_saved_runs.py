@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lunar_core import analysis_service
 
 VALID_ID = "11111111-1111-4111-8111-111111111111"

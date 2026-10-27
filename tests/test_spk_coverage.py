@@ -4,7 +4,6 @@ import math
 from pathlib import Path
 
 import pytest
-
 from lunar_core.spk_coverage import (
     REQUIRED_OBJECTS,
     SPKCoverageError,

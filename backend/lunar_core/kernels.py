@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Literal, Protocol
 
@@ -70,7 +70,7 @@ class KernelAsset(BaseModel):
     def timestamp_must_be_utc(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("retrieved_utc must include a timezone")
-        if value.utcoffset() != timezone.utc.utcoffset(value):
+        if value.utcoffset() != UTC.utcoffset(value):
             raise ValueError("retrieved_utc must be UTC")
         return value
 
@@ -86,7 +86,7 @@ class KernelManifest(BaseModel):
     kernels: list[KernelAsset] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_load_set(self) -> "KernelManifest":
+    def validate_load_set(self) -> KernelManifest:
         if self.manifest_state == "not_configured" and self.kernels:
             raise ValueError("not_configured manifest must have an empty kernels list")
         if self.manifest_state == "configured" and not self.kernels:

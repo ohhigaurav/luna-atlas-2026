@@ -26,9 +26,10 @@ extrema. Useful, but a short window between two monotone samples can be missed;
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from math import isfinite
-from typing import Callable, Literal, Sequence
+from typing import Literal
 
 from scipy.optimize import brentq, minimize_scalar
 
@@ -268,7 +269,7 @@ def find_visibility_windows(
     # tolerance, so this heuristic pass is skipped.
     for index in range(1, len(times) - 1 if not certified else 1):
         left, centre, right = values[index - 1], values[index], values[index + 1]
-        left_sign, centre_sign, right_sign = sign(left), sign(centre), sign(right)
+        left_sign, right_sign = sign(left), sign(right)
         if left_sign == right_sign == 1 and centre <= left and centre <= right:
             polarity = 1.0  # minimise a positive local minimum
             expected_initial_sign = 1
@@ -279,7 +280,7 @@ def find_visibility_windows(
             continue
 
         optimum = minimize_scalar(
-            lambda t: polarity * evaluate(float(t)),
+            lambda t, p=polarity: p * evaluate(float(t)),
             bounds=(times[index - 1], times[index + 1]),
             method="bounded",
             options={"xatol": tolerance_s},

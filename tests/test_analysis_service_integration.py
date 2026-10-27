@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import pi, sin
 from pathlib import Path
-from typing import Any
 
 import pytest
-
 from lunar_core import analysis_service
 from lunar_core.api_models import AnalysisRequest, FinderRequest, MissionConstraints
 from lunar_core.geometry import ObserverSite, TargetDirection
@@ -18,13 +16,13 @@ class SyntheticGeometry:
     reference_radius_m = 1_737_400.0
     frame = "MOON_ME_TEST_FIXTURE"
     aberration_correction = "SYNTHETIC"
-    origin_et = datetime(2027, 1, 1, tzinfo=timezone.utc).timestamp()
+    origin_et = datetime(2027, 1, 1, tzinfo=UTC).timestamp()
 
     def utc_to_et(self, utc: str) -> float:
         return datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp()
 
     def et_to_utc(self, et_s: float) -> str:
-        return datetime.fromtimestamp(et_s, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        return datetime.fromtimestamp(et_s, tz=UTC).isoformat().replace("+00:00", "Z")
 
     def direction_at_et(
         self,

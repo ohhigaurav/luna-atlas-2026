@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from lunar_core.events import VisibilityWindow
 from lunar_core.metrics import compute_metrics
 

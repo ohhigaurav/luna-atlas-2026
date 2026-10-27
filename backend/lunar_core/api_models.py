@@ -1,7 +1,7 @@
 """Public API request contracts. Units are explicit in field names; invalid spans fail early."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -31,7 +31,7 @@ class CommonScenario(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def terrain_ranges_valid(self) -> "CommonScenario":
+    def terrain_ranges_valid(self) -> CommonScenario:
         if self.terrain_near_range_m >= self.terrain_max_range_m:
             raise ValueError("terrain_near_range_m must be less than terrain_max_range_m")
         return self
@@ -40,9 +40,9 @@ class CommonScenario(BaseModel):
 def _utc_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("timestamps must include timezone (use Z or +00:00)")
-    if value.utcoffset() != timezone.utc.utcoffset(value):
+    if value.utcoffset() != UTC.utcoffset(value):
         raise ValueError("timestamps must be UTC (non-zero offsets are not accepted)")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 class AnalysisRequest(CommonScenario):
@@ -55,7 +55,7 @@ class AnalysisRequest(CommonScenario):
         return _utc_datetime(value)
 
     @model_validator(mode="after")
-    def validate_scenario(self) -> "AnalysisRequest":
+    def validate_scenario(self) -> AnalysisRequest:
         if self.end_utc <= self.start_utc:
             raise ValueError("end_utc must be after start_utc")
         span_days = (self.end_utc - self.start_utc).total_seconds() / 86400.0
@@ -75,7 +75,7 @@ class MissionConstraints(BaseModel):
     min_sunlit_fraction: float | None = Field(default=0.6, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
-    def require_active_constraint(self) -> "MissionConstraints":
+    def require_active_constraint(self) -> MissionConstraints:
         if all(getattr(self, name) is None for name in (
             "max_darkness_h", "max_dte_gap_h", "max_joint_outage_h", "min_sunlit_fraction"
         )):
@@ -96,7 +96,7 @@ class FinderRequest(CommonScenario):
         return _utc_datetime(value)
 
     @model_validator(mode="after")
-    def validate_search(self) -> "FinderRequest":
+    def validate_search(self) -> FinderRequest:
         if self.search_end_utc < self.search_start_utc:
             raise ValueError("search_end_utc must not precede search_start_utc")
         candidate_count = int(

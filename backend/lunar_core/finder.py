@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import floor, isfinite
-from typing import Sequence
 
 from lunar_core.events import VisibilityWindow
 from lunar_core.metrics import AnalysisMetrics, compute_metrics

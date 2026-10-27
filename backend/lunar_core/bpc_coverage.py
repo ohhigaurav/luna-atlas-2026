@@ -10,13 +10,14 @@ frame used by ``azlcpo``.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 
-from lunar_core.spk_coverage import interval_covers, merge_intervals
 from lunar_core.spice_runtime import SPICE_LOCK
+from lunar_core.spk_coverage import interval_covers, merge_intervals
 
 
 class BPCoverageError(RuntimeError):

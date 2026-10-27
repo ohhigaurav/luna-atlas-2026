@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
 from lunar_core.models import SiteCatalogue, SiteRecord
+from pydantic import ValidationError
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -31,7 +30,7 @@ def test_official_site_requires_sourced_coordinates_and_utc_timestamp() -> None:
         "longitude_direction": "east_positive",
         "source_url": "https://example.nasa.gov/sites.csv",
         "source_record": "row 4; SHA-256 to be recorded in the manifest",
-        "retrieved_utc": datetime(2026, 10, 28, tzinfo=timezone.utc),
+        "retrieved_utc": datetime(2026, 10, 28, tzinfo=UTC),
         "terrain_status": "none",
         "dem_assets": [],
     }
@@ -55,7 +54,7 @@ def test_official_record_cannot_use_synthetic_id() -> None:
             "longitude_direction": "east_positive",
             "source_url": "https://example.nasa.gov/sites.csv",
             "source_record": "test",
-            "retrieved_utc": datetime(2026, 10, 28, tzinfo=timezone.utc),
+            "retrieved_utc": datetime(2026, 10, 28, tzinfo=UTC),
             "terrain_status": "none",
             "dem_assets": [],
         })
@@ -67,6 +66,6 @@ def test_default_catalogue_rejects_synthetic_records() -> None:
             "schema_version": "1.0",
             "catalogue_state": "loaded",
             "source_url": "https://example.nasa.gov/sites.csv",
-            "retrieved_utc": datetime(2026, 10, 28, tzinfo=timezone.utc),
+            "retrieved_utc": datetime(2026, 10, 28, tzinfo=UTC),
             "sites": [json.loads((FIXTURES / "synthetic_sites.json").read_text(encoding="utf-8"))[0]],
         })

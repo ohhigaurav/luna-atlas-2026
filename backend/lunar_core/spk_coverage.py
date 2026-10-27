@@ -8,8 +8,9 @@ pre-roll is required at the start of the requested interval.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from lunar_core.spice_runtime import SPICE_LOCK
 

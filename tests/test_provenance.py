@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path
 
 import pytest
-
 from lunar_core.provenance import sha256_file
 
 
