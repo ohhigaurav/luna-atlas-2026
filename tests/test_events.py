@@ -88,3 +88,102 @@ def test_refined_event_times_converge_when_coarse_step_halves() -> None:
     fine_roots = [root.time_s for root in fine.roots if root.crossing]
     assert len(coarse_roots) == len(fine_roots)
     assert coarse_roots == pytest.approx(fine_roots, abs=1e-7)
+
+
+# --- Certified (rate-bounded) discovery -------------------------------------------------------
+
+def _gaussian_island(center: float = 50_000.0, sigma: float = 300.0):
+    # A slow downward trend makes the coarse samples strictly monotone, so no sampled local
+    # extremum exists for the heuristic to inspect.
+    trend = 1e-7
+    def margin(t: float) -> float:
+        return -1.0 - trend * (t - center) + 2.0 * math.exp(-(((t - center) / sigma) ** 2))
+    # max |g'| <= trend + 2 * sqrt(2/e) / sigma
+    bound = (trend + 2.0 * math.sqrt(2.0 / math.e) / sigma) * 1.01
+    return margin, bound, center, sigma
+
+
+def test_certified_mode_finds_window_hidden_between_monotone_samples() -> None:
+    margin, bound, center, sigma = _gaussian_island()
+    times = [float(t) for t in range(0, 86_401, 21_600)]  # 6 h samples, ~500 s window
+    values = [margin(t) for t in times]
+    heuristic = find_visibility_windows(times, values, margin, tolerance_s=1e-3)
+    assert heuristic.windows == ()  # documented failure of plain sampling
+    assert not heuristic.certified
+
+    certified = find_visibility_windows(
+        times, values, margin, tolerance_s=1e-3, rate_bound=lambda _a, _b: bound,
+    )
+    assert certified.certified
+    assert len(certified.windows) == 1
+    window = certified.windows[0]
+    assert abs(margin(window.start_s)) < 1e-6 and abs(margin(window.end_s)) < 1e-6
+    assert window.start_s < center < window.end_s
+    assert window.duration_s == pytest.approx(2 * sigma * math.sqrt(math.log(2.0)), rel=1e-3)
+    assert certified.possible_grazing_intervals == ()
+    assert certified.subdivision_evaluations > 0
+
+
+def test_certified_mode_reports_tangency_as_possible_grazing() -> None:
+    def margin(t: float) -> float:
+        return -(((t - 40_000.0) / 1_000.0) ** 2)
+    bound = 2.0 * 86_400.0 / 1_000.0 ** 2
+    times = [float(t) for t in range(0, 86_401, 3_600)]
+    solution = find_visibility_windows(
+        times, [margin(t) for t in times], margin, tolerance_s=1e-2,
+        rate_bound=lambda _a, _b: bound,
+    )
+    assert solution.windows == ()
+    assert any(a <= 40_000.0 <= b for a, b in solution.possible_grazing_intervals)
+    assert all(b - a <= 1e-2 for a, b in solution.possible_grazing_intervals)
+
+
+def test_certified_mode_near_miss_is_cleanly_excluded() -> None:
+    def margin(t: float) -> float:
+        return -0.5 - (((t - 40_000.0) / 1_000.0) ** 2)
+    bound = 2.0 * 86_400.0 / 1_000.0 ** 2
+    times = [float(t) for t in range(0, 86_401, 3_600)]
+    solution = find_visibility_windows(
+        times, [margin(t) for t in times], margin, tolerance_s=1e-2,
+        rate_bound=lambda _a, _b: bound,
+    )
+    assert solution.windows == ()
+    assert solution.possible_grazing_intervals == ()
+
+
+def test_certified_crossings_are_not_reported_as_grazes() -> None:
+    period = 86_400.0
+    def margin(t: float) -> float:
+        return math.sin(2 * math.pi * t / period) - 0.5
+    bound = 2 * math.pi / period * 1.01
+    times = [float(t) for t in range(0, 3 * 86_400 + 1, 3_600)]
+    solution = find_visibility_windows(
+        times, [margin(t) for t in times], margin, tolerance_s=1e-3,
+        rate_bound=lambda _a, _b: bound,
+    )
+    assert len(solution.windows) == 3
+    for k, window in enumerate(solution.windows):
+        assert window.start_s == pytest.approx(k * period + period / 12, abs=1e-3)
+        assert window.end_s == pytest.approx(k * period + 5 * period / 12, abs=1e-3)
+    assert solution.possible_grazing_intervals == ()
+
+
+def test_certified_budget_is_enforced() -> None:
+    from lunar_core.events import EventBudgetExceeded
+
+    def margin(t: float) -> float:
+        return -abs(t - 500.0) * 1e-9
+    times = [float(t) for t in range(0, 1001, 100)]
+    with pytest.raises(EventBudgetExceeded):
+        find_visibility_windows(
+            times, [margin(t) for t in times], margin, tolerance_s=1e-9,
+            rate_bound=lambda _a, _b: 1e3, max_subdivision_evaluations=200,
+        )
+
+
+def test_invalid_rate_bound_fails_closed() -> None:
+    times = [0.0, 10.0]
+    with pytest.raises(ValueError, match="rate_bound"):
+        find_visibility_windows(
+            times, [1.0, 1.0], lambda _t: 1.0, rate_bound=lambda _a, _b: float("nan"),
+        )

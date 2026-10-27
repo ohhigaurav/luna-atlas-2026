@@ -130,3 +130,43 @@ def test_invalid_rays_fail_instead_of_being_normalised_silently() -> None:
             reference_radius_m=RADIUS_M,
             max_range_m=100,
         )
+
+
+def _uniform_horizon(elevations):
+    from lunar_core.horizon import HorizonBin, TerrainHorizon
+    step = 360.0 / len(elevations)
+    return TerrainHorizon(
+        reference_radius_m=1_737_400.0, observer_radius_m=1_737_402.0, observer_height_m=2.0,
+        max_range_m=200_000.0,
+        bins=tuple(
+            HorizonBin(azimuth_deg=i * step, elevation_rad=value, controlling_distance_m=1.0,
+                       coverage_status="complete", sample_count=1, nodata_count=0)
+            for i, value in enumerate(elevations)
+        ),
+    )
+
+
+def test_slope_bound_is_local_and_handles_wrap() -> None:
+    from lunar_core.horizon import horizon_slope_bound_rad_per_deg
+
+    elevations = [0.0] * 720
+    elevations[100] = 0.05  # spike at 50 deg: slope 0.1 rad/deg on both sides
+    elevations[719] = 0.02  # step across north: slope 0.04 rad/deg
+    horizon = _uniform_horizon(elevations)
+    assert horizon_slope_bound_rad_per_deg(horizon, 49.6, 50.4) == pytest.approx(0.1)
+    assert horizon_slope_bound_rad_per_deg(horizon, 200.0, 201.0) == 0.0
+    assert horizon_slope_bound_rad_per_deg(horizon, 359.8, 0.2) == pytest.approx(0.04)
+    assert horizon_slope_bound_rad_per_deg(horizon, 0.2, 359.8) == pytest.approx(0.04)
+    # The shorter arc decides: 10 -> 130 passes the spike; 10 -> 250 goes the other way via north.
+    assert horizon_slope_bound_rad_per_deg(horizon, 10.0, 130.0) == pytest.approx(0.1)
+    assert horizon_slope_bound_rad_per_deg(horizon, 10.0, 250.0) == pytest.approx(0.04)
+
+
+def test_slope_bound_over_missing_terrain_is_infinite() -> None:
+    from lunar_core.horizon import horizon_slope_bound_rad_per_deg
+
+    elevations = [0.0] * 720
+    elevations[10] = None
+    horizon = _uniform_horizon(elevations)
+    assert horizon_slope_bound_rad_per_deg(horizon, 4.0, 6.0) == float("inf")
+    assert horizon_slope_bound_rad_per_deg(horizon, 100.0, 101.0) == 0.0

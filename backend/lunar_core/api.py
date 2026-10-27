@@ -199,7 +199,7 @@ def assumptions() -> dict[str, Any]:
         "sun_visibility": "Sun upper limb is visible when elevation + asin(R_sun/r_sun) - local terrain horizon > 0.",
         "earth_visibility": "Earth centre clear is visible when Earth centre elevation - local terrain horizon - user clearance > 0. This is not communication availability.",
         "terrain": "Terrain horizon is the maximum apparent elevation along azimuth rays on a spherical Moon. Any missing/uncovered radial sample makes that azimuth incomplete; no missing value is filled with zero.",
-        "events": "Coarse margin sampling, sign-change brackets, SciPy Brent refinement, plus local-extremum diagnostics. Root tolerance is numerical; arbitrary event completeness is not certified without a bound/adaptive proof.",
+        "events": "Coarse margin sampling, then bisection of every same-sign step whose rate bound (from SPICE azimuth/elevation rates and the local horizon slope) cannot exclude a hidden transition, then SciPy Brent refinement. When rates are available no interval longer than the event tolerance is missed, provided the per-step rate bound holds; sub-tolerance grazes are listed. Each run states whether its discovery was certified.",
         "metrics": "All fractions use the requested interval as denominator and are computed from refined visibility windows. An outage touching an interval edge is a lower bound and marked truncated.",
         "finder": "Windows are computed across the search span extended by the mission duration; candidate windows are clipped to each landing-to-landing+duration interval.",
         "non_claims": [

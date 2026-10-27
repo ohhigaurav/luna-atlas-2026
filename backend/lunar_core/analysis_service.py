@@ -30,7 +30,12 @@ from lunar_core.finder import (
     evaluate_finder_grid,
 )
 from lunar_core.geometry import ObserverSite, SpiceGeometry, TargetDirection
-from lunar_core.horizon import TerrainHorizon, flat_horizon_elevation_rad, interpolate_horizon
+from lunar_core.horizon import (
+    TerrainHorizon,
+    flat_horizon_elevation_rad,
+    horizon_slope_bound_rad_per_deg,
+    interpolate_horizon,
+)
 from lunar_core.kernels import load_kernel_manifest, load_verified_kernels, preflight_kernel_files
 from lunar_core.metrics import AnalysisMetrics, compute_metrics
 from lunar_core.provenance import sha256_file
@@ -45,6 +50,10 @@ RUNS_DIR = PROJECT_ROOT / "data" / "runs"
 MOON_ME_RADIUS_M_DEFAULT = 1_737_400.0
 SUN_RADIUS_M = 695_700_000.0
 EARTH_RADIUS_M = 6_378_136.6
+# Multiplier on the sample-derived angular-rate bound used for certified event discovery.
+RATE_BOUND_SAFETY = 1.5
+# Covers the Sun's semidiameter drift and floating-point noise (rad/s); |d(rho)/dt| ~ 1e-11.
+RATE_BOUND_FLOOR_RAD_S = 1e-10
 
 
 class AnalysisNotReady(RuntimeError):
@@ -237,6 +246,45 @@ def _horizon_at(
     return result.elevation_rad, True
 
 
+def _make_rate_bound(
+    direction: Any,
+    target: str,
+    height_m: float,
+    mode: str,
+    terrain_horizon: TerrainHorizon | None,
+) -> Any:
+    """Build L(a, b) >= max |d(margin)/dt| on [a, b] from SPICE angular rates.
+
+    margin = e(t) + const(t) - H(az(t)), so |dg/dt| <= |de/dt| + |dH/daz| |daz/dt| (+ the Sun
+    semidiameter drift, covered by the floor). The angular rates inside [a, b] are bounded by the
+    larger endpoint rate plus the endpoint change, times ``RATE_BOUND_SAFETY``. That assumes the
+    rates do not swing more inside one step than between its endpoints; for the Sun and Earth
+    seen from the Moon the rates change on a days-long scale, far slower than the coarse step.
+    Returns ``None`` if the geometry did not supply rates (then discovery is not certified).
+    """
+    def rates(et: float) -> tuple[float, float, float] | None:
+        item = direction(et, target, height_m)
+        if item.azimuth_rate_rad_s is None or item.elevation_rate_rad_s is None:
+            return None
+        return item.azimuth_deg, math.degrees(item.azimuth_rate_rad_s), item.elevation_rate_rad_s
+
+    def bound(a: float, b: float) -> float:
+        ra, rb = rates(a), rates(b)
+        if ra is None or rb is None:
+            raise ValueError("geometry stopped supplying angular rates during certified search")
+        az_a, az_rate_a, el_rate_a = ra
+        az_b, az_rate_b, el_rate_b = rb
+        el_bound = max(abs(el_rate_a), abs(el_rate_b)) + abs(el_rate_b - el_rate_a)
+        az_bound_deg = max(abs(az_rate_a), abs(az_rate_b)) + abs(az_rate_b - az_rate_a)
+        if mode == "flat" or terrain_horizon is None:
+            slope = 0.0
+        else:
+            slope = horizon_slope_bound_rad_per_deg(terrain_horizon, az_a, az_b)
+        return RATE_BOUND_SAFETY * (el_bound + slope * az_bound_deg) + RATE_BOUND_FLOOR_RAD_S
+
+    return bound
+
+
 def _sample_et_times(start_et: float, end_et: float, step_s: float) -> list[float]:
     count = int(math.floor((end_et - start_et) / step_s))
     times = [start_et + index * step_s for index in range(count + 1)]
@@ -310,11 +358,25 @@ def _run_one_site(
     sample_times = _sample_et_times(start_et, end_et, run_step_s)
     sun_margins = [sun_margin(epoch) for epoch in sample_times]
     earth_margins = [earth_margin(epoch) for epoch in sample_times]
+    first = sample_times[0]
+    has_rates = all(
+        direction(first, target, height).azimuth_rate_rad_s is not None
+        and direction(first, target, height).elevation_rate_rad_s is not None
+        for target, height in (("SUN", request.sun_observer_height_m), ("EARTH", request.antenna_height_m))
+    )
+    sun_bound = _make_rate_bound(
+        direction, "SUN", request.sun_observer_height_m, request.horizon_mode, sun_terrain_horizon,
+    ) if has_rates else None
+    earth_bound = _make_rate_bound(
+        direction, "EARTH", request.antenna_height_m, request.horizon_mode, earth_terrain_horizon,
+    ) if has_rates else None
     sun_solution = find_visibility_windows(
         sample_times, sun_margins, sun_margin, tolerance_s=request.event_tolerance_s,
+        rate_bound=sun_bound,
     )
     earth_solution = find_visibility_windows(
         sample_times, earth_margins, earth_margin, tolerance_s=request.event_tolerance_s,
+        rate_bound=earth_bound,
     )
     metrics = compute_metrics(
         sun_solution.windows, earth_solution.windows,
@@ -387,12 +449,9 @@ def _run_one_site(
         "earth_windows": [_window_payload(window, geometry) for window in earth_solution.windows],
         "sun_roots": [_root_payload(root, geometry) for root in sun_solution.roots],
         "earth_roots": [_root_payload(root, geometry) for root in earth_solution.roots],
-        "event_precision": {
-            "root_time_tolerance_s": request.event_tolerance_s,
-            "coarse_step_s": run_step_s,
-            "root_method": "SciPy brentq with local extremum diagnostics",
-            "claim": "Numerical tolerance applies to bracketed roots; event completeness is not mathematically certified for arbitrary margin functions.",
-        },
+        "event_precision": _event_precision_payload(
+            request.event_tolerance_s, run_step_s, sun_solution, earth_solution, geometry,
+        ),
     }
     site_windows = SiteVisibilityWindows(
         site_id=site["site_id"],
@@ -400,6 +459,47 @@ def _run_one_site(
         earth_windows=earth_solution.windows,
     )
     return result, site_windows
+
+
+def _event_precision_payload(
+    tolerance_s: float, step_s: float, sun: Any, earth: Any, geometry: SpiceGeometry,
+) -> dict[str, Any]:
+    certified = bool(sun.certified and earth.certified)
+    if certified:
+        claim = (
+            f"Certified discovery: no Sun or Earth visible/non-visible interval longer than "
+            f"{tolerance_s:g} s is missed, provided the target angular rates stay within the "
+            f"per-step bound (endpoint maximum plus endpoint change, x{RATE_BOUND_SAFETY:g}). "
+            "Possible grazes shorter than the tolerance are listed, not hidden."
+        )
+        method = "rate-bounded bisection + SciPy brentq"
+    else:
+        claim = (
+            "Not certified: angular rates were unavailable, so discovery used sign-change brackets "
+            "and local-extremum diagnostics. A short window between two coarse samples can be missed."
+        )
+        method = "SciPy brentq with local extremum diagnostics"
+
+    def grazes(solution: Any) -> list[dict[str, Any]]:
+        return [
+            {"start_utc": geometry.et_to_utc(a), "end_utc": geometry.et_to_utc(b),
+             "start_et_s": a, "end_et_s": b}
+            for a, b in solution.possible_grazing_intervals
+        ]
+
+    return {
+        "root_time_tolerance_s": tolerance_s,
+        "coarse_step_s": step_s,
+        "root_method": method,
+        "discovery_certified": certified,
+        "rate_bound_safety_factor": RATE_BOUND_SAFETY if certified else None,
+        "sun_possible_grazing": grazes(sun),
+        "earth_possible_grazing": grazes(earth),
+        "subdivision_evaluations": {
+            "sun": sun.subdivision_evaluations, "earth": earth.subdivision_evaluations,
+        },
+        "claim": claim,
+    }
 
 
 def _save_run(payload: dict[str, Any]) -> dict[str, Any]:

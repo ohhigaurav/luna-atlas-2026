@@ -80,6 +80,23 @@ class TargetDirection:
     light_time_s: float
     frame: str
     aberration_correction: str
+    # d(azimuth)/dt and d(elevation)/dt from azlcpo's state (rad/s). None when the adapter did not
+    # return velocity components; event discovery then cannot be certified.
+    azimuth_rate_rad_s: float | None = None
+    elevation_rate_rad_s: float | None = None
+
+
+def _rates_from_state(state: Any) -> tuple[float | None, float | None]:
+    """azlcpo returns [range, az, el, d(range)/dt, d(az)/dt, d(el)/dt] in km, rad, rad/s."""
+    try:
+        if len(state) < 6:
+            return None, None
+        az_rate, el_rate = float(state[4]), float(state[5])
+    except (TypeError, ValueError):
+        return None, None
+    if not (isfinite(az_rate) and isfinite(el_rate)):
+        return None, None
+    return az_rate, el_rate
 
 
 class SpiceGeometry:
@@ -253,6 +270,7 @@ class SpiceGeometry:
                     range_km, azimuth_rad, elevation_rad, light_time
                 )) or range_km <= 0:
                     raise ValueError(f"SPICE azlcpo returned an invalid state for {target} at {utc}")
+                az_rate, el_rate = _rates_from_state(state)
                 results.append(TargetDirection(
                     site_id=site.site_id,
                     target=target,
@@ -264,6 +282,8 @@ class SpiceGeometry:
                     light_time_s=light_time,
                     frame=self.frame,
                     aberration_correction=self.aberration_correction,
+                    azimuth_rate_rad_s=az_rate,
+                    elevation_rate_rad_s=el_rate,
                 ))
         return tuple(results)
 
@@ -334,9 +354,11 @@ class SpiceGeometry:
                 raise ValueError(f"SPICE azlcpo returned an invalid state for {target} at ET={et}")
             formatter = getattr(self._spice, "et2utc", None)
             utc = (str(formatter(float(et), "ISOC", 3)).rstrip("Z") + "Z") if formatter else ""
+        az_rate, el_rate = _rates_from_state(state)
         return TargetDirection(
             site_id=site.site_id, target=target, utc=utc, ephemeris_time_s=float(et),
             range_m=range_km * 1_000.0, azimuth_deg=degrees(azimuth_rad) % 360.0,
             elevation_rad=elevation_rad, light_time_s=light_time, frame=self.frame,
             aberration_correction=self.aberration_correction,
+            azimuth_rate_rad_s=az_rate, elevation_rate_rad_s=el_rate,
         )

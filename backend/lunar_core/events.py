@@ -4,6 +4,24 @@ This module deliberately knows nothing about SPICE, terrain rasters, or UTC conv
 caller supplies a continuous margin function in one declared time coordinate. Positive margin
 means visible. All times are seconds in that same coordinate; they must not be labelled UTC
 unless the caller actually supplied UTC elapsed seconds.
+
+Two discovery modes
+-------------------
+*Certified* (``rate_bound`` supplied). The caller provides ``rate_bound(a, b)`` returning
+``L >= max |dg/dt|`` on ``[a, b]``. For samples ``g(a), g(b)`` of the same sign, any function
+with that bound satisfies::
+
+    min g >= (g(a) + g(b) - L (b - a)) / 2      max g <= (g(a) + g(b) + L (b - a)) / 2
+
+so if the relevant bound keeps its sign, no transition can hide between the samples. Otherwise
+the interval is bisected until either the bound clears or the interval is no longer than
+``tolerance_s``. Result: **no visible or non-visible interval longer than ``tolerance_s`` is
+missed, provided the supplied bound is valid.** Leftover sub-tolerance intervals are reported in
+``possible_grazing_intervals`` (a graze or a sub-tolerance event), never silently dropped.
+
+*Heuristic* (no bound). Sign-change brackets plus local-extremum minimisation around sampled
+extrema. Useful, but a short window between two monotone samples can be missed;
+``EventSolution.certified`` is then ``False`` and callers must say so.
 """
 
 from __future__ import annotations
@@ -57,6 +75,68 @@ class EventSolution:
     interval_end_s: float
     windows: tuple[VisibilityWindow, ...]
     roots: tuple[EventRoot, ...]
+    certified: bool = False
+    possible_grazing_intervals: tuple[tuple[float, float], ...] = ()
+    subdivision_evaluations: int = 0
+
+
+class EventBudgetExceeded(ValueError):
+    """Certified subdivision needed more margin evaluations than the configured budget."""
+
+
+RateBound = Callable[[float, float], float]
+
+
+def _certify_samples(
+    times: list[float],
+    values: list[float],
+    evaluate: Callable[[float], float],
+    rate_bound: RateBound,
+    *,
+    tolerance_s: float,
+    zero_margin_tolerance: float,
+    max_evaluations: int,
+) -> tuple[list[float], list[float], list[tuple[float, float]], int]:
+    """Bisect same-sign sample pairs until the rate bound excludes a hidden transition."""
+    out_t: list[float] = [times[0]]
+    out_v: list[float] = [values[0]]
+    suspect: list[tuple[float, float]] = []
+    evaluations = 0
+    for index in range(len(times) - 1):
+        stack: list[tuple[float, float, float, float]] = [
+            (times[index], values[index], times[index + 1], values[index + 1])
+        ]
+        # Depth-first, right half pushed first, so accepted points are emitted in time order.
+        while stack:
+            a, ga, b, gb = stack.pop()
+            same_sign = (
+                (ga > zero_margin_tolerance and gb > zero_margin_tolerance)
+                or (ga < -zero_margin_tolerance and gb < -zero_margin_tolerance)
+            )
+            if same_sign:
+                bound = float(rate_bound(a, b))
+                if not isfinite(bound) or bound < 0:
+                    raise ValueError(f"rate_bound returned an invalid value {bound!r} on [{a}, {b}]")
+                half_width = 0.5 * bound * (b - a)
+                mean = 0.5 * (ga + gb)
+                safe = (mean - half_width > 0.0) if ga > 0 else (mean + half_width < 0.0)
+                if not safe:
+                    if b - a > tolerance_s:
+                        mid = 0.5 * (a + b)
+                        evaluations += 1
+                        if evaluations > max_evaluations:
+                            raise EventBudgetExceeded(
+                                f"certified event search exceeded {max_evaluations} margin evaluations; "
+                                "increase event_tolerance_s or reduce the interval"
+                            )
+                        gm = evaluate(mid)
+                        stack.append((mid, gm, b, gb))
+                        stack.append((a, ga, mid, gm))
+                        continue
+                    suspect.append((a, b))
+            out_t.append(b)
+            out_v.append(gb)
+    return out_t, out_v, suspect, evaluations
 
 
 def find_visibility_windows(
@@ -67,6 +147,8 @@ def find_visibility_windows(
     tolerance_s: float = 1.0,
     zero_margin_tolerance: float = 1e-12,
     grazing_margin_tolerance: float = 1e-8,
+    rate_bound: RateBound | None = None,
+    max_subdivision_evaluations: int = 200_000,
 ) -> EventSolution:
     """Find intervals where ``margin_function(t) > 0`` and refine transition times.
 
@@ -84,9 +166,13 @@ def find_visibility_windows(
         grazing_margin_tolerance: Margin magnitude within which an optimised local extremum is
             reported as a possible grazing event. This is a numerical diagnostic, not physical
             uncertainty.
+        rate_bound: Optional ``L(a, b) >= max |dg/dt|`` on ``[a, b]``. Enables certified
+            discovery (see module docstring); the extremum heuristic is then not needed.
+        max_subdivision_evaluations: Budget for extra margin evaluations in certified mode.
 
     Raises:
         ValueError: If samples, tolerances, or evaluated margins are invalid.
+        EventBudgetExceeded: If certified subdivision exceeds its evaluation budget.
     """
     times = tuple(float(t) for t in sample_times_s)
     values = tuple(float(v) for v in sampled_margins)
@@ -117,6 +203,19 @@ def find_visibility_windows(
         if value < -zero_margin_tolerance:
             return -1
         return 0
+
+    certified = rate_bound is not None
+    suspect_intervals: list[tuple[float, float]] = []
+    subdivision_evaluations = 0
+    if rate_bound is not None:
+        if max_subdivision_evaluations < 0:
+            raise ValueError("max_subdivision_evaluations must be non-negative")
+        refined_t, refined_v, suspect_intervals, subdivision_evaluations = _certify_samples(
+            list(times), list(values), evaluate, rate_bound,
+            tolerance_s=tolerance_s, zero_margin_tolerance=zero_margin_tolerance,
+            max_evaluations=max_subdivision_evaluations,
+        )
+        times, values = tuple(refined_t), tuple(refined_v)
 
     roots: list[EventRoot] = []
     # Ordinary sign-change brackets.
@@ -165,7 +264,9 @@ def find_visibility_windows(
 
     # Grazing check: a local minimum while visible, or a local maximum while not visible, may
     # hide a short interval between coarse samples. Optimise only these candidate extrema.
-    for index in range(1, len(times) - 1):
+    # In certified mode the rate bound has already excluded hidden transitions longer than the
+    # tolerance, so this heuristic pass is skipped.
+    for index in range(1, len(times) - 1 if not certified else 1):
         left, centre, right = values[index - 1], values[index], values[index + 1]
         left_sign, centre_sign, right_sign = sign(left), sign(centre), sign(right)
         if left_sign == right_sign == 1 and centre <= left and centre <= right:
@@ -278,9 +379,23 @@ def find_visibility_windows(
             end_method="interval_boundary" if right_root is None else right_root.method,
         ))
 
+    # A suspect interval that shares an endpoint with a sign-change bracket is root ambiguity
+    # next to a refined crossing, not a separate graze.
+    bracket_ends = {
+        t for i in range(len(times) - 1)
+        if sign(values[i]) * sign(values[i + 1]) == -1
+        for t in (times[i], times[i + 1])
+    }
+    grazing = tuple(
+        (a, b) for a, b in suspect_intervals if a not in bracket_ends and b not in bracket_ends
+    )
+
     return EventSolution(
         interval_start_s=start_s,
         interval_end_s=end_s,
         windows=tuple(windows),
         roots=tuple(roots),
+        certified=certified,
+        possible_grazing_intervals=grazing,
+        subdivision_evaluations=subdivision_evaluations,
     )

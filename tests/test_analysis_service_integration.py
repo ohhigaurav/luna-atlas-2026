@@ -150,3 +150,55 @@ def test_finder_service_runs_from_same_pipeline_and_saves_failure_reasons(
     assert all(cell["first_failed_constraint"] for cell in result["grid"])
     assert all(cell["failures"] for cell in result["grid"])
     assert analysis_service.load_saved_run(result["run_id"])["grid"] == result["grid"]
+
+
+class RatedSyntheticGeometry(SyntheticGeometry):
+    """Same synthetic motion, but also returns analytic angular rates like SPICE azlcpo."""
+
+    def direction_at_et(self, site, et_s, *, target, observer_height_m):  # type: ignore[no-untyped-def]
+        from dataclasses import replace
+        from math import cos
+
+        base = super().direction_at_et(site, et_s, target=target, observer_height_m=observer_height_m)
+        omega = 2.0 * pi / 43_200.0
+        phase = omega * (et_s - self.origin_et)
+        el_rate = 0.10 * omega * cos(phase) if target == "SUN" else 0.0
+        return replace(base, azimuth_rate_rad_s=omega, elevation_rate_rad_s=el_rate)
+
+
+def test_analysis_reports_certified_discovery_when_geometry_supplies_rates(
+    synthetic_service_environment: SyntheticGeometry, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    geometry = RatedSyntheticGeometry()
+    monkeypatch.setattr(
+        analysis_service, "_spice_runtime",
+        lambda: (object(), geometry, "a" * 64, [{"kernel_id": "synthetic", "path": "x", "sha256": "a" * 64}]),
+    )
+    request = AnalysisRequest(
+        site_ids=[TEST_SITE["site_id"]], start_utc="2027-01-01T00:00:00Z",
+        end_utc="2027-01-02T00:00:00Z", coarse_step_min=30, event_tolerance_s=0.1,
+        horizon_mode="flat",
+    )
+    result = analysis_service.run_analysis(request)
+    precision = result["sites"][0]["event_precision"]
+    assert precision["discovery_certified"] is True
+    assert precision["sun_possible_grazing"] == []
+    # Synthetic 12 h "day" over 24 h: visible at the start, one full window, visible at the end.
+    windows = result["sites"][0]["sun_windows"]
+    assert len(windows) == 3
+    assert windows[0]["start_truncated"] and windows[-1]["end_truncated"]
+    assert not windows[1]["start_truncated"] and not windows[1]["end_truncated"]
+    assert windows[1]["duration_s"] > 20_000
+
+
+def test_analysis_without_rates_is_explicitly_not_certified(
+    synthetic_service_environment: SyntheticGeometry,
+) -> None:
+    request = AnalysisRequest(
+        site_ids=[TEST_SITE["site_id"]], start_utc="2027-01-01T00:00:00Z",
+        end_utc="2027-01-02T00:00:00Z", coarse_step_min=30, event_tolerance_s=0.1,
+        horizon_mode="flat",
+    )
+    precision = analysis_service.run_analysis(request)["sites"][0]["event_precision"]
+    assert precision["discovery_certified"] is False
+    assert "Not certified" in precision["claim"]

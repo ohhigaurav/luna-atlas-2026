@@ -189,6 +189,41 @@ def calculate_terrain_horizon(
     )
 
 
+def horizon_slope_bound_rad_per_deg(
+    horizon: TerrainHorizon, azimuth_a_deg: float, azimuth_b_deg: float
+) -> float:
+    """Upper bound on |dH/d(azimuth)| of the linear interpolant over the arc from a to b.
+
+    The arc is the shorter one between the two azimuths, widened by one bin on each side so a
+    target whose azimuth overshoots slightly inside the step is still covered. Missing bins give
+    ``inf`` (no bound can be certified over unknown terrain).
+    """
+    if not (isfinite(azimuth_a_deg) and isfinite(azimuth_b_deg)):
+        raise ValueError("azimuths must be finite")
+    bins = horizon.bins
+    n = len(bins)
+    if n < 2:
+        return float("inf")
+    step = 360.0 / n
+    for index, item in enumerate(bins):
+        if abs(item.azimuth_deg - index * step) > 1e-6:
+            raise ValueError("slope bound requires uniformly spaced horizon bins starting at 0 deg")
+    elevations = [item.elevation_rad for item in bins]
+    slopes: list[float] = []
+    for index in range(n):
+        left, right = elevations[index], elevations[(index + 1) % n]
+        slopes.append(float("inf") if left is None or right is None else abs(right - left) / step)
+
+    delta = (azimuth_b_deg - azimuth_a_deg + 180.0) % 360.0 - 180.0
+    start = (azimuth_a_deg if delta >= 0 else azimuth_b_deg) % 360.0
+    span = abs(delta)
+    if span + 2 * step >= 180.0:
+        return max(slopes)
+    first = int(start // step) - 1
+    last = int((start + span) // step) + 1
+    return max(slopes[k % n] for k in range(first, last + 1))
+
+
 def interpolate_horizon(horizon: TerrainHorizon, azimuth_deg: float) -> InterpolatedHorizon:
     """Linearly interpolate H(a) with wrap-around at 0°/360° (PRD SR-04).
 
