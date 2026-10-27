@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-from typing import Any
 
 import numpy as np
 import pytest
@@ -25,11 +24,30 @@ class Affine2:
     def __invert__(self) -> Affine2:
         return Affine2(self.x0, self.y0, self.res, not self.inverse)
 
-    def __mul__(self, xy: tuple[Any, Any]) -> tuple[Any, Any]:
-        a, b = (np.asarray(v, dtype=float) for v in xy)
-        if self.inverse:  # (x, y) -> (col, row)
-            return (a - self.x0) / self.res, (self.y0 - b) / self.res
-        return self.x0 + a * self.res, self.y0 - b * self.res
+    # Coefficients in affine's convention: x' = a*x + b*y + c, y' = d*x + e*y + f.
+    @property
+    def a(self) -> float:
+        return 1.0 / self.res if self.inverse else self.res
+
+    @property
+    def b(self) -> float:
+        return 0.0
+
+    @property
+    def c(self) -> float:
+        return -self.x0 / self.res if self.inverse else self.x0
+
+    @property
+    def d(self) -> float:
+        return 0.0
+
+    @property
+    def e(self) -> float:
+        return -1.0 / self.res if self.inverse else -self.res
+
+    @property
+    def f(self) -> float:
+        return self.y0 / self.res if self.inverse else self.y0
 
 
 class FakeDataset:

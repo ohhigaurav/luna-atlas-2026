@@ -480,7 +480,11 @@ def _sample_dataset_bilinear(dataset: Any, xs: Any, ys: Any, units: str) -> Any:
 
     xs = np.asarray(xs, dtype=float)
     ys = np.asarray(ys, dtype=float)
-    cols_f, rows_f = (~dataset.transform) * (xs, ys)
+    # Apply the inverse affine coefficients directly: affine 3.x deprecates `*` on tuples and
+    # `@` is not available in older affine releases.
+    inv = ~dataset.transform
+    cols_f = inv.a * xs + inv.b * ys + inv.c
+    rows_f = inv.d * xs + inv.e * ys + inv.f
     cols_f = np.asarray(cols_f, dtype=float)
     rows_f = np.asarray(rows_f, dtype=float)
     height, width = int(dataset.height), int(dataset.width)
@@ -576,7 +580,8 @@ def build_horizon_from_dem_assets(
         for item, ds, transformer in open_assets:
             if not (item.asset.min_range_m <= 0 <= item.asset.max_range_m):
                 continue
-            x, y = transformer.transform(np.array([origin_lon]), np.array([origin_lat]))
+            x0, y0 = transformer.transform(float(origin_lon), float(origin_lat))
+            x, y = np.array([float(x0)]), np.array([float(y0)])
             sampled = _sample_dataset_bilinear(ds, x, y, item.asset.elevation_units)
             if np.isfinite(sampled[0]):
                 site_ground_elevation = float(sampled[0])
