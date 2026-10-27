@@ -13,6 +13,7 @@ import math
 import os
 import platform
 import tempfile
+import threading
 import uuid
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
@@ -36,7 +37,12 @@ from lunar_core.horizon import (
     horizon_slope_bound_rad_per_deg,
     interpolate_horizon,
 )
-from lunar_core.kernels import load_kernel_manifest, load_verified_kernels, preflight_kernel_files
+from lunar_core.kernels import (
+    KernelLoadReport,
+    load_kernel_manifest,
+    load_verified_kernels,
+    preflight_kernel_files,
+)
 from lunar_core.metrics import AnalysisMetrics, compute_metrics
 from lunar_core.provenance import sha256_file
 from lunar_core.spk_coverage import SPKCoverageError, assert_required_spk_coverage
@@ -126,6 +132,37 @@ def _load_sites() -> dict[str, dict[str, Any]]:
     return records
 
 
+# One analysis/finder run at a time. CSPICE calls are already serialised by SPICE_LOCK, so
+# parallel runs would gain nothing; serialising whole runs guarantees the kernel pool cannot be
+# reloaded underneath a run that is still evaluating geometry.
+_RUN_LOCK = threading.Lock()
+# (manifest sha256, ((kernel_id, sha256), ...)) of the pool currently furnished, plus its report.
+_LOADED_KERNELS: tuple[tuple[str, tuple[tuple[str, str], ...]], KernelLoadReport] | None = None
+
+
+def _ensure_kernels_loaded(spiceypy: Any) -> KernelLoadReport:
+    """Furnish the verified kernel set once per process; reload only if its bytes changed.
+
+    Preflight re-hashes every file on each call (cheap next to an analysis), so a modified or
+    replaced kernel is still detected. Only an unchanged, already-furnished set is reused.
+    """
+    global _LOADED_KERNELS
+    preflight = preflight_kernel_files(KERNEL_MANIFEST, PROJECT_ROOT)
+    if not preflight.ready_to_load:
+        detail = "; ".join(preflight.issues) or "kernel manifest is not configured"
+        raise AnalysisNotReady(f"SPICE kernel preflight failed: {detail}")
+    key = (
+        preflight.manifest_sha256,
+        tuple((item.asset.kernel_id, item.actual_sha256) for item in preflight.verified_kernels),
+    )
+    if _LOADED_KERNELS is not None and _LOADED_KERNELS[0] == key:
+        return _LOADED_KERNELS[1]
+    _LOADED_KERNELS = None
+    report = load_verified_kernels(KERNEL_MANIFEST, PROJECT_ROOT, spiceypy)
+    _LOADED_KERNELS = (key, report)
+    return report
+
+
 def _spice_runtime() -> tuple[Any, SpiceGeometry, str, list[dict[str, Any]]]:
     try:
         import spiceypy
@@ -133,17 +170,15 @@ def _spice_runtime() -> tuple[Any, SpiceGeometry, str, list[dict[str, Any]]]:
         raise AnalysisNotReady(
             "SpiceyPy is not installed. Install the locked project environment before running real analysis."
         ) from exc
-    preflight = preflight_kernel_files(KERNEL_MANIFEST, PROJECT_ROOT)
-    if not preflight.ready_to_load:
-        detail = "; ".join(preflight.issues) or "kernel manifest is not configured"
-        raise AnalysisNotReady(f"SPICE kernel preflight failed: {detail}")
     try:
-        load_report = load_verified_kernels(KERNEL_MANIFEST, PROJECT_ROOT, spiceypy)
+        load_report = _ensure_kernels_loaded(spiceypy)
         geometry = SpiceGeometry.from_spiceypy(
             frame="MOON_ME",
             observer_center="MOON",
             aberration_correction="LT+S",
         )
+    except AnalysisNotReady:
+        raise
     except Exception as exc:
         raise AnalysisNotReady(f"SPICE kernel/geometry initialisation failed: {type(exc).__name__}: {exc}") from exc
     manifest = load_kernel_manifest(KERNEL_MANIFEST)
@@ -522,6 +557,11 @@ def _save_run(payload: dict[str, Any]) -> dict[str, Any]:
 
 def run_analysis(request: AnalysisRequest) -> dict[str, Any]:
     """Run a real SPICE-backed analysis and persist a provenance-complete result."""
+    with _RUN_LOCK:
+        return _run_analysis_locked(request)
+
+
+def _run_analysis_locked(request: AnalysisRequest) -> dict[str, Any]:
     sites = _load_sites()
     missing = [site_id for site_id in request.site_ids if site_id not in sites]
     if missing:
@@ -617,6 +657,11 @@ def _git_commit() -> str | None:
 
 def run_finder(request: FinderRequest) -> dict[str, Any]:
     """Compute a single continuous window set, then evaluate each candidate landing start."""
+    with _RUN_LOCK:
+        return _run_finder_locked(request)
+
+
+def _run_finder_locked(request: FinderRequest) -> dict[str, Any]:
     sites = _load_sites()
     missing = [site_id for site_id in request.site_ids if site_id not in sites]
     if missing:

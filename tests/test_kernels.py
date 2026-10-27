@@ -183,3 +183,51 @@ def test_preflight_rejects_size_mismatch_before_hash_acceptance(tmp_path: Path) 
     report = preflight_kernel_files(manifest_path, tmp_path)
     assert not report.ready_to_load
     assert any("size mismatch" in issue for issue in report.issues)
+
+
+def test_analysis_kernel_pool_is_loaded_once_and_reloaded_only_when_bytes_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from lunar_core import analysis_service
+
+    manifest_path = write_manifest(tmp_path)
+    monkeypatch.setattr(analysis_service, "KERNEL_MANIFEST", manifest_path)
+    monkeypatch.setattr(analysis_service, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(analysis_service, "_LOADED_KERNELS", None)
+    pool = FakeKernelPool()
+
+    first = analysis_service._ensure_kernels_loaded(pool)
+    second = analysis_service._ensure_kernels_loaded(pool)
+    assert second is first
+    assert pool.kclear_calls == 1  # no kclear/furnsh on the second request
+    assert len(pool.furnsh_calls) == 5
+
+    # Replace a kernel's bytes and update the manifest accordingly: the pool must be reloaded.
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    new_bytes = b"replacement kernel bytes"
+    (tmp_path / "kernels" / "spk-test.bin").write_bytes(new_bytes)
+    for record in manifest["kernels"]:
+        if record["kernel_id"] == "spk-test":
+            record["sha256"] = hashlib.sha256(new_bytes).hexdigest()
+            record["size_bytes"] = len(new_bytes)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    third = analysis_service._ensure_kernels_loaded(pool)
+    assert third is not first
+    assert pool.kclear_calls == 2
+    assert len(pool.furnsh_calls) == 10
+
+
+def test_analysis_kernel_pool_refuses_tampered_bytes_even_when_cached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from lunar_core import analysis_service
+
+    manifest_path = write_manifest(tmp_path)
+    monkeypatch.setattr(analysis_service, "KERNEL_MANIFEST", manifest_path)
+    monkeypatch.setattr(analysis_service, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(analysis_service, "_LOADED_KERNELS", None)
+    pool = FakeKernelPool()
+    analysis_service._ensure_kernels_loaded(pool)
+    (tmp_path / "kernels" / "lsk-test.bin").write_bytes(b"test kernel bytes: lsk-tesX")
+    with pytest.raises(analysis_service.AnalysisNotReady, match="SHA-256 mismatch"):
+        analysis_service._ensure_kernels_loaded(pool)
