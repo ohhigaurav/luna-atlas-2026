@@ -169,3 +169,14 @@ def test_ray_grid_matches_spherical_forward_geodesic() -> None:
     # ... while 20 km crosses the pole onto the opposite meridian.
     assert lat[2] == pytest.approx(-90.0 + (2 * step_deg - 0.5), abs=1e-9)
     assert lon[2] == pytest.approx(42.0, abs=1e-6)
+
+
+def test_nodata_is_json_safe_for_run_and_cache_files() -> None:
+    import json
+
+    from lunar_core.terrain import json_safe_nodata
+
+    assert json_safe_nodata(float("nan")) == "NaN"
+    assert json_safe_nodata(-9999.0) == -9999.0
+    assert json_safe_nodata(None) is None
+    json.dumps({"raster_nodata": json_safe_nodata(float("nan"))}, allow_nan=False)

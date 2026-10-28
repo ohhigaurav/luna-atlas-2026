@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 from lunar_core.provenance import sha256_file  # noqa: E402
-from lunar_core.terrain import DEMAsset, DEMManifest  # noqa: E402
+from lunar_core.terrain import DEMAsset, DEMManifest, json_safe_nodata  # noqa: E402
 
 PGDA_HOSTS = {"pgda.gsfc.nasa.gov"}
 BODY_RADIUS_M = 1_737_400.0
@@ -220,7 +220,7 @@ def _metadata(path: Path, sites: list[dict[str, Any]]) -> dict[str, Any]:
             "crs": ds.crs.to_string(),
             "bounds": [float(v) for v in ds.bounds],
             "transform": [float(v) for v in tuple(ds.transform)[:6]],
-            "nodata": ds.nodata,
+            "nodata": json_safe_nodata(ds.nodata),
             "dtype": ds.dtypes[0],
             "scales": [float(v) for v in ds.scales],
             "offsets": [float(v) for v in ds.offsets],

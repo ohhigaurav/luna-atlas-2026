@@ -347,6 +347,14 @@ def _source_lunar_crs(body_radius_m: float) -> Any:
     return CRS.from_proj4(f"+proj=longlat +R={body_radius_m:.3f} +no_defs +type=crs")
 
 
+def json_safe_nodata(value: Any) -> float | str | None:
+    """Raster NoData for JSON output: NaN (common in LOLA GeoTIFFs) becomes the string "NaN"."""
+    if value is None:
+        return None
+    number = float(value)
+    return "NaN" if math.isnan(number) else number
+
+
 _ELEVATION_TO_METRES = {"m": 1.0, "km": 1000.0, "cm": 0.01, "mm": 0.001}
 
 
@@ -718,7 +726,7 @@ def build_horizon_from_dem_assets(
                 "raster_crs": ds.crs.to_string(),
                 "raster_width": ds.width,
                 "raster_height": ds.height,
-                "raster_nodata": ds.nodata,
+                "raster_nodata": json_safe_nodata(ds.nodata),
                 "raster_scales": tuple(float(v) for v in ds.scales),
                 "raster_offsets": tuple(float(v) for v in ds.offsets),
                 "elevation_units": item.asset.elevation_units,
