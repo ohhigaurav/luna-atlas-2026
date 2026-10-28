@@ -358,15 +358,18 @@ def _physical_elevation_array_m(dataset: Any, samples: Any, units: str) -> Any:
     """
     import numpy as np
 
+    # numpy.ma has no type information in the pinned NumPy stubs; use it through Any.
+    ma: Any = np.ma
+
     if units not in _ELEVATION_TO_METRES:
         raise DEMManifestError(f"Unsupported DEM elevation units: {units!r}")
     try:
-        batch = np.ma.asarray(samples)
+        batch = ma.asarray(samples)
         if batch.ndim != 2 or batch.shape[1] < 1:
             raise ValueError("expected a 2-D batch of raster band samples")
         raw_sample = batch[:, 0]
-        raw = np.asarray(np.ma.getdata(raw_sample), dtype=float)
-        invalid = np.ma.getmaskarray(raw_sample).copy() | ~np.isfinite(raw)
+        raw = np.asarray(ma.getdata(raw_sample), dtype=np.float64)
+        invalid = np.asarray(ma.getmaskarray(raw_sample), dtype=bool).copy() | ~np.isfinite(raw)
     except (TypeError, ValueError) as exc:
         raise DEMManifestError(f"Invalid DEM sample batch: {exc}") from exc
 
@@ -394,10 +397,13 @@ def _physical_grid_m(dataset: Any, raw: Any, units: str) -> Any:
     """Convert a masked raster window to metres (float64), NoData/masked/non-finite -> NaN."""
     import numpy as np
 
+    # numpy.ma has no type information in the pinned NumPy stubs; use it through Any.
+    ma: Any = np.ma
+
     if units not in _ELEVATION_TO_METRES:
         raise DEMManifestError(f"Unsupported DEM elevation units: {units!r}")
-    data = np.asarray(np.ma.getdata(raw), dtype=float)
-    invalid = np.ma.getmaskarray(raw) | ~np.isfinite(data)
+    data = np.asarray(ma.getdata(raw), dtype=np.float64)
+    invalid = np.asarray(ma.getmaskarray(raw), dtype=bool) | ~np.isfinite(data)
     nodata = dataset.nodata
     if nodata is not None:
         invalid |= np.isclose(data, float(nodata), rtol=0.0, atol=1e-12)
