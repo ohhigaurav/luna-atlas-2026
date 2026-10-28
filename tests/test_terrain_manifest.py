@@ -128,7 +128,8 @@ def test_dem_scale_offset_and_declared_units_are_applied_to_metres(tmp_path: Pat
     assert metadata["assets"][0]["elevation_units"] == "km"
 
 
-def test_radial_sampling_never_oversamples_beyond_declared_dem_pixel_size(tmp_path: Path) -> None:
+def test_near_field_is_sampled_densely_even_on_a_coarse_dem_but_far_field_is_not(tmp_path: Path) -> None:
+    """D-19: inside near_range every ray reads the bilinear surface at near_step_m."""
     manifest_path, _ = _make_project(tmp_path, verified=True, resolution=80.0)
     horizon, _ground, metadata = build_cached_horizon_from_dem_assets(
         "reference-test-site", -85.0, 0.0, observer_height_m=2.0,
@@ -137,10 +138,35 @@ def test_radial_sampling_never_oversamples_beyond_declared_dem_pixel_size(tmp_pa
         manifest_path=manifest_path, project_root=tmp_path,
     )
     assert len(horizon.bins) == 36
-    assert metadata["radial_sample_count"] < 20
-    assert metadata["radial_sampling_segments"][0]["native_resolution_m"] == 80.0
-    assert metadata["radial_sampling_segments"][0]["effective_step_m"] == 80.0
-    assert metadata["near_step_m_requested"] == 5.0
+    near, far = metadata["radial_sampling_segments"][:2]
+    assert (near["start_m"], near["end_m"], near["effective_step_m"]) == (0.0, 500.0, 5.0)
+    assert near["native_resolution_m"] == 80.0
+    assert (far["start_m"], far["effective_step_m"]) == (500.0, 100.0)
+    assert metadata["radial_sample_count"] == 100 + 5 + 1  # 0..495 by 5, 500..900 by 100, 1000
+
+
+def test_dense_near_field_horizon_is_never_lower_than_coarse_sampling(tmp_path: Path) -> None:
+    """Coarse sample distances are a subset of the dense ones, so the dense horizon is >= everywhere,
+    and on rough terrain it is strictly higher somewhere (what D-19 fixes)."""
+    manifest_path, _ = _make_project(tmp_path, verified=True, resolution=80.0)
+    raster_path = tmp_path / "data/dems/assets/synthetic-flat.tif"
+    rng = np.random.default_rng(19)
+    with rasterio.open(raster_path, "r+") as raster:
+        raster.write(rng.uniform(-20.0, 20.0, (800, 800)).astype(np.float32), 1)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["assets"][0]["sha256"] = sha256_file(raster_path)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    common = dict(
+        site_id="reference-test-site", latitude_deg=-85.0, longitude_deg=0.0, observer_height_m=2.0,
+        reference_radius_m=RADIUS_M, max_range_m=1_000.0, azimuth_step_deg=10.0, near_step_m=5.0,
+        far_step_m=80.0, manifest_path=manifest_path, project_root=tmp_path,
+    )
+    dense, _g1, _m1 = build_cached_horizon_from_dem_assets(**common, near_range_m=999.0)
+    coarse, _g2, meta = build_cached_horizon_from_dem_assets(**common, near_range_m=5.0)
+    assert meta["radial_sampling_segments"][1]["effective_step_m"] == 80.0
+    diffs = [d.elevation_rad - c.elevation_rad for d, c in zip(dense.bins, coarse.bins, strict=True)]
+    assert min(diffs) >= -1e-12
+    assert max(diffs) > np.radians(0.05)
 
 
 def test_vectorized_raster_samples_preserve_mask_nodata_scale_offset_and_units() -> None:

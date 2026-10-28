@@ -668,10 +668,14 @@ def build_horizon_from_dem_assets(
         if not math.isclose(count * azimuth_step_deg, 360.0, abs_tol=1e-8):
             raise ValueError("azimuth_step_deg must divide 360 exactly")
 
-        # Adapt radial sampling to the native resolution actually available at each range.
-        # A 5 m requested step is suitable for Product 78's 5 m tiles, but sampling Product 90's
-        # 240 m raster every 5 m only multiplies I/O and does not create 5 m information. Include
-        # each asset range boundary so high-resolution near-field sampling is retained where it exists.
+        # Radial sampling (D-19, 2026-10-28). Inside ``near_range_m`` every ray is sampled at
+        # ``near_step_m`` whatever the DEM resolution: the bilinear surface of a coarse DEM still
+        # changes between its pixel centres, and on a steep slope next to the observer the
+        # highest apparent angle lies between them (Malapert on the 240 m DEM: the northern
+        # horizon was ~2 deg too low at a 240 m step). This adds no terrain detail; it reads the
+        # interpolated surface faithfully. Beyond the near range the step is
+        # max(far_step_m, native resolution), so distant coarse terrain is not oversampled.
+        # Asset range boundaries are segment edges so each segment has one resolution.
         boundaries = sorted({
             0.0, near_range_m, max_range_m,
             *(max(0.0, min(max_range_m, item.asset.min_range_m)) for item, _ds, _tr in open_assets),
@@ -690,7 +694,10 @@ def build_horizon_from_dem_assets(
                 if item.asset.min_range_m <= midpoint <= item.asset.max_range_m
             ]
             native_resolution = min(eligible_resolutions) if eligible_resolutions else None
-            step = max(base_step, native_resolution) if native_resolution is not None else base_step
+            if midpoint < near_range_m or native_resolution is None:
+                step = base_step
+            else:
+                step = max(base_step, native_resolution)
             chunk = np.arange(segment_start, segment_end, step, dtype=float)
             distance_chunks.append(chunk)
             sampling_segments.append({
@@ -824,7 +831,7 @@ def build_horizon_from_dem_assets(
     return horizon, site_ground_elevation, metadata
 
 
-HORIZON_ALGORITHM_VERSION = "terrain-horizon-2.0-windowed-bilinear-nested-fallback"
+HORIZON_ALGORITHM_VERSION = "terrain-horizon-2.1-dense-near-field"
 
 
 def _horizon_cache_key(
