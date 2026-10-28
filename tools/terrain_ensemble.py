@@ -45,12 +45,17 @@ def main() -> int:
         sun_observer_height_m=args.height, antenna_height_m=args.height,
     )
 
+    shown_errors: list[str] = []
+
     def progress(done: int, total: int, record: dict[str, Any]) -> None:
         if record["status"] == "ok":
             detail = (f"sunlit {record['sunlit_percent']:5.1f}%  earth {record['dte_clear_percent']:5.1f}%  "
                       f"both {record['both_percent']:5.1f}%  ground {record['ground_elevation_m']:8.2f} m")
+        elif not shown_errors or record["error"] != shown_errors[-1]:
+            shown_errors.append(record["error"])
+            detail = "unavailable: " + record["error"]
         else:
-            detail = "unavailable: " + record["error"][:90]
+            detail = "unavailable: (same error as above)"
         print(f"  [{done:3d}/{total}] {record['member']:10s} {detail}", flush=True)
 
     clones = sorted(args.clones)

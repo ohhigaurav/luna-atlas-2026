@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -20,12 +21,14 @@ KWARGS = dict(
 )
 
 
-def _write_like(base: Path, target: Path, values: np.ndarray, *, shift_m: float = 0.0) -> Path:
+def _write_like(base: Path, target: Path, values: np.ndarray, *, shift_m: float = 0.0, crs: Any = None) -> Path:
     with rasterio.open(base) as src:
         profile = src.profile
         if shift_m:
             t = src.transform
             profile["transform"] = from_origin(t.c + shift_m, t.f, t.a, -t.e)
+        if crs is not None:
+            profile["crs"] = crs
     target.parent.mkdir(parents=True, exist_ok=True)
     with rasterio.open(target, "w", **profile) as dst:
         dst.write(values.astype(np.float32), 1)
@@ -57,7 +60,7 @@ def test_override_with_a_different_grid_is_refused(tmp_path: Path) -> None:
     manifest_path, asset_id = _make_project(tmp_path)
     base = tmp_path / "data/dems/assets/synthetic-flat.tif"
     shifted = _write_like(base, tmp_path / "data/dems/clones/shifted.tif", np.zeros((800, 800)), shift_m=5.0)
-    with pytest.raises(DEMManifestError, match="does not share"):
+    with pytest.raises(DEMManifestError, match="transform"):
         build_cached_horizon_from_dem_assets(
             **KWARGS, manifest_path=manifest_path, project_root=tmp_path, asset_overrides={asset_id: shifted},
         )
@@ -74,3 +77,34 @@ def test_override_must_name_a_selected_asset_and_live_under_the_project(tmp_path
         build_cached_horizon_from_dem_assets(**kwargs, asset_overrides={"no-such-asset": base})
     with pytest.raises(DEMManifestError, match="under the project root"):
         build_cached_horizon_from_dem_assets(**kwargs, asset_overrides={asset_id: outside})
+
+
+def test_clone_whose_crs_differs_only_in_names_is_accepted(tmp_path: Path) -> None:
+    """PGDA clones label the Moon sphere "unknown"; the geodetic definition is what matters."""
+    from pyproj import CRS
+    from rasterio.crs import CRS as RioCRS
+
+    manifest_path, asset_id = _make_project(tmp_path, pixel_value=4.0)
+    base = tmp_path / "data/dems/assets/synthetic-flat.tif"
+    with rasterio.open(base) as src:
+        wkt = CRS.from_user_input(src.crs.to_wkt()).to_wkt()
+    renamed = wkt.replace('"unknown"', '"Renamed lunar sphere"')
+    assert renamed != wkt
+    clone = _write_like(base, tmp_path / "data/dems/clones/renamed.tif", np.full((800, 800), 6.0),
+                        crs=RioCRS.from_wkt(renamed))
+    _h, ground, meta = build_cached_horizon_from_dem_assets(
+        **KWARGS, manifest_path=manifest_path, project_root=tmp_path, asset_overrides={asset_id: clone},
+    )
+    assert ground == pytest.approx(6.0)
+    assert meta["asset_overrides"][0]["asset_id"] == asset_id
+
+
+def test_clone_with_a_different_projection_is_refused(tmp_path: Path) -> None:
+    manifest_path, asset_id = _make_project(tmp_path)
+    base = tmp_path / "data/dems/assets/synthetic-flat.tif"
+    other = f"+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=90 +R={RADIUS_M} +units=m +no_defs +type=crs"
+    clone = _write_like(base, tmp_path / "data/dems/clones/rotated.tif", np.zeros((800, 800)), crs=other)
+    with pytest.raises(DEMManifestError, match="CRS differs"):
+        build_cached_horizon_from_dem_assets(
+            **KWARGS, manifest_path=manifest_path, project_root=tmp_path, asset_overrides={asset_id: clone},
+        )

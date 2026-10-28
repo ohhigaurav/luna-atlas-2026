@@ -150,7 +150,9 @@ def run_terrain_ensemble(
         "perturbed_asset_id": asset_id,
         "member_count": len(clones),
         "members_ok": len(ok),
-        "all_certified": bool(nominal["discovery_certified"]) and all(m["discovery_certified"] for m in ok),
+        "all_certified": bool(ok) and bool(nominal["discovery_certified"]) and all(
+            m["discovery_certified"] for m in ok
+        ),
         "settings": {
             "start_utc": ctx.start_utc, "end_utc": ctx.end_utc,
             "coarse_step_min": request.coarse_step_min, "event_tolerance_s": request.event_tolerance_s,

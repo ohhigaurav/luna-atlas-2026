@@ -383,6 +383,41 @@ def _apply_asset_overrides(
     return tuple(replaced), base_paths, records
 
 
+def _crs_equivalent(a: Any, b: Any) -> bool:
+    """Same coordinate reference system, ignoring names and metadata.
+
+    Rasterio's ``==`` can report two CRSs that differ only in their WKT names (e.g. PGDA clone
+    files say "unknown" where the surface file names the Moon sphere) as different. PROJ's
+    equivalence test (pyproj ``CRS.equals``) compares the geodetic definition instead: datum
+    ellipsoid, projection, parameters, units and axes.
+    """
+    if a == b:
+        return True
+    from pyproj import CRS
+
+    try:
+        return bool(CRS.from_user_input(a.to_wkt()).equals(CRS.from_user_input(b.to_wkt())))
+    except Exception:  # an unparseable CRS is never treated as equivalent
+        return False
+
+
+def _grid_differences(ds: Any, base: Any) -> list[str]:
+    """Why ``ds`` is not pixel-for-pixel on ``base``'s grid (empty list if it is).
+
+    Transform coefficients may differ by at most 1e-6 of a pixel (float round-off in headers).
+    """
+    differences: list[str] = []
+    if not _crs_equivalent(ds.crs, base.crs):
+        differences.append(f"CRS differs ({ds.crs} vs {base.crs})")
+    if (ds.width, ds.height) != (base.width, base.height):
+        differences.append(f"size {ds.width}x{ds.height} vs {base.width}x{base.height}")
+    pixel = abs(float(base.transform.a)) or 1.0
+    coefficients = [abs(float(x) - float(y)) for x, y in zip(tuple(ds.transform)[:6], tuple(base.transform)[:6], strict=True)]
+    if max(coefficients) > 1e-6 * pixel:
+        differences.append(f"transform {tuple(ds.transform)[:6]} vs {tuple(base.transform)[:6]}")
+    return differences
+
+
 def _source_lunar_crs(body_radius_m: float) -> Any:
     try:
         from pyproj import CRS
@@ -633,11 +668,11 @@ def build_horizon_from_dem_assets(
             base_path = base_paths.get(item.asset.asset_id)
             if base_path is not None:
                 base = stack.enter_context(rasterio.open(base_path, "r"))
-                if (ds.crs != base.crs or tuple(ds.transform)[:6] != tuple(base.transform)[:6]
-                        or (ds.width, ds.height) != (base.width, base.height)):
+                differences = _grid_differences(ds, base)
+                if differences:
                     raise DEMManifestError(
-                        f"override raster for {item.asset.asset_id} does not share the base raster's "
-                        "CRS, transform and size"
+                        f"override raster for {item.asset.asset_id} is not on the base raster's grid: "
+                        + "; ".join(differences)
                     )
             transformer = Transformer.from_crs(source_crs, ds.crs, always_xy=True)
             # Metadata is recorded into the run manifest; CRS validity is not proof of datum correctness.
