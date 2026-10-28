@@ -20,5 +20,6 @@ data/cache/horizons/*
 !data/cache/horizons/.gitkeep
 data/runs/*
 !data/runs/.gitkeep
+data/scans/*
 data/raw/
 data/derived/

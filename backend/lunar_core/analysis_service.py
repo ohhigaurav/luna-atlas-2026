@@ -556,6 +556,18 @@ def _save_run(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def coverage_preflight(
+    spice: Any, loaded_kernels: list[dict[str, Any]], start_et: float, end_et: float, frame: str,
+) -> tuple[Any, Any]:
+    """SPK and BPC coverage for the whole interval, or AnalysisNotReady."""
+    try:
+        spk_coverage = assert_required_spk_coverage(spice, loaded_kernels, start_et, end_et)
+        bpc_coverage = assert_required_bpc_coverage(spice, loaded_kernels, start_et, end_et, frame=frame)
+    except (SPKCoverageError, BPCoverageError, ValueError) as exc:
+        raise AnalysisNotReady(f"Ephemeris/orientation coverage preflight failed: {exc}") from exc
+    return spk_coverage, bpc_coverage
+
+
 def run_analysis(request: AnalysisRequest) -> dict[str, Any]:
     """Run a real SPICE-backed analysis and persist a provenance-complete result."""
     with _RUN_LOCK:
@@ -574,13 +586,7 @@ def _run_analysis_locked(request: AnalysisRequest) -> dict[str, Any]:
     end_et = geometry.utc_to_et(end_utc)
     if end_et <= start_et:
         raise AnalysisNotReady("SPICE converted end epoch is not after start epoch")
-    try:
-        spk_coverage = assert_required_spk_coverage(spice, loaded_kernels, start_et, end_et)
-        bpc_coverage = assert_required_bpc_coverage(
-            spice, loaded_kernels, start_et, end_et, frame=geometry.frame,
-        )
-    except (SPKCoverageError, BPCoverageError, ValueError) as exc:
-        raise AnalysisNotReady(f"Ephemeris/orientation coverage preflight failed: {exc}") from exc
+    spk_coverage, bpc_coverage = coverage_preflight(spice, loaded_kernels, start_et, end_et, geometry.frame)
     step_s = float(request.coarse_step_min * 60)
     sample_count = int(math.floor((end_et - start_et) / step_s)) + 2
     if sample_count > 18_000:
