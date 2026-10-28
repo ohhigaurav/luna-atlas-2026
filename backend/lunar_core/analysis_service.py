@@ -14,6 +14,7 @@ import platform
 import tempfile
 import threading
 import uuid
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -201,8 +202,12 @@ def _build_site_horizon(
     site: dict[str, Any],
     geometry: SpiceGeometry,
     request: AnalysisRequest | FinderRequest,
+    asset_overrides: Mapping[str, Path] | None = None,
 ) -> tuple[float, TerrainHorizon | None, TerrainHorizon | None, dict[str, Any], str]:
+    """``asset_overrides`` swaps DEM pixel files (e.g. PGDA error clones); terrain mode only."""
     mode = request.horizon_mode
+    if asset_overrides and mode != "terrain":
+        raise AnalysisNotReady("DEM asset overrides require horizon_mode='terrain'")
     if mode == "flat":
         # The representative points currently lack verified site ground elevation. The flat
         # model therefore uses the declared reference sphere and height above that sphere.
@@ -229,7 +234,7 @@ def _build_site_horizon(
             near_range_m=request.terrain_near_range_m,
             near_step_m=request.terrain_near_step_m,
             far_step_m=request.terrain_far_step_m,
-            manifest_path=DEM_MANIFEST, project_root=PROJECT_ROOT,
+            manifest_path=DEM_MANIFEST, project_root=PROJECT_ROOT, asset_overrides=asset_overrides,
         )
         if math.isclose(request.sun_observer_height_m, request.antenna_height_m, abs_tol=1e-12):
             earth_horizon = sun_horizon
@@ -245,7 +250,7 @@ def _build_site_horizon(
                 near_range_m=request.terrain_near_range_m,
                 near_step_m=request.terrain_near_step_m,
                 far_step_m=request.terrain_far_step_m,
-                manifest_path=DEM_MANIFEST, project_root=PROJECT_ROOT,
+                manifest_path=DEM_MANIFEST, project_root=PROJECT_ROOT, asset_overrides=asset_overrides,
             )
             if not math.isclose(ground_elevation, earth_ground_elevation, abs_tol=1e-6):
                 raise DEMManifestError("Sun and antenna DEM ground elevations disagree")
@@ -339,10 +344,13 @@ def _run_one_site(
     start_et: float,
     end_et: float,
     run_step_s: float,
+    asset_overrides: Mapping[str, Path] | None = None,
 ) -> tuple[dict[str, Any], SiteVisibilityWindows]:
     if site.get("latitude_deg") is None or site.get("longitude_deg") is None:
         raise AnalysisNotReady(f"Site {site['site_id']} has no verified coordinates")
-    ground_elevation, sun_terrain_horizon, earth_terrain_horizon, terrain_metadata, terrain_status = _build_site_horizon(site, geometry, request)
+    ground_elevation, sun_terrain_horizon, earth_terrain_horizon, terrain_metadata, terrain_status = _build_site_horizon(
+        site, geometry, request, asset_overrides
+    )
     site_observer = ObserverSite(
         site_id=site["site_id"],
         latitude_deg=float(site["latitude_deg"]),

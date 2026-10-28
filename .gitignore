@@ -17,10 +17,12 @@ data/kernels/*
 data/dems/assets/*
 !data/dems/assets/.gitkeep
 data/dems/quality/
+data/dems/clones/
 data/cache/horizons/*
 !data/cache/horizons/.gitkeep
 data/runs/*
 !data/runs/.gitkeep
 data/scans/*
+data/ensembles/*
 data/raw/
 data/derived/

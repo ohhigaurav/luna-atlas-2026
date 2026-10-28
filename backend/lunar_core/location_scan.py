@@ -136,6 +136,75 @@ def _point_record(offset: GridOffset, lat: float, lon: float, result: dict[str, 
     }
 
 
+@dataclass(frozen=True)
+class RunContext:
+    """SPICE runtime, interval and provenance shared by every point of a scan or ensemble."""
+
+    geometry: Any
+    start_utc: str
+    end_utc: str
+    start_et: float
+    end_et: float
+    step_s: float
+    kernel_manifest_sha256: str
+    loaded_kernels: list[dict[str, Any]]
+    spk_coverage: Any
+    bpc_coverage: Any
+
+    def provenance(self) -> dict[str, Any]:
+        from lunar_core import analysis_service as svc
+
+        return {
+            "software_version": __version__,
+            "python_version": platform.python_version(),
+            "git_commit": svc._git_commit(),
+            "kernel_manifest_sha256": self.kernel_manifest_sha256,
+            "loaded_kernels": self.loaded_kernels,
+            "spk_coverage_preflight": self.spk_coverage,
+            "bpc_coverage_preflight": self.bpc_coverage,
+            "dem_manifest_sha256": sha256_file(svc.DEM_MANIFEST),
+            "spice_frame": self.geometry.frame,
+            "aberration_correction": self.geometry.aberration_correction,
+            "moon_reference_radius_m": self.geometry.reference_radius_m,
+        }
+
+
+def prepare_run_context(request: AnalysisRequest) -> RunContext:
+    """Kernels, UTC->ET and coverage preflight exactly as a normal analysis run does them.
+
+    Call with ``analysis_service._RUN_LOCK`` held.
+    """
+    from lunar_core import analysis_service as svc
+
+    spice, geometry, kernel_manifest_hash, loaded_kernels = svc._spice_runtime()
+    start_utc, end_utc = svc._iso_utc(request.start_utc), svc._iso_utc(request.end_utc)
+    start_et, end_et = geometry.utc_to_et(start_utc), geometry.utc_to_et(end_utc)
+    if end_et <= start_et:
+        raise svc.AnalysisNotReady("SPICE converted end epoch is not after start epoch")
+    spk_coverage, bpc_coverage = svc.coverage_preflight(spice, loaded_kernels, start_et, end_et, geometry.frame)
+    return RunContext(
+        geometry=geometry, start_utc=start_utc, end_utc=end_utc, start_et=start_et, end_et=end_et,
+        step_s=float(request.coarse_step_min * 60), kernel_manifest_sha256=kernel_manifest_hash,
+        loaded_kernels=loaded_kernels, spk_coverage=spk_coverage, bpc_coverage=bpc_coverage,
+    )
+
+
+def save_json_atomic(payload: dict[str, Any], directory: Path, name: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / name
+    fd, temp_name = tempfile.mkstemp(prefix=".tmp.", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2, sort_keys=True, allow_nan=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_name, target)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    return target
+
+
 def run_location_scan(
     site_id: str,
     request: AnalysisRequest,
@@ -164,15 +233,9 @@ def run_location_scan(
         base = sites[site_id]
         if base.get("latitude_deg") is None or base.get("longitude_deg") is None:
             raise svc.AnalysisNotReady(f"Site {site_id} has no verified coordinates")
-        spice, geometry, kernel_manifest_hash, loaded_kernels = svc._spice_runtime()
-        start_utc, end_utc = svc._iso_utc(request.start_utc), svc._iso_utc(request.end_utc)
-        start_et, end_et = geometry.utc_to_et(start_utc), geometry.utc_to_et(end_utc)
-        if end_et <= start_et:
-            raise svc.AnalysisNotReady("SPICE converted end epoch is not after start epoch")
-        spk_coverage, bpc_coverage = svc.coverage_preflight(
-            spice, loaded_kernels, start_et, end_et, geometry.frame,
-        )
-        step_s = float(request.coarse_step_min * 60)
+        ctx = prepare_run_context(request)
+        geometry, start_et, end_et, step_s = ctx.geometry, ctx.start_et, ctx.end_et, ctx.step_s
+        start_utc, end_utc = ctx.start_utc, ctx.end_utc
         base_lat, base_lon = float(base["latitude_deg"]), float(base["longitude_deg"])
 
         points: list[dict[str, Any]] = []
@@ -247,19 +310,7 @@ def run_location_scan(
             "the result depends on exact placement; it is not a probability distribution over a "
             "landing ellipse unless the grid covers that ellipse."
         ),
-        "provenance": {
-            "software_version": __version__,
-            "python_version": platform.python_version(),
-            "git_commit": svc._git_commit(),
-            "kernel_manifest_sha256": kernel_manifest_hash,
-            "loaded_kernels": loaded_kernels,
-            "spk_coverage_preflight": spk_coverage,
-            "bpc_coverage_preflight": bpc_coverage,
-            "dem_manifest_sha256": sha256_file(svc.DEM_MANIFEST),
-            "spice_frame": geometry.frame,
-            "aberration_correction": geometry.aberration_correction,
-            "moon_reference_radius_m": geometry.reference_radius_m,
-        },
+        "provenance": ctx.provenance(),
         "points": points,
     }
     if save:
@@ -268,16 +319,4 @@ def run_location_scan(
 
 
 def _save_scan(payload: dict[str, Any], directory: Path) -> Path:
-    directory.mkdir(parents=True, exist_ok=True)
-    target = directory / f"{payload['scan_id']}.json"
-    fd, temp_name = tempfile.mkstemp(prefix=".scan.", suffix=".tmp", dir=directory)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(payload, stream, indent=2, sort_keys=True, allow_nan=False)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temp_name, target)
-    finally:
-        if os.path.exists(temp_name):
-            os.unlink(temp_name)
-    return target
+    return save_json_atomic(payload, directory, f"{payload['scan_id']}.json")

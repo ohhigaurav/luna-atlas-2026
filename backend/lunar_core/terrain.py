@@ -11,6 +11,7 @@ import json
 import math
 import os
 import tempfile
+from collections.abc import Mapping
 from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime
@@ -339,6 +340,49 @@ def _ray_latlon_grid(
     return np.degrees(lat2), (np.degrees(lon2) + 180.0) % 360.0 - 180.0
 
 
+def _apply_asset_overrides(
+    verified: tuple[VerifiedDEMAsset, ...],
+    asset_overrides: Mapping[str, Path] | None,
+    root: Path,
+) -> tuple[tuple[VerifiedDEMAsset, ...], dict[str, Path], list[dict[str, Any]]]:
+    """Swap the raster file of selected, already-verified assets (e.g. a PGDA error clone).
+
+    The manifest asset keeps its contract (range, resolution, units, CRS and datum review); only
+    the pixel values come from the override file, which must lie under the project root and is
+    hashed here. Grid identity with the base raster is checked when both are opened.
+    Returns the new asset tuple, {asset_id: base path} and provenance records.
+    """
+    if not asset_overrides:
+        return verified, {}, []
+    by_id = {item.asset.asset_id: item for item in verified}
+    unknown = sorted(set(asset_overrides) - set(by_id))
+    if unknown:
+        raise DEMManifestError(f"override for asset(s) not selected for this site: {', '.join(unknown)}")
+    base_paths: dict[str, Path] = {}
+    records: list[dict[str, Any]] = []
+    replaced: list[VerifiedDEMAsset] = []
+    for item in verified:
+        override = asset_overrides.get(item.asset.asset_id)
+        if override is None:
+            replaced.append(item)
+            continue
+        try:
+            resolved = Path(override).resolve(strict=True)
+        except OSError as exc:
+            raise DEMManifestError(f"override raster not found: {override}") from exc
+        if not resolved.is_relative_to(root) or not resolved.is_file():
+            raise DEMManifestError(f"override raster must be a file under the project root: {override}")
+        digest = sha256_file(resolved)
+        base_paths[item.asset.asset_id] = item.path
+        records.append({
+            "asset_id": item.asset.asset_id,
+            "base_path": item.asset.relative_path, "base_sha256": item.actual_sha256,
+            "override_path": resolved.relative_to(root).as_posix(), "override_sha256": digest,
+        })
+        replaced.append(VerifiedDEMAsset(item.asset, resolved, digest))
+    return tuple(replaced), base_paths, records
+
+
 def _source_lunar_crs(body_radius_m: float) -> Any:
     try:
         from pyproj import CRS
@@ -548,6 +592,7 @@ def build_horizon_from_dem_assets(
     far_step_m: float = 240.0,
     manifest_path: Path | None = None,
     project_root: Path | None = None,
+    asset_overrides: Mapping[str, Path] | None = None,
 ) -> tuple[TerrainHorizon, float, dict[str, Any]]:
     """Build a terrain horizon using the finest configured asset at each radial sample.
 
@@ -574,6 +619,7 @@ def build_horizon_from_dem_assets(
     root = project_root or Path(__file__).resolve().parents[2]
     dem_manifest_path = manifest_path or default_dem_manifest_path()
     manifest, verified = preflight_dem_assets(dem_manifest_path, root, site_id)
+    verified, base_paths, override_records = _apply_asset_overrides(verified, asset_overrides, root.resolve())
     source_crs = _source_lunar_crs(manifest.body_radius_m)
 
     with ExitStack() as stack:
@@ -584,6 +630,15 @@ def build_horizon_from_dem_assets(
                 raise DEMManifestError(f"DEM {item.asset.asset_id} has no CRS")
             if ds.count < 1:
                 raise DEMManifestError(f"DEM {item.asset.asset_id} has no raster band")
+            base_path = base_paths.get(item.asset.asset_id)
+            if base_path is not None:
+                base = stack.enter_context(rasterio.open(base_path, "r"))
+                if (ds.crs != base.crs or tuple(ds.transform)[:6] != tuple(base.transform)[:6]
+                        or (ds.width, ds.height) != (base.width, base.height)):
+                    raise DEMManifestError(
+                        f"override raster for {item.asset.asset_id} does not share the base raster's "
+                        "CRS, transform and size"
+                    )
             transformer = Transformer.from_crs(source_crs, ds.crs, always_xy=True)
             # Metadata is recorded into the run manifest; CRS validity is not proof of datum correctness.
             open_assets.append((item, ds, transformer))
@@ -718,6 +773,9 @@ def build_horizon_from_dem_assets(
                 "asset_id": item.asset.asset_id,
                 "path": item.asset.relative_path,
                 "sha256": item.actual_sha256,
+                "override": next(
+                    (r for r in override_records if r["asset_id"] == item.asset.asset_id), None
+                ),
                 "source_url": item.asset.source_url,
                 "product_id": item.asset.product_id,
                 "native_resolution_m": item.asset.native_resolution_m,
@@ -761,6 +819,7 @@ def build_horizon_from_dem_assets(
         "fallback_sample_count_total": fallback_sample_count,
         "missing_sample_count_total": int(sum(bin_.nodata_count for bin_ in bins)),
         "max_range_m": max_range_m,
+        "asset_overrides": override_records,
     }
     return horizon, site_ground_elevation, metadata
 
@@ -773,8 +832,9 @@ def _horizon_cache_key(
     reference_radius_m: float, max_range_m: float, azimuth_step_deg: float,
     near_range_m: float, near_step_m: float, far_step_m: float,
     manifest_sha256: str, asset_hashes: list[tuple[str, str]],
+    overridden_asset_ids: list[str] | None = None,
 ) -> str:
-    contract = {
+    contract: dict[str, Any] = {
         "algorithm": HORIZON_ALGORITHM_VERSION,
         "site_id": site_id,
         "latitude_deg": latitude_deg,
@@ -789,6 +849,8 @@ def _horizon_cache_key(
         "manifest_sha256": manifest_sha256,
         "asset_hashes": sorted(asset_hashes),
     }
+    if overridden_asset_ids:  # absent for normal runs, so existing cache keys are unchanged
+        contract["overridden_asset_ids"] = sorted(overridden_asset_ids)
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -807,6 +869,7 @@ def build_cached_horizon_from_dem_assets(
     far_step_m: float = 240.0,
     manifest_path: Path | None = None,
     project_root: Path | None = None,
+    asset_overrides: Mapping[str, Path] | None = None,
 ) -> tuple[TerrainHorizon, float, dict[str, Any]]:
     """Hash-verified, content-addressed horizon cache.
 
@@ -816,6 +879,7 @@ def build_cached_horizon_from_dem_assets(
     root = (project_root or Path(__file__).resolve().parents[2]).resolve(strict=True)
     manifest_file = manifest_path or default_dem_manifest_path()
     manifest, verified = preflight_dem_assets(manifest_file, root, site_id)
+    verified, _base_paths, override_records = _apply_asset_overrides(verified, asset_overrides, root)
     manifest_hash = sha256_file(manifest_file)
     cache_key = _horizon_cache_key(
         site_id=site_id, latitude_deg=latitude_deg, longitude_deg=longitude_deg,
@@ -824,6 +888,7 @@ def build_cached_horizon_from_dem_assets(
         near_range_m=near_range_m, near_step_m=near_step_m, far_step_m=far_step_m,
         manifest_sha256=manifest_hash,
         asset_hashes=[(item.asset.asset_id, item.actual_sha256) for item in verified],
+        overridden_asset_ids=[record["asset_id"] for record in override_records],
     )
     cache_dir = root / "data" / "cache" / "horizons"
     cache_file = cache_dir / f"{cache_key}.json"
@@ -855,7 +920,7 @@ def build_cached_horizon_from_dem_assets(
         observer_height_m=observer_height_m, reference_radius_m=reference_radius_m,
         max_range_m=max_range_m, azimuth_step_deg=azimuth_step_deg,
         near_range_m=near_range_m, near_step_m=near_step_m, far_step_m=far_step_m,
-        manifest_path=manifest_file, project_root=root,
+        manifest_path=manifest_file, project_root=root, asset_overrides=asset_overrides,
     )
     metadata.update({"cache_hit": False, "cache_key": cache_key, "cache_algorithm_version": HORIZON_ALGORITHM_VERSION})
     cache_dir.mkdir(parents=True, exist_ok=True)
