@@ -1,4 +1,9 @@
-# Scientific validation status — 0.7.0-dev
+# Scientific validation status — 0.7.2-dev
+
+## Gate B passed (2026-10-28)
+
+SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.0413 arcsec elevation and 0.0107 km range at two south-polar reference points (20 comparisons, 8 near the horizon), against 1 arcsec / 1 arcsec / 1 km tolerances approved before the run. Evidence: `validation/evidence/gate_b_geometry_2026-10-28.md`. Still open: Gate C (terrain review), Gate D on real data, usability and release gates.
+
 
 ## What is verified in this checkout
 
