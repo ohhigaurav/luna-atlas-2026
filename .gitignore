@@ -16,6 +16,7 @@ data/kernels/*
 !data/kernels/README.md
 data/dems/assets/*
 !data/dems/assets/.gitkeep
+data/dems/quality/
 data/cache/horizons/*
 !data/cache/horizons/.gitkeep
 data/runs/*
