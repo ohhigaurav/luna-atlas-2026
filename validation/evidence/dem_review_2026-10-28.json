@@ -1,0 +1,161 @@
+{
+  "assets": [
+    {
+      "asset_id": "pgda78-site01-surface",
+      "bounds": [
+        -19000.0,
+        -20000.0,
+        -3000.0,
+        -4000.0
+      ],
+      "checks": {
+        "consistent_with_regional_product": true,
+        "heights_plausible_vs_1737_4_km_sphere": true,
+        "pixel_size_matches_manifest": true,
+        "projection_matches_hand_formula": true,
+        "roundtrip": true,
+        "sha256_matches_manifest": true
+      },
+      "difference_vs_regional_m": {
+        "count": 1600,
+        "max": 16.55274207962566,
+        "mean": 0.08358371837334282,
+        "median": 0.2843065130194873,
+        "min": -32.49955162635888,
+        "p05": -6.108947222704966,
+        "p95": 5.966676778992561,
+        "regional_asset": "pgda90-60s-240m-regional"
+      },
+      "ellipsoid": {
+        "semi_major_m": 1737400.0,
+        "semi_minor_m": 1737400.0
+      },
+      "height_stats_m": {
+        "count": 1600,
+        "max": 1955.6461066071097,
+        "mean": 1191.809500472171,
+        "median": 1240.7342881422776,
+        "min": -249.7100486755371,
+        "p05": 534.0889659046417,
+        "p95": 1758.6829600407525
+      },
+      "max_projection_error_vs_hand_formula_m": 5.749416634654693e-10,
+      "max_roundtrip_error_deg": 7.673861546209082e-13,
+      "nodata": null,
+      "passed": true,
+      "pixel_size_m": [
+        5.0,
+        5.0
+      ],
+      "product_id": "NASA PGDA Product 78 \u2014 Site 01 / Connecting Ridge region",
+      "raster_crs": "PROJCRS[\"unnamed\",BASEGEOGCRS[\"unnamed ellipse\",DATUM[\"unknown\",ELLIPSOID[\"unnamed\",1737400,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Polar Stereographic (variant B)\",ID[\"EPSG\",9829]],PARAMETER[\"Latitude of standard parallel\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8832]],PARAMETER[\"Longitude of origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8833]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",north,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]]]",
+      "valid_fraction_on_grid": 1.0
+    },
+    {
+      "asset_id": "pgda78-site04-surface",
+      "bounds": [
+        -9000.0,
+        -15000.0,
+        7000.0,
+        1000.0
+      ],
+      "checks": {
+        "consistent_with_regional_product": true,
+        "heights_plausible_vs_1737_4_km_sphere": true,
+        "pixel_size_matches_manifest": true,
+        "projection_matches_hand_formula": true,
+        "roundtrip": true,
+        "sha256_matches_manifest": true
+      },
+      "difference_vs_regional_m": {
+        "count": 1600,
+        "max": 20.878914957840834,
+        "mean": -0.15680645948435604,
+        "median": -0.4388807147471425,
+        "min": -32.39578632302823,
+        "p05": -5.342332637565224,
+        "p95": 6.560471955452987,
+        "regional_asset": "pgda90-60s-240m-regional"
+      },
+      "ellipsoid": {
+        "semi_major_m": 1737400.0,
+        "semi_minor_m": 1737400.0
+      },
+      "height_stats_m": {
+        "count": 1600,
+        "max": 1736.9513665374216,
+        "mean": 268.9951741471005,
+        "median": 683.6200678898737,
+        "min": -2755.560302734375,
+        "p05": -2316.08512710481,
+        "p95": 1575.962590053942
+      },
+      "max_projection_error_vs_hand_formula_m": 5.765887976131907e-10,
+      "max_roundtrip_error_deg": 2.1330492927518208e-11,
+      "nodata": null,
+      "passed": true,
+      "pixel_size_m": [
+        5.0,
+        5.0
+      ],
+      "product_id": "NASA PGDA Product 78 \u2014 Site 04 / Shackleton region",
+      "raster_crs": "PROJCRS[\"unnamed\",BASEGEOGCRS[\"unnamed ellipse\",DATUM[\"unknown\",ELLIPSOID[\"unnamed\",1737400,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Polar Stereographic (variant B)\",ID[\"EPSG\",9829]],PARAMETER[\"Latitude of standard parallel\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8832]],PARAMETER[\"Longitude of origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8833]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",north,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]]]",
+      "valid_fraction_on_grid": 1.0
+    },
+    {
+      "asset_id": "pgda90-60s-240m-regional",
+      "bounds": [
+        -931200.0,
+        -931200.0,
+        931200.0,
+        931200.0
+      ],
+      "checks": {
+        "heights_plausible_vs_1737_4_km_sphere": true,
+        "pixel_size_matches_manifest": true,
+        "projection_matches_hand_formula": true,
+        "roundtrip": true,
+        "sha256_matches_manifest": true
+      },
+      "ellipsoid": {
+        "semi_major_m": 1737400.0,
+        "semi_minor_m": 1737400.0
+      },
+      "height_stats_m": {
+        "count": 1600,
+        "max": 5696.494841987563,
+        "mean": -1455.7041524342605,
+        "median": -1277.1196239403737,
+        "min": -8493.773619522008,
+        "p05": -5244.772761707193,
+        "p95": 2241.5079263540724
+      },
+      "max_projection_error_vs_hand_formula_m": 7.081267575614875e-10,
+      "max_roundtrip_error_deg": 7.105427357601002e-14,
+      "nodata": null,
+      "passed": true,
+      "pixel_size_m": [
+        240.0,
+        240.0
+      ],
+      "product_id": "NASA PGDA Product 90 \u2014 regional 240 m/pixel DEM (60\u00b0S\u201390\u00b0S)",
+      "raster_crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100]],CONVERSION[\"unnamed\",METHOD[\"Polar Stereographic (variant B)\",ID[\"EPSG\",9829]],PARAMETER[\"Latitude of standard parallel\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8832]],PARAMETER[\"Longitude of origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8833]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",north,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135]]",
+      "valid_fraction_on_grid": 1.0
+    }
+  ],
+  "body_radius_m": 1737400.0,
+  "created_utc": "2026-10-28T08:51:13Z",
+  "manifest_sha256": "ea9570a51f952352fab9f49a4bafdb6cb750654b930c05e01a74fb553a4dc0b4",
+  "passed": true,
+  "publisher_statement": "PGDA product 78: south polar stereographic X/Y in metres, surface height Z in metres, MOON_ME reference frame of ephemeris DE421 (https://pgda.gsfc.nasa.gov/products/78). The height reference radius is not named on that page; it is inferred from the checks recorded here.",
+  "schema_version": "1.0",
+  "thresholds": {
+    "height_range_m": [
+      -10000.0,
+      11000.0
+    ],
+    "median_product_difference_m": 5.0,
+    "projection_error_m": 0.01,
+    "roundtrip_error_deg": 1e-09
+  }
+}
