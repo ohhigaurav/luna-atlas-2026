@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0",
-  "status": "pending_predeclared",
-  "predeclared_utc": null,
-  "approved_by": null,
-  "azimuth_tolerance_arcsec": null,
-  "elevation_tolerance_arcsec": null,
-  "range_tolerance_km": null,
+  "status": "approved_before_run",
+  "predeclared_utc": "2026-10-28T08:35:55Z",
+  "approved_by": "The team (team lead), approved in the project planning chat on 2026-10-28 before any Horizons comparison was run",
+  "azimuth_tolerance_arcsec": 1.0,
+  "elevation_tolerance_arcsec": 1.0,
+  "range_tolerance_km": 1.0,
   "minimum_site_count": 2,
   "minimum_epochs_per_site": 3,
   "requires_near_horizon_epoch": true,
-  "rationale": "D-10 is intentionally open. Set numerical tolerances and record reviewer/time before exporting or inspecting the comparison output. Do not tune tolerance after seeing errors."
+  "rationale": "1 arcsec in azimuth and elevation: an independent public implementation using the same NAIF DE421/MOON_ME kernel family reports 0.05 arcsec agreement with Horizons, so 1 arcsec leaves 20x headroom for differing ephemeris versions while still catching frame, time-scale, aberration or observer-position mistakes (those produce errors of arcminutes or more). Operational meaning: at 89.45 S the Sun's elevation changes by at most about 1 arcsec per minute, so 1 arcsec corresponds to at most about one minute of sunrise/sunset timing, far below the hour-to-day scale of the outages the planner reports. 1 km in range: range enters only through the apparent semidiameter, where 1 km changes the Sun's by about 2e-6 arcsec. Declared before any comparison output was produced; do not change after viewing errors."
 }
