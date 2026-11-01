@@ -58,5 +58,5 @@ mypy_path = "backend"
 # Third-party scientific packages without bundled type information. Listing them here keeps
 # `mypy --strict` usable without installing stub packages that would pull a different NumPy.
 [[tool.mypy.overrides]]
-module = ["scipy.*", "rasterio.*", "spiceypy.*", "pyproj.*", "affine.*"]
+module = ["scipy.*", "rasterio.*", "spiceypy.*", "pyproj.*", "affine.*", "openpyxl.*"]
 ignore_missing_imports = true

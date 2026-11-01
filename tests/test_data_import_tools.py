@@ -37,7 +37,7 @@ def test_official_site_import_preserves_source_row_and_checksums(tmp_path: Path)
     assert payload["catalogue_state"] == "loaded"
     assert site["site_id"] == "official-cand-01"
     assert site["origin"] == "official"
-    assert "source_csv_sha256" in site["source_record"]
+    assert "source_file_sha256" in site["source_record"]
     assert "Candidate One" in site["source_record"]
 
 
@@ -99,7 +99,7 @@ def test_official_site_import_rejects_coordinate_out_of_range(tmp_path: Path) ->
     _write_csv(source)
     content = source.read_text(encoding="utf-8").replace("-89.1", "-91.0")
     source.write_text(content, encoding="utf-8")
-    with pytest.raises(ValueError, match="latitude must lie"):
+    with pytest.raises(ValueError, match=r"latitude -91.0 outside \[-90, 90\]"):
         import_catalogue(source, "https://www.spaceappschallenge.org/2026/", output)
     assert not output.exists()
 

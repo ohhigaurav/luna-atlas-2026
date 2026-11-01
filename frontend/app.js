@@ -169,7 +169,7 @@
       const label = site.terrain_status === 'verified' ? 'TERRAIN VERIFIED' : 'NO VERIFIED DEM';
       return `<label class="site-option ${checked ? 'checked' : ''}">
         <input type="checkbox" name="siteChoice" value="${esc(site.site_id)}" ${checked ? 'checked' : ''}>
-        <span class="site-option-main"><b>${esc(site.name)}</b><small>${fmt(site.latitude_deg, 3)}° · ${fmt(site.longitude_deg, 3)}° E</small></span>
+        <span class="site-option-main"><b>${esc(site.name)}</b><small>${site.group ? `${esc(site.group)} · ` : ''}${fmt(site.latitude_deg, 3)}° · ${fmt(site.longitude_deg, 3)}° E${site.position_kind === 'target_region_centre' ? ' · region centre, not a landing point' : ''}</small></span>
         <span class="site-option-tag">${state.officialSites.length ? label : kindLabel}</span>
       </label>`;
     }).join('');
@@ -205,7 +205,11 @@
 
   function polarPoint(site) {
     // Schematic south-polar stereographic projection. Map provides orientation only, not hazards.
-    const rho = 148 * Math.tan((90 + Math.max(-89.999, Math.min(-60, Number(site.latitude_deg)))) * Math.PI / 360)
+    // Sites north of 60° S are off this map. They are not clamped onto the 60° S ring, which would
+    // draw an equatorial site as if it were a polar one.
+    const latitude = Number(site.latitude_deg);
+    if (!(latitude <= -60)) return { x: NaN, y: NaN };
+    const rho = 148 * Math.tan((90 + Math.max(-89.999, latitude)) * Math.PI / 360)
       / Math.tan(15 * Math.PI / 180);
     const angle = (Number(site.longitude_deg) || 0) * Math.PI / 180;
     return { x: 228 + rho * Math.sin(angle), y: 177 - rho * Math.cos(angle) };
@@ -242,7 +246,8 @@
       }
     }
     if ($('mapSourceTag')) {
-      $('mapSourceTag').textContent = `${state.officialSites.length ? 'OFFICIAL CANDIDATES' : 'LITERATURE REFERENCES'}${footprintAssets.length ? ` · ${footprintAssets.length} DEM FOOTPRINTS` : ''}`;
+      const offMap = sites.filter((site) => !(Number(site.latitude_deg) <= -60)).length;
+      $('mapSourceTag').textContent = `${state.officialSites.length ? 'OFFICIAL CANDIDATES' : 'REFERENCE SITES'}${footprintAssets.length ? ` · ${footprintAssets.length} DEM FOOTPRINTS` : ''}${offMap ? ` · ${offMap} NORTH OF 60° S NOT SHOWN` : ''}`;
     }
     const selected = new Set(selectedSites());
     // Near-pole sites legitimately cluster around the pole. Keep their map coordinates truthful,

@@ -19,7 +19,12 @@ class ReferenceSite(BaseModel):
     source_url: str = Field(min_length=8, max_length=2048)
     source_record: str = Field(min_length=1, max_length=2000)
     terrain_status: Literal["verified", "incomplete", "none"] = "none"
-    kind: Literal["literature_reference_point"]
+    kind: Literal["literature_reference_point", "mission_landing_site"]
+    # Curated-list grouping for the UI (e.g. "Apollo", "CLPS (flown)", "China"); None for the
+    # original south-polar literature points.
+    group: str | None = Field(default=None, max_length=60)
+    # What the coordinate denotes. A target-region centre is not a landing point.
+    position_kind: Literal["landed_hardware", "target_region_centre", "literature_reference_point"] | None = None
 
     @field_validator("source_url")
     @classmethod
