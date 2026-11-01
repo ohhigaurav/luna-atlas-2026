@@ -54,3 +54,35 @@ Report: `data/derived/wac_comparison_terrain_20261101T152904Z.json` (on that mac
    (`dem_quality_2026-10-28.md`).
 
 Until these are run, do not claim agreement with observed illumination at lit sites.
+
+## Rerun at observer height 0 m (same day, after the table above)
+
+Command: `tools/compare_wac_illumination.py --observer-height 0 --sites reference-lola-site-001 reference-lola-site-004`
+(commit `986577b`). Same period, map, step and criterion. Report:
+`data/derived/wac_comparison_terrain_h0m_20261101T153739Z.json` (on that machine).
+
+| site | WAC % | WAC 3x3 range | model limb % at 2 m | model limb % at 0 m | model centre % at 0 m | diff at 0 m (pp) | verdict |
+|---|---|---|---|---|---|---|---|
+| LOLA Site 001 | 28.1 | 20.0-39.2 | 56.3 | 28.7 | 25.9 | +0.6 | UNSCORED |
+| LOLA Site 004 | 35.0 | 31.2-57.4 | 0.0 | 0.0 | 0.0 | -35.0 | UNSCORED |
+
+### What this shows
+
+* At Site 001, putting the observer on the ground (as the camera sees it) instead of 2 m above
+  it halves the modelled sunlight, from 56.3 % to 28.7 %, which lands within 0.6 percentage points
+  of the observed 28.1 %. Observer height was candidate cause 1; it accounts for essentially all
+  of the earlier gap at this site.
+* A 2 m height difference doubling the sunlit fraction is itself a strong, mission-relevant result:
+  at grazing sun angles, a lander's panel height changes power availability as much as its
+  location does.
+* Site 004 does not change (0 % at 0 m and 2 m): the point is inside the depression described in
+  `location_scan_2026-10-28.md`, so the gap there is point vs pixel, not height.
+
+### What this does not show
+
+* It is still **not a validation by the pre-set rule**: Site 001 stays UNSCORED (3x3 spread 19 pp).
+  The criterion is unchanged after seeing results.
+* One site agreeing, after a cause was chosen to test, can be coincidence. A test with many
+  points across the two 5 m tiles (model at 0 m averaged over each WAC pixel vs that pixel) is
+  needed before claiming agreement with observed illumination. Its criterion must be fixed before
+  it runs.
