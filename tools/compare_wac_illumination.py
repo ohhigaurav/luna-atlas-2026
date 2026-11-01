@@ -122,7 +122,7 @@ def series_fractions(series: Sequence[dict[str, Any]]) -> tuple[float, float, in
 
 
 def modelled(site_ids: list[str], mode: str, run: Callable[..., dict[str, Any]],
-             step_min: int = 30) -> tuple[dict[str, dict[str, Any]], list[str]]:
+             step_min: int = 30, observer_height_m: float = 2.0) -> tuple[dict[str, dict[str, Any]], list[str]]:
     """Run the analysis chunk by chunk and combine per site, weighting each chunk by its duration."""
     acc: dict[str, dict[str, float]] = {s: {"limb": 0.0, "centre": 0.0, "metric": 0.0, "dur": 0.0} for s in site_ids}
     run_ids: list[str] = []
@@ -132,7 +132,8 @@ def modelled(site_ids: list[str], mode: str, run: Callable[..., dict[str, Any]],
             result = run(site_ids=batch, horizon_mode=mode,
                          start_utc=start.isoformat().replace("+00:00", "Z"),
                          end_utc=stop.isoformat().replace("+00:00", "Z"),
-                         coarse_step_min=step_min, event_tolerance_s=10.0)
+                         coarse_step_min=step_min, event_tolerance_s=10.0,
+                         sun_observer_height_m=observer_height_m)
             run_ids.append(result["run_id"])
             for site in result["sites"]:
                 sid = site["site"]["site_id"]
@@ -162,6 +163,9 @@ def main() -> int:
     parser.add_argument("--map", type=Path, default=DEFAULT_MAP)
     parser.add_argument("--mode", choices=["terrain", "flat"], default="terrain")
     parser.add_argument("--step-min", type=int, default=30)
+    parser.add_argument("--observer-height", type=float, default=2.0,
+                        help="Sun observer height above ground in metres (WAC sees the surface: 0)")
+    parser.add_argument("--sites", nargs="+", default=SITES, help="reference site IDs to compare")
     args = parser.parse_args()
 
     import rasterio
@@ -179,22 +183,23 @@ def main() -> int:
         inverse = ~ds.transform
         array, mask = data.data, data.mask if data.mask.shape else (data.data != data.data)
         rows: dict[str, dict[str, Any]] = {}
-        for sid in SITES:
+        for sid in args.sites:
             s = sites[sid]
             rows[sid] = {"site_id": sid, "latitude_deg": s.latitude_deg, "longitude_deg": s.longitude_deg,
                          **pixel_stats(array, mask, lambda x, y: inverse * (x, y), s.latitude_deg, s.longitude_deg)}
-    inside = [sid for sid in SITES if rows[sid]["inside"]]
-    print(f"WAC map {args.map.name}: {len(inside)}/{len(SITES)} sites inside; modelling {WAC_START.date()} -> {WAC_END.date()} ({args.mode})")
+    inside = [sid for sid in args.sites if rows[sid]["inside"]]
+    print(f"WAC map {args.map.name}: {len(inside)}/{len(args.sites)} sites inside; modelling {WAC_START.date()} -> "
+          f"{WAC_END.date()} ({args.mode}, observer {args.observer_height:g} m)")
 
     def run(**kw: Any) -> dict[str, Any]:
         return run_analysis(AnalysisRequest(**kw))
 
-    model, run_ids = modelled(inside, args.mode, run, args.step_min)
+    model, run_ids = modelled(inside, args.mode, run, args.step_min, args.observer_height)
     for sid in inside:
         rows[sid].update(model[sid])
 
     print(f"\n{'site':30s} {'WAC%':>6s} {'3x3 range':>13s} {'model limb%':>11s} {'centre%':>8s} {'diff':>6s}  verdict")
-    for sid in SITES:
+    for sid in args.sites:
         r = rows[sid]
         r["verdict"] = verdict(r)
         if r["verdict"] == "OUTSIDE/NODATA":
@@ -209,13 +214,14 @@ def main() -> int:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     report = {
         "created_utc": stamp, "mode": args.mode, "step_min": args.step_min,
+        "observer_height_m": args.observer_height,
         "period": [WAC_START.isoformat(), WAC_END.isoformat()],
         "map": str(args.map.relative_to(ROOT)) if args.map.is_relative_to(ROOT) else str(args.map),
         "map_sha256": sha256_file(args.map),
         "criterion": {"spread_limit_pp": SPREAD_LIMIT_PP, "pass_limit_pp": PASS_LIMIT_PP},
-        "sites": [rows[s] for s in SITES], "run_ids": run_ids,
+        "sites": [rows[s] for s in args.sites], "run_ids": run_ids,
     }
-    path = out_dir / f"wac_comparison_{args.mode}_{stamp}.json"
+    path = out_dir / f"wac_comparison_{args.mode}_h{args.observer_height:g}m_{stamp}.json"
     path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"\nreport: {path.relative_to(ROOT)}")
     return 0

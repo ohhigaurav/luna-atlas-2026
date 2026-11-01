@@ -87,6 +87,7 @@ def test_chunks_are_weighted_by_duration_and_batched_by_four() -> None:
     calls: list[list[str]] = []
 
     def fake_run(**kw):
+        assert kw["sun_observer_height_m"] == 0.0
         calls.append(kw["site_ids"])
         first = kw["start_utc"].startswith("2010-02-15")
         lit = first  # first chunk fully lit, the rest dark
@@ -97,7 +98,7 @@ def test_chunks_are_weighted_by_duration_and_batched_by_four() -> None:
             for s in kw["site_ids"]]}
 
     sites = [f"s{i}" for i in range(6)]
-    out, run_ids = wac.modelled(sites, "terrain", fake_run)
+    out, run_ids = wac.modelled(sites, "terrain", fake_run, observer_height_m=0.0)
     total = (wac.WAC_END - wac.WAC_START).total_seconds()
     expected = 100 * 59 * 86400 / total
     assert out["s5"]["model_limb_pct"] == pytest.approx(expected)
