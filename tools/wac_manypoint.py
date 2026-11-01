@@ -271,6 +271,8 @@ def main() -> int:
 
     with rasterio.open(args.map) as ds:
         check_crs(ds.crs.to_wkt())
+        if abs(ds.transform.a - PIXEL_M) > 1e-6 or abs(ds.transform.e + PIXEL_M) > 1e-6:
+            raise SystemExit(f"{args.map.name}: expected {PIXEL_M:g} m pixels, got {ds.transform.a}, {ds.transform.e}")
         values = ds.read(1, masked=True)
         transform = ds.transform
     data = np.ma.filled(values.astype(float), np.nan)

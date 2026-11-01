@@ -87,8 +87,60 @@ Command: `tools/compare_wac_illumination.py --observer-height 0 --sites referenc
   needed before claiming agreement with observed illumination. Its criterion must be fixed before
   it runs.
 
-## Next test (defined, not yet run)
+## Many-point test — FAIL (2026-11-01)
 
-`tools/wac_manypoint.py` implements the many-point test above. Its pixel selection, gate and pass
-criterion are written in the tool's docstring and were committed before any run; see
-CHANGELOG 0.7.6-dev. Results will be added here whether they pass or fail.
+Run by the team with `tools/wac_manypoint.py` at `2b0e1de` (criterion committed there before the run).
+Report `data/derived/wac_manypoint_20261101T171954Z.json`; checkpoint
+`data/derived/wac_manypoint_cbf7fcf8080eaf57.jsonl` (on that machine). The run used 900 production
+terrain horizons at 0 m, about 4.3 s each.
+
+**Gate (fast path vs production at the published points): PASS.** Site 001: 28.71 % vs 28.720 %.
+Site 004: 0.00 % vs 0.0 %.
+
+Pixels: 50 per tile (10 per stratum) from 2823 (Site 001) and 2800 (Site 004) candidates.
+
+| group | n | median (model − WAC) | mean | share within 10 pp | Spearman |
+|---|---|---|---|---|---|
+| **ALL (scored)** | 100 | **−12.0** | −15.2 | **41 %** | **0.89** |
+| Site 001 tile | 50 | −12.3 | −14.7 | 36 % | 0.91 |
+| Site 004 tile | 50 | −11.5 | −15.6 | 46 % | 0.89 |
+| WAC 0–5 % | 20 | −1.5 | −1.8 | 100 % | 0.29 |
+| WAC 5–20 % | 20 | −6.5 | −7.5 | 80 % | 0.68 |
+| WAC 20–35 % | 20 | −12.1 | −13.9 | 20 % | 0.51 |
+| WAC 35–50 % | 20 | −18.4 | −18.2 | 5 % | 0.31 |
+| WAC ≥ 50 % | 20 | −33.0 | −34.4 | 0 % | 0.10 |
+
+Criterion: median within ±5 pp **fails** (−12.0); ≥ 70 % within 10 pp **fails** (41 %);
+Spearman ≥ 0.80 passes (0.89); n ≥ 30 passes. **Verdict: FAIL.** This stands; the thresholds are
+not revisited.
+
+### What this shows
+
+* **Ranking is right; the level is not.** The model orders ground from dark to bright much as LROC
+  saw it (Spearman 0.89 on both tiles), but at 0 m observer height it **under-predicts sunlight**,
+  and the shortfall grows with brightness: about −2 pp in near-permanent shadow and about −33 pp
+  where LROC saw ≥ 50 %. Both tiles behave the same way, so this is not one site's DEM.
+* **The single-site agreement at Site 001 (28.7 % vs 28.1 %) was not representative.** Across 100
+  pixels the 0 m model is biased low. Taken together with the 2 m run (56.3 % at Site 001),
+  the camera-equivalent result lies between 0 m and 2 m at that site. That is a sensitivity
+  statement, not a calibration. **Do not present "the model matches LROC" anywhere.**
+* Within-stratum Spearman values are low because each stratum covers a narrow WAC range. They
+  are not evidence on their own.
+
+### Candidate causes, to be tested with criteria fixed before each run
+
+1. **Near-field terrain at 0 m.** With the Sun within ~1.5° of the horizon, a 0.3 m bump
+   10 m away subtends 1.7°. At exactly 0 m the horizon is set by sub-metre DEM detail and
+   interpolation within tens of metres. Earlier, the Site 001 horizon was found to be
+   controlled 20–30 m away (`dem_quality_2026-10-28.md`). That would bias the model low, most
+   where the Sun grazes, i.e. at the brightest polar ground. Test: relief vs bias (diagnostics
+   script); then a height or near-field sensitivity run, reported as sensitivity, not as a fit.
+2. **WAC "lit" is photometric and pixel-wide.** A 100 m pixel can count as lit when only part
+   of it is lit, while the model averages its points. Test: compare WAC with the best sub-point
+   and with "any sub-point lit" (needs per-time output).
+3. **WAC timing bias.** LROC notes that irregular image timing can bias the percentage map and
+   publishes a time-weighted product. Test: the same tool with `--map` set to the time-weighted
+   map (`tools/wac_manypoint.py` now refuses maps whose pixels are not 100 m).
+
+The post hoc breakdown (`tools/wac_manypoint_diagnostics.py`) is descriptive only. It will be
+added below when run.
