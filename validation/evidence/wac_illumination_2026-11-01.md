@@ -86,3 +86,9 @@ Command: `tools/compare_wac_illumination.py --observer-height 0 --sites referenc
   points across the two 5 m tiles (model at 0 m averaged over each WAC pixel vs that pixel) is
   needed before claiming agreement with observed illumination. Its criterion must be fixed before
   it runs.
+
+## Next test (defined, not yet run)
+
+`tools/wac_manypoint.py` implements the many-point test above. Its pixel selection, gate and pass
+criterion are written in the tool's docstring and were committed before any run; see
+CHANGELOG 0.7.6-dev. Results will be added here whether they pass or fail.
