@@ -26,3 +26,5 @@ data/scans/*
 data/ensembles/*
 data/raw/
 data/derived/
+# Downloaded observation products used for validation (not committed).
+data/reference/illumination/
