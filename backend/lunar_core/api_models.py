@@ -108,3 +108,85 @@ class FinderRequest(CommonScenario):
         if (self.search_end_utc - self.search_start_utc).total_seconds() / 86400 > 180:
             raise ValueError("finder search range is capped at 180 days")
         return self
+
+
+SKY_GEOMETRY_MAX_DAYS = 400
+SKY_GEOMETRY_MAX_SAMPLES = 18_000
+
+
+class SkyGeometryRequest(BaseModel):
+    """Time grid for Moon-centred Sun/Earth directions (the 3D scene's lighting and sky)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_utc: datetime
+    end_utc: datetime
+    step_min: int = Field(default=30, ge=1, le=1440)
+
+    @field_validator("start_utc", "end_utc")
+    @classmethod
+    def sky_timestamps_must_be_explicit_utc(cls, value: datetime) -> datetime:
+        return _utc_datetime(value)
+
+    @model_validator(mode="after")
+    def validate_grid(self) -> SkyGeometryRequest:
+        if self.end_utc <= self.start_utc:
+            raise ValueError("end_utc must be after start_utc")
+        span_s = (self.end_utc - self.start_utc).total_seconds()
+        if span_s / 86400.0 > SKY_GEOMETRY_MAX_DAYS:
+            raise ValueError(f"sky geometry span is capped at {SKY_GEOMETRY_MAX_DAYS} days")
+        if int(span_s // (self.step_min * 60)) + 2 > SKY_GEOMETRY_MAX_SAMPLES:
+            raise ValueError(
+                f"sky geometry is capped at {SKY_GEOMETRY_MAX_SAMPLES} samples; use a larger step_min"
+            )
+        return self
+
+
+class BodyTrackModel(BaseModel):
+    unit: list[list[float]] = Field(description="Unit vectors in the run frame, one [x, y, z] per sample")
+    distance_km: list[float]
+    sub_lat_deg: list[float] = Field(description="Planetocentric latitude of the sub-point")
+    sub_lon_east_deg: list[float] = Field(description="East longitude of the sub-point in [0, 360)")
+    angular_radius_deg: list[float]
+
+
+class EarthTrackModel(BodyTrackModel):
+    phase_angle_deg: list[float] = Field(description="Angle Sun-Earth-Moon at Earth (SPICE phaseq)")
+    illuminated_fraction: list[float] = Field(description="Lit fraction of Earth's disc seen from the Moon")
+
+
+class SkySeriesModel(BaseModel):
+    utc: list[str]
+    et_s: list[float]
+    sun: BodyTrackModel
+    earth: EarthTrackModel
+
+
+class SkyGeometrySettings(BaseModel):
+    start_utc: str
+    end_utc: str
+    step_min: int
+    sample_count: int
+
+
+class SkyGeometryProvenance(BaseModel):
+    software_version: str
+    kernel_manifest_sha256: str
+    loaded_kernel_ids: list[str]
+    kernel_pool: Literal["preflighted", "reused_from_active_run"]
+    spk_coverage_preflight: object
+    bpc_coverage_preflight: object
+    time_contract: str
+
+
+class SkyGeometryResponse(BaseModel):
+    schema_version: Literal["1.0"]
+    kind: Literal["sky_geometry"]
+    frame: str
+    observer_center: Literal["MOON"]
+    aberration_correction: str
+    moon_reference_radius_m: float
+    conventions: dict[str, str]
+    settings: SkyGeometrySettings
+    provenance: SkyGeometryProvenance
+    series: SkySeriesModel

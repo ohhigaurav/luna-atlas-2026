@@ -18,8 +18,14 @@ from lunar_core.analysis_service import (
     run_analysis,
     run_as_csv,
     run_finder,
+    run_sky_geometry,
 )
-from lunar_core.api_models import AnalysisRequest, FinderRequest
+from lunar_core.api_models import (
+    AnalysisRequest,
+    FinderRequest,
+    SkyGeometryRequest,
+    SkyGeometryResponse,
+)
 from lunar_core.catalogue import load_default_catalogue
 from lunar_core.kernels import preflight_kernel_files
 from lunar_core.provenance import sha256_file
@@ -253,6 +259,17 @@ def finder(request: FinderRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Finder rejected: {type(exc).__name__}: {exc}") from exc
+
+
+@app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)
+def sky_geometry(request: SkyGeometryRequest) -> dict[str, Any]:
+    """Moon-centred Sun and Earth directions in MOON_ME for the 3D scene; no visibility claim."""
+    try:
+        return run_sky_geometry(request)
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Sky geometry rejected: {type(exc).__name__}: {exc}") from exc
 
 
 @app.get("/api/runs", tags=["export"])

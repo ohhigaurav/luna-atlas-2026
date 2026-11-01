@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from lunar_core import __version__
-from lunar_core.api_models import AnalysisRequest, FinderRequest
+from lunar_core.api_models import AnalysisRequest, FinderRequest, SkyGeometryRequest
 from lunar_core.bpc_coverage import BPCoverageError, assert_required_bpc_coverage
 from lunar_core.catalogue import load_default_catalogue
 from lunar_core.events import VisibilityWindow, find_visibility_windows
@@ -46,6 +46,9 @@ from lunar_core.kernels import (
 from lunar_core.metrics import AnalysisMetrics, compute_metrics
 from lunar_core.provenance import sha256_file
 from lunar_core.references import load_reference_catalogue
+from lunar_core.sky_geometry import CONVENTIONS as SKY_CONVENTIONS
+from lunar_core.sky_geometry import compute_sky_geometry
+from lunar_core.spice_runtime import SPICE_LOCK
 from lunar_core.spk_coverage import SPKCoverageError, assert_required_spk_coverage
 from lunar_core.visibility import earth_centre_clear_margin_rad, sun_upper_limb_margin_rad
 
@@ -157,13 +160,21 @@ def _ensure_kernels_loaded(spiceypy: Any) -> KernelLoadReport:
     )
     if _LOADED_KERNELS is not None and _LOADED_KERNELS[0] == key:
         return _LOADED_KERNELS[1]
-    _LOADED_KERNELS = None
-    report = load_verified_kernels(KERNEL_MANIFEST, PROJECT_ROOT, spiceypy)
-    _LOADED_KERNELS = (key, report)
+    # Under SPICE_LOCK so a read-only query reusing the pool never sees a half-loaded one.
+    with SPICE_LOCK:
+        _LOADED_KERNELS = None
+        report = load_verified_kernels(KERNEL_MANIFEST, PROJECT_ROOT, spiceypy)
+        _LOADED_KERNELS = (key, report)
     return report
 
 
-def _spice_runtime() -> tuple[Any, SpiceGeometry, str, list[dict[str, Any]]]:
+def _spice_runtime(*, reuse_loaded: bool = False) -> tuple[Any, SpiceGeometry, str, list[dict[str, Any]]]:
+    """SPICE module, geometry, manifest hash and loaded-kernel records.
+
+    ``reuse_loaded`` skips the preflight and uses the pool already furnished by a run that is in
+    progress. Only callers that cannot take ``_RUN_LOCK`` (because that run holds it) use it, so a
+    read-only query never unloads kernels under a running analysis.
+    """
     try:
         import spiceypy
     except ImportError as exc:
@@ -171,7 +182,13 @@ def _spice_runtime() -> tuple[Any, SpiceGeometry, str, list[dict[str, Any]]]:
             "SpiceyPy is not installed. Install the locked project environment before running real analysis."
         ) from exc
     try:
-        load_report = _ensure_kernels_loaded(spiceypy)
+        if reuse_loaded:
+            loaded = _LOADED_KERNELS
+            if loaded is None:
+                raise AnalysisNotReady("kernels are being reloaded by another run; retry shortly")
+            load_report = loaded[1]
+        else:
+            load_report = _ensure_kernels_loaded(spiceypy)
         geometry = SpiceGeometry.from_spiceypy(
             frame="MOON_ME",
             observer_center="MOON",
@@ -648,6 +665,67 @@ def _run_analysis_locked(request: AnalysisRequest) -> dict[str, Any]:
         "sites": site_results,
     }
     return _save_run(payload)
+
+
+# How long a sky-geometry request waits for a run that is still loading kernels.
+SKY_LOCK_WAIT_S = 30.0
+
+
+def run_sky_geometry(request: SkyGeometryRequest) -> dict[str, Any]:
+    """Moon-centred Sun/Earth tracks for the 3D scene; never blocked by a running analysis.
+
+    If no run is active, kernels are preflighted as usual. If a run holds ``_RUN_LOCK`` and has
+    already furnished its verified pool, that pool is reused read-only; the response says so.
+    """
+    acquired = _RUN_LOCK.acquire(blocking=False)
+    if not acquired and _LOADED_KERNELS is None:
+        # A run is active but still loading kernels; wait for it rather than racing the load.
+        acquired = _RUN_LOCK.acquire(timeout=SKY_LOCK_WAIT_S)
+        if not acquired:
+            raise AnalysisNotReady("kernels are still loading for another run; retry shortly")
+    reuse = not acquired
+    try:
+        # Held across the whole query so a kernel reload cannot land between its SPICE calls.
+        with SPICE_LOCK:
+            spice, geometry, kernel_manifest_hash, loaded_kernels = _spice_runtime(reuse_loaded=reuse)
+            start_utc = _iso_utc(request.start_utc)
+            end_utc = _iso_utc(request.end_utc)
+            start_et = geometry.utc_to_et(start_utc)
+            end_et = geometry.utc_to_et(end_utc)
+            if end_et <= start_et:
+                raise AnalysisNotReady("SPICE converted end epoch is not after start epoch")
+            spk_coverage, bpc_coverage = coverage_preflight(spice, loaded_kernels, start_et, end_et, geometry.frame)
+            ets = _sample_et_times(start_et, end_et, float(request.step_min * 60))
+            series = compute_sky_geometry(
+                spice, ets, frame=geometry.frame,
+                aberration_correction=geometry.aberration_correction, et_to_utc=geometry.et_to_utc,
+            )
+    finally:
+        if acquired:
+            _RUN_LOCK.release()
+    return {
+        "schema_version": "1.0",
+        "kind": "sky_geometry",
+        "frame": geometry.frame,
+        "observer_center": "MOON",
+        "aberration_correction": geometry.aberration_correction,
+        "moon_reference_radius_m": geometry.reference_radius_m,
+        "conventions": dict(SKY_CONVENTIONS),
+        "settings": {
+            "start_utc": start_utc, "end_utc": end_utc,
+            "step_min": request.step_min, "sample_count": len(ets),
+        },
+        "provenance": {
+            "software_version": __version__,
+            "kernel_manifest_sha256": kernel_manifest_hash,
+            "loaded_kernel_ids": [str(item["kernel_id"]) for item in loaded_kernels],
+            "kernel_pool": "reused_from_active_run" if reuse else "preflighted",
+            "spk_coverage_preflight": spk_coverage,
+            "bpc_coverage_preflight": bpc_coverage,
+            "time_contract": "UTC input -> SPICE ET/TDB -> UTC display via loaded LSK",
+        },
+        "series": series,
+    }
 
 
 def _git_commit() -> str | None:
