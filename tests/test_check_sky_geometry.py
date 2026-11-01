@@ -66,7 +66,8 @@ def test_cross_check_detects_a_flipped_longitude() -> None:
             az, el, rng = tool.local_az_el(vec, -86.0, 357.0, R)
             row |= {f"{body}_azimuth_deg": az, f"{body}_elevation_deg": el, f"{body}_range_m": rng * 1000.0}
         rows.append(row)
-    run = {"sites": [{"site_id": "s", "latitude_deg": -86.0, "longitude_deg": 357.0, "series": rows}]}
+    # Same shape as an analysis_service payload: site metadata nested under "site".
+    run = {"sites": [{"site": {"site_id": "s", "latitude_deg": -86.0, "longitude_deg": 357.0}, "series": rows}]}
     assert tool.cross_check(sky, run, R)["s"]["pass"] is True
-    run["sites"][0]["longitude_deg"] = 3.0  # west-positive mistake
+    run["sites"][0]["site"]["longitude_deg"] = 3.0  # west-positive mistake
     assert tool.cross_check(sky, run, R)["s"]["pass"] is False

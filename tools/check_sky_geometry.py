@@ -70,8 +70,9 @@ def azimuth_diff_deg(a: float, b: float) -> float:
 def cross_check(sky: dict[str, Any], run: dict[str, Any], radius_km: float) -> dict[str, Any]:
     series = sky["series"]
     out: dict[str, Any] = {}
-    for site in run["sites"]:
-        timeline = site["series"]
+    for result in run["sites"]:
+        # Analysis payload shape: {"site": {site_id, latitude_deg, longitude_deg, ...}, "series": [...]}.
+        site, timeline = result["site"], result["series"]
         if len(timeline) != len(series["et_s"]):
             raise SystemExit(f"grid mismatch for {site['site_id']}: {len(timeline)} vs {len(series['et_s'])}")
         worst = {f"{body}_{k}": 0.0 for body in ("sun", "earth") for k in ("elevation_deg", "azimuth_cos_el_deg", "range_km")}
