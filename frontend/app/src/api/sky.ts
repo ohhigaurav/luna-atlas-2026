@@ -55,7 +55,7 @@ export function sampleTimesMs(sky: SkyGeometry): Float64Array {
   return Float64Array.from(sky.series.utc, (u) => Date.parse(u));
 }
 
-export type SkyAt = { sunDir: Vec3; earthDir: Vec3; earthIllumFrac: number; subsolarLatDeg: number; subsolarLonDeg: number };
+export type SkyAt = { sunDir: Vec3; earthDir: Vec3; earthIllumFrac: number; earthDistanceKm: number; subsolarLatDeg: number; subsolarLonDeg: number };
 
 /**
  * Sun/Earth state at any instant inside the window, with no allocation-heavy work per frame.
@@ -89,6 +89,7 @@ export function skyAt(sky: SkyGeometry, timesMs: Float64Array, tMs: number): Sky
     sunDir: lerpUnit(s.sun.unit[i], s.sun.unit[j]),
     earthDir: lerpUnit(s.earth.unit[i], s.earth.unit[j]),
     earthIllumFrac: s.earth.illuminated_fraction[i] + (s.earth.illuminated_fraction[j] - s.earth.illuminated_fraction[i]) * f,
+    earthDistanceKm: s.earth.distance_km[i] + (s.earth.distance_km[j] - s.earth.distance_km[i]) * f,
     subsolarLatDeg: s.sun.sub_lat_deg[k],
     subsolarLonDeg: s.sun.sub_lon_east_deg[k],
   };

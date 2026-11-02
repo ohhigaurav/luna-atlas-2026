@@ -35,7 +35,7 @@ function run(){
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     gl.uniform1i(U('dispMap'),1); gl.uniform2f(U('texel'),1/W,1/H);
-    const R=1737.4; gl.uniform2f(U('kSlope'), 1/(R*2*(2*Math.PI/W)), 1/(R*2*(Math.PI/H)));
+    const R=1737.4; gl.uniform2f(U('kmPerUv'), 2*Math.PI*R, Math.PI*R);
   }
   function colorTex(fn){ // image-like: row 0 = north, uploaded with flipY like three's TextureLoader
     const W=64,H=32,d=new Uint8Array(W*H*4); for(let j=0;j<H;j++){const lat=90-(j+0.5)*180/H; for(let i=0;i<W;i++){const lon=-180+(i+0.5)*360/W; const v=fn(lat,lon); const k=(j*W+i)*4; d[k]=d[k+1]=d[k+2]=v; d[k+3]=255;}}
@@ -52,6 +52,7 @@ function run(){
     gl.uniform3fv(U('sunDir'),s); gl.uniform3fv(U('earthDir'),meToThree(dirME(0,0)));
     gl.uniform1f(U('earthIllum'),0.); gl.uniform1f(U('earthshineGain'),0.); gl.uniform1f(U('L'),opts.L??1.0);
     gl.uniform1f(U('reliefGain'),opts.gain??1.0);
+    gl.uniform1f(U('shadowSteps'),opts.shadow??0); gl.uniform1f(U('sunAngRad'),0.2666*Math.PI/180);
     gl.uniformMatrix3fv(U('objToWorldN'),false,[1,0,0,0,1,0,0,0,1]); gl.uniform3f(U('cameraPosition'),1000,0,0);
     gl.viewport(0,0,N,N); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     const px=new Uint8Array(N*N*4); gl.readPixels(0,0,N,N,gl.RGBA,gl.UNSIGNED_BYTE,px); return px;
@@ -83,6 +84,18 @@ function run(){
   heightTex(256,128,(lat,lon)=> 3*lon); const rampW=at(render([0,-60]),0,0); const rampE=at(render([0,60]),0,0);
   out.slopeEast={flat:flatW, rampWestSun:rampW, rampEastSun:rampE};
   heightTex(256,128,(lat,lon)=> 3*lat); out.slopeNorth={rampSouthSun:at(render([-60,0]),0,0), rampNorthSun:at(render([60,0]),0,0)};
+  // 5) Cast shadows: a 5 km wall 0.8-1.6 deg east of the centre (24-48 km away), Sun 6 deg up.
+  //    Sun in the east: the wall (9.5-5.9 deg tall seen from the centre) hides it. Sun in the west: no effect.
+  heightTex(1440,720,(lat,lon)=> (lon>0.8 && lon<1.6) ? 5 : 0); colorTex(()=>255);
+  out.castShadow={eastSunNoShadow:at(render([0,84]),0,0), eastSunShadow:at(render([0,84],{shadow:24}),0,0),
+    westSunNoShadow:at(render([0,-84]),0,0), westSunShadow:at(render([0,-84],{shadow:24}),0,0)};
+  // 6) Flat ground never shadows itself: terminator check again with shadows on.
+  heightTex(64,32,()=>0); colorTex(()=>255);
+  { let bad2=0, n2=0; for(let k=0;k<6;k++){ const lat=-80+160*rnd(), lon=-180+360*rnd(); const sME=dirME(lat,lon); const px=render([lat,lon],{shadow:24});
+      for(let j=0;j<N;j+=2)for(let i=0;i<N;i+=2){ const sx=(i+0.5)/N*2-1, sy=(j+0.5)/N*2-1, r2=sx*sx+sy*sy; if(r2>0.98) continue;
+        const nME=[Math.sqrt(1-r2),sy,-sx].map((v,q,a)=>q===0?a[0]:q===1?-a[2]:a[1]); const d=nME[0]*sME[0]+nME[1]*sME[1]+nME[2]*sME[2];
+        const ang=Math.asin(Math.max(-1,Math.min(1,d)))*180/Math.PI; if(Math.abs(ang)<1) continue; n2++; if((px[(j*N+i)*4]>0)!==(ang>0)) bad2++; } }
+    out.flatWithShadows={checkedPixels:n2, wrongBeyond1deg:bad2}; }
   // 4) Lommel-Seeliger flatness: brightness near limb vs centre at full phase, L=1 vs L=0
   heightTex(64,32,()=>0); colorTex(()=>255);
   const a=render([0,0],{L:1}); const bL=render([0,0],{L:0});
@@ -107,6 +120,9 @@ const checks = r.error ? [['shader ran', false, r.error]] : [
   ['east-rising ramp faces west', r.slopeEast.rampWestSun > r.slopeEast.flat && r.slopeEast.flat > r.slopeEast.rampEastSun, r.slopeEast],
   ['north-rising ramp faces south', r.slopeNorth.rampSouthSun > r.slopeNorth.rampNorthSun, r.slopeNorth],
   ['lunar-Lambert keeps the limb bright (L=1) and Lambert darkens it (L=0)', r.limbOverCentre.lunarLambert_L1 > 0.9 && r.limbOverCentre.lambert_L0 < 0.6, r.limbOverCentre],
+  ['a 5 km wall casts a shadow away from a low Sun', r.castShadow.eastSunShadow < 0.1 * r.castShadow.eastSunNoShadow, r.castShadow],
+  ['the same wall does not shadow the side facing the Sun', Math.abs(r.castShadow.westSunShadow - r.castShadow.westSunNoShadow) <= 2, r.castShadow],
+  ['flat ground never shadows itself', r.flatWithShadows.checkedPixels > 20000 && r.flatWithShadows.wrongBeyond1deg === 0, r.flatWithShadows],
 ];
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
 process.exit(checks.every(([, ok]) => ok) ? 0 : 1);
