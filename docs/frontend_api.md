@@ -1,13 +1,14 @@
 # Backend calls for the new 3D app
 
-For whoever builds `frontend/app`. Use these four calls. The expert endpoints (`/api/analysis`,
+For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`/api/analysis`,
 `/api/finder`) stay available for the expert drawer, but a visitor should never see their settings.
 
 | need | call |
 |---|---|
 | sites for the globe pins | `GET /api/reference-sites` (official sites at `GET /api/sites` from 13 Nov) |
 | Sun/Earth direction for lighting the globe | `POST /api/sky-geometry` `{start_utc, end_utc, step_min}` |
-| **"Check this site"** (the one button) | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
+| **"When can I land here?"** (the main question) | `POST /api/landing-windows` `{site_id, search_start_utc, search_days, mission_days}` |
+| **"Check this site"** for a chosen date | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
 | full time series for the surface sky view and time dock | `GET /api/runs/{run_id}` (the check returns `run_url`) |
 
 ## `POST /api/check`
@@ -53,3 +54,32 @@ Errors: 422 = bad input (`detail` is a list from validation or a string); 503 = 
 not configured (no kernels). Show the message; never fall back to made-up numbers.
 
 Responses are gzip-compressed when the browser accepts it.
+
+## `POST /api/landing-windows`
+
+Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these defaults:
+`search_days` 90 (max 180), `mission_days` 10, `panel_height_m` 2,
+`require_earth_at_landing` true, `max_sun_elevation_deg` 20 (null turns that rule off).
+
+Response (abridged):
+
+```json
+{
+  "kind": "landing_opportunities",
+  "summary": ["Next landing opportunity at Apollo 11: touch down between 2027-01-14 06:00 and 2027-01-17 12:00 UTC. Landing at ... gives 13.2 days of sunlight; Earth is in view 100% of the mission."],
+  "opportunities": [{"touchdown_from_utc": "...", "touchdown_until_utc": "...", "best_touchdown_utc": "...",
+                     "daylight_after_best_h": 317.0, "daylight_is_lower_bound": false, "sunset_utc": "...",
+                     "sun_elevation_at_best_deg": 1.2, "earth_in_view_during_mission_pct": 100.0}],
+  "opportunity_count": 3,
+  "closest_miss": null,
+  "candidates_failing": {"sun_up": 2100, "daylight": 1650, "earth_up": 0, "low_sun": 900},
+  "longest_sunlit_window": {"start_utc": "...", "end_utc": "...", "hours": 341.2, "is_lower_bound": false},
+  "rules": {"mission_days": 10, "text": {"sun_up": "Sun above the horizon at touchdown", "...": "..."}},
+  "horizon_mode": "flat",
+  "caveats": ["..."]
+}
+```
+
+When there are no opportunities, `closest_miss` says which rules failed and by how much, and
+`summary` explains it ("It would give 9.1 days of sunlight; you asked for 10."). Never show a bare
+"not possible": show the summary, the closest miss and the rule chips.

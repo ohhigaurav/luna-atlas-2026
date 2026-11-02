@@ -25,6 +25,7 @@ from lunar_core.api_models import (
     AnalysisRequest,
     CheckRequest,
     FinderRequest,
+    LandingRequest,
     SkyGeometryRequest,
     SkyGeometryResponse,
 )
@@ -287,6 +288,21 @@ def check(request: CheckRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Check rejected: {exc}") from exc
+
+
+@app.post("/api/landing-windows", tags=["analysis"])
+def landing_windows(request: LandingRequest) -> dict[str, Any]:
+    """When can a lander touch down here? Next opportunities, or the closest miss and why."""
+    from lunar_core.landing import run_landing
+
+    try:
+        return run_landing(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Landing search rejected: {exc}") from exc
 
 
 @app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)
