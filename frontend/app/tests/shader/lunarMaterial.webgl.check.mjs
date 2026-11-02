@@ -96,5 +96,17 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader','--enab
 const p = await browser.newPage();
 await p.goto(new URL('./_t.html', import.meta.url).href);
 await p.waitForFunction(() => window.RESULT !== undefined, null, { timeout: 120000 });
-console.log(JSON.stringify(await p.evaluate(() => window.RESULT), null, 1));
+const r = await p.evaluate(() => window.RESULT);
 await browser.close();
+console.log(JSON.stringify(r, null, 1));
+// Pass criteria (from the header): any failure exits non-zero so `npm run check:shader` can gate a merge.
+const checks = r.error ? [['shader ran', false, r.error]] : [
+  ['terminator: no pixel wrong by more than 1 deg', r.terminator.checkedPixels > 100000 && r.terminator.wrongBeyond1deg === 0, r.terminator],
+  ['colour map: east on the right', r.colourEastRight.right > r.colourEastRight.left, r.colourEastRight],
+  ['colour map: north up', r.colourNorthUp.up > r.colourNorthUp.down, r.colourNorthUp],
+  ['east-rising ramp faces west', r.slopeEast.rampWestSun > r.slopeEast.flat && r.slopeEast.flat > r.slopeEast.rampEastSun, r.slopeEast],
+  ['north-rising ramp faces south', r.slopeNorth.rampSouthSun > r.slopeNorth.rampNorthSun, r.slopeNorth],
+  ['lunar-Lambert keeps the limb bright (L=1) and Lambert darkens it (L=0)', r.limbOverCentre.lunarLambert_L1 > 0.9 && r.limbOverCentre.lambert_L0 < 0.6, r.limbOverCentre],
+];
+for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
+process.exit(checks.every(([, ok]) => ok) ? 0 : 1);
