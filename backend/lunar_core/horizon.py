@@ -8,6 +8,7 @@ incomplete so the caller cannot silently treat it as terrain-verified.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import atan2, cos, isfinite, sin, sqrt
@@ -190,6 +191,37 @@ def calculate_terrain_horizon(
     )
 
 
+# Per-horizon lookup tables, built once instead of on every call (an analysis makes thousands of
+# calls on the same horizon). Keyed by id() of the bins tuple; the tuple itself is stored and
+# compared with ``is`` so a recycled id can never return another horizon's tables.
+_TABLES: dict[int, tuple[tuple[HorizonBin, ...], tuple[float, ...], bool, tuple[float, ...] | None]] = {}
+_TABLES_MAX = 16
+
+
+def _tables(bins: tuple[HorizonBin, ...]) -> tuple[tuple[float, ...], bool, tuple[float, ...] | None]:
+    """(sorted azimuths, ascending?, per-segment |slope| for uniform bins from 0 deg, else None)."""
+    hit = _TABLES.get(id(bins))
+    if hit is not None and hit[0] is bins:
+        return hit[1], hit[2], hit[3]
+    azimuths = tuple(item.azimuth_deg for item in bins)
+    ascending = all(a < b for a, b in zip(azimuths, azimuths[1:], strict=False))
+    n = len(bins)
+    slopes: tuple[float, ...] | None = None
+    if n >= 2:
+        step = 360.0 / n
+        if all(abs(item.azimuth_deg - index * step) <= 1e-6 for index, item in enumerate(bins)):
+            values = [item.elevation_rad for item in bins]
+            slopes = tuple(
+                float("inf") if values[i] is None or values[(i + 1) % n] is None
+                else abs(values[(i + 1) % n] - values[i]) / step  # type: ignore[operator]
+                for i in range(n)
+            )
+    if len(_TABLES) >= _TABLES_MAX:
+        _TABLES.clear()
+    _TABLES[id(bins)] = (bins, azimuths, ascending, slopes)
+    return azimuths, ascending, slopes
+
+
 def horizon_slope_bound_rad_per_deg(
     horizon: TerrainHorizon, azimuth_a_deg: float, azimuth_b_deg: float
 ) -> float:
@@ -206,14 +238,10 @@ def horizon_slope_bound_rad_per_deg(
     if n < 2:
         return float("inf")
     step = 360.0 / n
-    for index, item in enumerate(bins):
-        if abs(item.azimuth_deg - index * step) > 1e-6:
-            raise ValueError("slope bound requires uniformly spaced horizon bins starting at 0 deg")
-    elevations = [item.elevation_rad for item in bins]
-    slopes: list[float] = []
-    for index in range(n):
-        left, right = elevations[index], elevations[(index + 1) % n]
-        slopes.append(float("inf") if left is None or right is None else abs(right - left) / step)
+    _azimuths, _ascending, table = _tables(bins)
+    if table is None:
+        raise ValueError("slope bound requires uniformly spaced horizon bins starting at 0 deg")
+    slopes = table
 
     delta = (azimuth_b_deg - azimuth_a_deg + 180.0) % 360.0 - 180.0
     start = (azimuth_a_deg if delta >= 0 else azimuth_b_deg) % 360.0
@@ -239,15 +267,25 @@ def interpolate_horizon(horizon: TerrainHorizon, azimuth_deg: float) -> Interpol
     azimuth = azimuth_deg % 360.0
     bins = horizon.bins
 
-    for item in bins:
-        if abs(item.azimuth_deg - azimuth) < 1e-10:
-            complete = item.coverage_status == "complete" and item.elevation_rad is not None
-            return InterpolatedHorizon(
-                azimuth_deg=azimuth,
-                elevation_rad=item.elevation_rad,
-                coverage_complete=complete,
-                contributing_azimuths_deg=(item.azimuth_deg,),
-            )
+    azimuths, ascending, _slopes = _tables(bins)
+    exact: HorizonBin | None = None
+    if ascending:
+        # Same result as a linear scan: only the neighbours of the insertion point can lie within 1e-10.
+        pos = bisect_left(azimuths, azimuth)
+        for k in (pos - 1, pos, pos + 1):
+            if 0 <= k < len(bins) and abs(bins[k].azimuth_deg - azimuth) < 1e-10:
+                exact = bins[k]
+                break
+    else:
+        exact = next((item for item in bins if abs(item.azimuth_deg - azimuth) < 1e-10), None)
+    if exact is not None:
+        complete = exact.coverage_status == "complete" and exact.elevation_rad is not None
+        return InterpolatedHorizon(
+            azimuth_deg=azimuth,
+            elevation_rad=exact.elevation_rad,
+            coverage_complete=complete,
+            contributing_azimuths_deg=(exact.azimuth_deg,),
+        )
     if len(bins) < 2:
         return InterpolatedHorizon(azimuth, None, False, (bins[0].azimuth_deg,))
 
@@ -267,14 +305,18 @@ def interpolate_horizon(horizon: TerrainHorizon, azimuth_deg: float) -> Interpol
         right_azimuth = right_bin.azimuth_deg + 360.0
         azimuth_for_interpolation = azimuth
     else:
-        for index in range(len(bins) - 1):
-            candidate_left, candidate_right = bins[index], bins[index + 1]
-            if candidate_left.azimuth_deg < azimuth < candidate_right.azimuth_deg:
-                left_bin, right_bin = candidate_left, candidate_right
-                left_azimuth, right_azimuth = left_bin.azimuth_deg, right_bin.azimuth_deg
-                break
-        else:  # Defensive: should be unreachable once exact matches and wrap are handled.
+        found: int | None = None
+        if ascending:
+            index = bisect_right(azimuths, azimuth) - 1
+            if 0 <= index < len(bins) - 1 and azimuths[index] < azimuth < azimuths[index + 1]:
+                found = index
+        else:
+            found = next((i for i in range(len(bins) - 1)
+                          if bins[i].azimuth_deg < azimuth < bins[i + 1].azimuth_deg), None)
+        if found is None:  # Defensive: should be unreachable once exact matches and wrap are handled.
             return InterpolatedHorizon(azimuth, None, False, ())
+        left_bin, right_bin = bins[found], bins[found + 1]
+        left_azimuth, right_azimuth = left_bin.azimuth_deg, right_bin.azimuth_deg
         azimuth_for_interpolation = azimuth
 
     if left_bin.elevation_rad is None or right_bin.elevation_rad is None:

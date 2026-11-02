@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,7 +23,9 @@ from lunar_core.analysis_service import (
 )
 from lunar_core.api_models import (
     AnalysisRequest,
+    CheckRequest,
     FinderRequest,
+    LandingRequest,
     SkyGeometryRequest,
     SkyGeometryResponse,
 )
@@ -36,6 +39,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 KERNEL_MANIFEST_PATH = PROJECT_ROOT / "data" / "manifests" / "kernels.json"
 DEM_MANIFEST_PATH = PROJECT_ROOT / "data" / "dems" / "manifest.json"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+# Built 3D app (frontend/app, `npm run build`). Served at / when present; the legacy app stays at /legacy.
+FRONTEND_APP_DIST = FRONTEND_DIR / "app" / "dist"
 
 app = FastAPI(
     title="Lunar South Pole Mission Planner API",
@@ -51,6 +56,8 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+# Run payloads are ~0.7 MB of JSON per site; gzip cuts that several-fold on the wire.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 @app.middleware("http")
@@ -63,7 +70,8 @@ async def security_headers(request: Any, call_next: Any) -> Any:
     # This interface is self-hosted and intentionally uses no third-party JS or remote fonts.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-        "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+        "script-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
+        "frame-ancestors 'none'"
     )
     return response
 
@@ -130,6 +138,12 @@ def _dem_health() -> dict[str, Any]:
 
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
+    built = FRONTEND_APP_DIST / "index.html"
+    return FileResponse(built if built.is_file() else FRONTEND_DIR / "index.html")
+
+
+@app.get("/legacy", include_in_schema=False)
+def legacy_index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
@@ -261,6 +275,36 @@ def finder(request: FinderRequest) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=f"Finder rejected: {type(exc).__name__}: {exc}") from exc
 
 
+@app.post("/api/check", tags=["analysis"])
+def check(request: CheckRequest) -> dict[str, Any]:
+    """One-button site check: server-chosen settings, cached, with a plain-language summary."""
+    from lunar_core.check import run_check
+
+    try:
+        return run_check(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Check rejected: {exc}") from exc
+
+
+@app.post("/api/landing-windows", tags=["analysis"])
+def landing_windows(request: LandingRequest) -> dict[str, Any]:
+    """When can a lander touch down here? Next opportunities, or the closest miss and why."""
+    from lunar_core.landing import run_landing
+
+    try:
+        return run_landing(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Landing search rejected: {exc}") from exc
+
+
 @app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)
 def sky_geometry(request: SkyGeometryRequest) -> dict[str, Any]:
     """Moon-centred Sun and Earth directions in MOON_ME for the 3D scene; no visibility claim."""
@@ -316,3 +360,8 @@ def export_csv(run_id: str) -> PlainTextResponse:
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="lunar-run-{run_id}.csv"'},
     )
+
+
+# Last, so every /api route above wins: the built app's own files (/assets, /textures, /data).
+if (FRONTEND_APP_DIST / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=FRONTEND_APP_DIST, html=True), name="app")
