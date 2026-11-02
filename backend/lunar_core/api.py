@@ -36,6 +36,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 KERNEL_MANIFEST_PATH = PROJECT_ROOT / "data" / "manifests" / "kernels.json"
 DEM_MANIFEST_PATH = PROJECT_ROOT / "data" / "dems" / "manifest.json"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+# Built 3D app (frontend/app, `npm run build`). Served at / when present; the legacy app stays at /legacy.
+FRONTEND_APP_DIST = FRONTEND_DIR / "app" / "dist"
 
 app = FastAPI(
     title="Lunar South Pole Mission Planner API",
@@ -63,7 +65,8 @@ async def security_headers(request: Any, call_next: Any) -> Any:
     # This interface is self-hosted and intentionally uses no third-party JS or remote fonts.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-        "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+        "script-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
+        "frame-ancestors 'none'"
     )
     return response
 
@@ -130,6 +133,12 @@ def _dem_health() -> dict[str, Any]:
 
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
+    built = FRONTEND_APP_DIST / "index.html"
+    return FileResponse(built if built.is_file() else FRONTEND_DIR / "index.html")
+
+
+@app.get("/legacy", include_in_schema=False)
+def legacy_index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
@@ -316,3 +325,8 @@ def export_csv(run_id: str) -> PlainTextResponse:
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="lunar-run-{run_id}.csv"'},
     )
+
+
+# Last, so every /api route above wins: the built app's own files (/assets, /textures, /data).
+if (FRONTEND_APP_DIST / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=FRONTEND_APP_DIST, html=True), name="app")

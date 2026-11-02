@@ -115,3 +115,16 @@ def test_finder_is_fail_closed_without_real_geometry_configuration() -> None:
     })
     assert response.status_code == 503
     assert "spiceypy" in response.json()["detail"].lower() or "kernel" in response.json()["detail"].lower()
+
+
+def test_root_serves_built_app_when_present_and_legacy_stays_reachable(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from lunar_core import api
+
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>Luna Atlas 3D</title>", encoding="utf-8")
+    monkeypatch.setattr(api, "FRONTEND_APP_DIST", dist)
+    assert "Luna Atlas 3D" in client.get("/").text
+    legacy = client.get("/legacy")
+    assert legacy.status_code == 200 and "Landing-window finder" in legacy.text
+    assert "worker-src 'self' blob:" in legacy.headers["content-security-policy"]

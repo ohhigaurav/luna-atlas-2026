@@ -28,3 +28,6 @@ data/raw/
 data/derived/
 # Downloaded observation products used for validation (not committed).
 data/reference/illumination/
+
+# Static judge bundle (tools/bake_static.py); deployed from dist, not committed
+frontend/app/public/data/
