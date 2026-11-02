@@ -190,3 +190,19 @@ class SkyGeometryResponse(BaseModel):
     settings: SkyGeometrySettings
     provenance: SkyGeometryProvenance
     series: SkySeriesModel
+
+
+class CheckRequest(BaseModel):
+    """One-button site check: the server picks every scientific setting (see lunar_core.check)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    site_id: str = Field(min_length=1, max_length=100)
+    start_utc: datetime
+    days: int = Field(default=30, ge=1, le=60)
+    panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
+
+    @field_validator("start_utc")
+    @classmethod
+    def check_start_must_be_explicit_utc(cls, value: datetime) -> datetime:
+        return _utc_datetime(value)

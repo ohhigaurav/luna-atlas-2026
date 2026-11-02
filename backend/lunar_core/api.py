@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,6 +23,7 @@ from lunar_core.analysis_service import (
 )
 from lunar_core.api_models import (
     AnalysisRequest,
+    CheckRequest,
     FinderRequest,
     SkyGeometryRequest,
     SkyGeometryResponse,
@@ -53,6 +55,8 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+# Run payloads are ~0.7 MB of JSON per site; gzip cuts that several-fold on the wire.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 @app.middleware("http")
@@ -268,6 +272,21 @@ def finder(request: FinderRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Finder rejected: {type(exc).__name__}: {exc}") from exc
+
+
+@app.post("/api/check", tags=["analysis"])
+def check(request: CheckRequest) -> dict[str, Any]:
+    """One-button site check: server-chosen settings, cached, with a plain-language summary."""
+    from lunar_core.check import run_check
+
+    try:
+        return run_check(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Check rejected: {exc}") from exc
 
 
 @app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)
