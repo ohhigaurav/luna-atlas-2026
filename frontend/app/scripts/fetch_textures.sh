@@ -7,7 +7,10 @@
 #                                                                            + polar caps (no pole streaks)
 #   Earth         NASA Visible Earth Blue Marble, October 2004 (5400x2700) -> earth_bluemarble_5400.jpg
 #
-# MOON_RES=4k downloads the 4k colour TIFF (~50 MB) instead of 8k (~200 MB) for a quick setup.
+# MOON_RES=4k downloads the 4k colour TIFF (~50 MB) instead of 8k (~230 MB).
+# MOON_RES=lite needs ~4.5 MB in total (2k colour JPEG + 4 px/deg heights; no Earth image) and
+# reuses files an older run already left behind: for slow connections. Rerun without it later.
+# Every mode writes public/textures/textures.json, the list of maps the app should load.
 #
 # Integrity: the first run writes scripts/sources.sha256 (downloaded files) and
 # scripts/textures.sha256 (the converted height maps, which are deterministic); commit both.
@@ -57,18 +60,48 @@ check_or_pin() {
   done
 }
 
+ensure_venv() {
+  if [[ ! -x .venv/bin/python ]] || ! .venv/bin/python -c 'import numpy, tifffile, PIL' 2>/dev/null; then
+    echo "setup  .venv (numpy, tifffile, pillow, imagecodecs)"
+    [[ -x .venv/bin/python ]] || python -m venv .venv
+    .venv/bin/pip install --quiet numpy tifffile pillow
+    .venv/bin/pip install --quiet imagecodecs || echo "note   imagecodecs not installed; fine unless a TIFF is compressed"
+  fi
+}
+
+if [[ "$RES" == "lite" ]]; then
+  # Reuse what an older run of this script left (public/textures/lroc_color_2k.jpg).
+  [[ -s "$CACHE/lroc_color_2k.jpg" || ! -s "$OUT/lroc_color_2k.jpg" ]] || cp "$OUT/lroc_color_2k.jpg" "$CACHE/lroc_color_2k.jpg"
+  fetch "$SVS/lroc_color_2k.jpg" lroc_color_2k.jpg
+  fetch "$SVS/ldem_4.tif"        ldem_4.tif
+  check_or_pin "$SRC_LOCK" "$CACHE" lroc_color_2k.jpg ldem_4.tif
+  ensure_venv
+  cp -f "$CACHE/lroc_color_2k.jpg" "$OUT/moon_color_2k.jpg"
+  if [[ ! -s "$OUT/lola_4ppd_f16_mips.bin" || ! -s "$OUT/lola_cap4_s_f16_mips.bin" ]]; then
+    .venv/bin/python scripts/lola_to_f16.py "$CACHE/ldem_4.tif" "$OUT/lola_4ppd_f16_mips.bin" --mips \
+      --caps "$OUT/lola_cap4" --cap-size 512 --cap-lat 75
+  fi
+  check_or_pin "$OUT_LOCK" "$APP" "$OUT/lola_4ppd_f16_mips.bin" "$OUT/lola_cap4_s_f16_mips.bin" "$OUT/lola_cap4_n_f16_mips.bin"
+  EARTH='null'
+  [[ -s "$OUT/earth_bluemarble_5400.jpg" ]] && EARTH='"earth_bluemarble_5400.jpg"'
+  cat > "$OUT/textures.json" <<JSON
+{"set": "lite",
+ "moon_color": [{"file": "moon_color_2k.jpg", "width": 2048}],
+ "heights": {"file": "lola_4ppd_f16_mips.bin", "width": 1440, "height": 720},
+ "caps": {"south": "lola_cap4_s_f16_mips.bin", "north": "lola_cap4_n_f16_mips.bin", "size": 512, "lat": 75},
+ "earth": $EARTH}
+JSON
+  echo "done   lite textures in $OUT (run without MOON_RES=lite on a fast connection for 8k)"
+  exit 0
+fi
+
 COLOR_TIF="lroc_color_16bit_srgb_${RES}.tif"
 fetch "$SVS/$COLOR_TIF"        "$COLOR_TIF"
 fetch "$SVS/ldem_16_uint.tif"  "ldem_16_uint.tif"
 fetch "$EARTH_URL"             "earth_bluemarble_5400.jpg"
 check_or_pin "$SRC_LOCK" "$CACHE" "$COLOR_TIF" ldem_16_uint.tif earth_bluemarble_5400.jpg
 
-if [[ ! -x .venv/bin/python ]] || ! .venv/bin/python -c 'import numpy, tifffile, PIL' 2>/dev/null; then
-  echo "setup  .venv (numpy, tifffile, pillow, imagecodecs)"
-  [[ -x .venv/bin/python ]] || python -m venv .venv
-  .venv/bin/pip install --quiet numpy tifffile pillow
-  .venv/bin/pip install --quiet imagecodecs || echo "note   imagecodecs not installed; fine unless a TIFF is compressed"
-fi
+ensure_venv
 
 if [[ ! -s "$OUT/moon_color_4k.jpg" ]]; then
   .venv/bin/python scripts/moon_color.py "$CACHE/$COLOR_TIF" "$OUT/moon_color"
@@ -86,4 +119,15 @@ fi
 cp -f "$CACHE/earth_bluemarble_5400.jpg" "$OUT/earth_bluemarble_5400.jpg"
 
 check_or_pin "$OUT_LOCK" "$APP" "$OUT/lola_16ppd_f16_mips.bin" "$OUT/lola_cap_s_f16_mips.bin" "$OUT/lola_cap_n_f16_mips.bin"
+
+COLORS=""
+[[ -s "$OUT/moon_color_8k.jpg" ]] && COLORS='{"file": "moon_color_8k.jpg", "width": 8192}, '
+COLORS+='{"file": "moon_color_4k.jpg", "width": 4096}'
+cat > "$OUT/textures.json" <<JSON
+{"set": "full",
+ "moon_color": [$COLORS],
+ "heights": {"file": "lola_16ppd_f16_mips.bin", "width": 5760, "height": 2880},
+ "caps": {"south": "lola_cap_s_f16_mips.bin", "north": "lola_cap_n_f16_mips.bin", "size": 1536, "lat": 75},
+ "earth": "earth_bluemarble_5400.jpg"}
+JSON
 echo "done   textures in $OUT"
