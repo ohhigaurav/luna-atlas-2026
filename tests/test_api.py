@@ -33,8 +33,8 @@ def test_sites_never_advertises_test_fixtures() -> None:
     assert payload["sites"] == []
 
 
-def test_root_serves_the_four_screen_local_app_and_security_headers() -> None:
-    response = client.get("/")
+def test_legacy_serves_the_four_screen_local_app_and_security_headers() -> None:
+    response = client.get("/legacy")
     assert response.status_code == 200
     assert "Compare" in response.text
     assert "Landing-window finder" in response.text
@@ -115,6 +115,18 @@ def test_finder_is_fail_closed_without_real_geometry_configuration() -> None:
     })
     assert response.status_code == 503
     assert "spiceypy" in response.json()["detail"].lower() or "kernel" in response.json()["detail"].lower()
+
+
+def test_root_without_a_build_says_so_and_never_shows_the_legacy_app(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from lunar_core import api
+
+    monkeypatch.setattr(api, "FRONTEND_APP_DIST", tmp_path / "missing")
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "not built yet" in response.text and "npm run build" in response.text
+    assert 'href="/legacy"' in response.text
+    assert "Landing-window finder" not in response.text
+    assert response.headers["x-content-type-options"] == "nosniff"
 
 
 def test_root_serves_built_app_when_present_and_legacy_stays_reachable(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

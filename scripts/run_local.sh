@@ -13,6 +13,34 @@ elif [[ -n "${1:-}" ]]; then
   exit 2
 fi
 
+# The 3D app (frontend/app) is what / serves; the old four-screen app is frozen at /legacy.
+# Build it when Node is installed and its source, textures or package files changed since the last
+# build. A failed build never stops the API: / then explains how to build.
+build_frontend() {
+  local appdir="$ROOT/frontend/app" stamp="$ROOT/frontend/app/dist/index.html"
+  [[ -f "$appdir/package.json" ]] || return 0
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "note: npm not found, so the app is not built; / shows how (old app at /legacy)" >&2
+    return 0
+  fi
+  if [[ -f "$stamp" ]] && [[ -z "$(find "$appdir/src" "$appdir/public" "$appdir/index.html" \
+      "$appdir/package.json" "$appdir/vite.config.ts" -newer "$stamp" -print -quit 2>/dev/null)" ]]; then
+    return 0
+  fi
+  if [[ ! -d "$appdir/node_modules" ]]; then
+    if (( OFFLINE == 1 )); then
+      echo "note: frontend/app/node_modules is missing; skipping the app build (--offline)" >&2
+      return 0
+    fi
+    (cd "$appdir" && npm install --no-audit --no-fund) \
+      || { echo "warning: npm install failed; / will show build instructions" >&2; return 0; }
+  fi
+  echo "Building the Luna Atlas app (frontend/app)..."
+  (cd "$appdir" && npm run build) \
+    || echo "warning: the app build failed (errors above); the API still starts" >&2
+}
+build_frontend
+
 if (( OFFLINE == 0 )); then
   if command -v uv >/dev/null 2>&1; then
     uv sync

@@ -5,9 +5,9 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from lunar_core import __version__, analysis_service
@@ -39,7 +39,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 KERNEL_MANIFEST_PATH = PROJECT_ROOT / "data" / "manifests" / "kernels.json"
 DEM_MANIFEST_PATH = PROJECT_ROOT / "data" / "dems" / "manifest.json"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-# Built 3D app (frontend/app, `npm run build`). Served at / when present; the legacy app stays at /legacy.
+# Built 3D app (frontend/app, `npm run build`; scripts/run_local.sh builds it). It is the only app at /.
+# The legacy four-screen app is frozen at /legacy (decision 3 Nov, an internal document (not published)).
 FRONTEND_APP_DIST = FRONTEND_DIR / "app" / "dist"
 
 app = FastAPI(
@@ -136,10 +137,24 @@ def _dem_health() -> dict[str, Any]:
                 "dem_preflight_issues": [f"{type(exc).__name__}: {exc}"]}
 
 
+_APP_NOT_BUILT = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Luna Atlas: build the app</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#05070d;color:#e8edf5;
+font:15px/1.6 system-ui,sans-serif}main{max-width:560px;padding:24px}code{color:#f6b94a}a{color:#dfe6ff}</style>
+</head><body><main><h1>The Luna Atlas app is not built yet</h1>
+<p>Run <code>./scripts/run_local.sh</code> again (it builds the app when Node is installed), or build it
+yourself: <code>cd frontend/app &amp;&amp; npm install &amp;&amp; npm run textures &amp;&amp; npm run build</code>,
+then restart the server. While developing, <code>npm run dev</code> serves it at
+<a href="http://localhost:5173">localhost:5173</a>.</p>
+<p>The API is up: <a href="/api/health">/api/health</a>. The old four-screen app is at
+<a href="/legacy">/legacy</a>.</p></main></body></html>"""
+
+
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
+def index() -> Response:
     built = FRONTEND_APP_DIST / "index.html"
-    return FileResponse(built if built.is_file() else FRONTEND_DIR / "index.html")
+    # Never fall back to the legacy app here: a missing build should say so, not look like the app.
+    return FileResponse(built) if built.is_file() else HTMLResponse(_APP_NOT_BUILT)
 
 
 @app.get("/legacy", include_in_schema=False)
