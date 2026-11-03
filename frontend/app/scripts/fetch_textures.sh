@@ -30,8 +30,16 @@ mkdir -p "$OUT" "$CACHE"
 fetch() { # url name-in-cache
   if [[ -s "$CACHE/$2" ]]; then echo "have   $2"; return; fi
   echo "fetch  $1"
-  curl -fL --retry 3 -o "$CACHE/$2.part" "$1"
-  mv "$CACHE/$2.part" "$CACHE/$2"
+  # NASA's servers sometimes drop long transfers: resume the partial file (-C -) and retry on any
+  # error, so a cut-off 230 MB download continues instead of starting over.
+  local n
+  for n in 1 2 3 4 5 6; do
+    if curl -fL -C - --retry 5 --retry-all-errors --retry-delay 3 -o "$CACHE/$2.part" "$1"; then
+      mv "$CACHE/$2.part" "$CACHE/$2"; return
+    fi
+    echo "retry  $2 (attempt $n stopped; resuming)"; sleep 3
+  done
+  echo "error: could not download $1; run again to resume" >&2; exit 1
 }
 
 # check_or_pin lockfile dir file...: verify files already in the lock, add (and report) new ones.
