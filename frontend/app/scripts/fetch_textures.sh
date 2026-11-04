@@ -5,7 +5,8 @@
 #   Moon colour   SVS 4720 CGI Moon Kit, 2025 LROC map (16-bit sRGB TIFF)  -> moon_color_{8k,4k}.jpg
 #   Moon relief   SVS 4720 LOLA ldem_16_uint.tif (16 px/deg)              -> lola_16ppd_f16_mips.bin
 #                                                                            + polar caps (no pole streaks)
-#   Earth         NASA Visible Earth Blue Marble, October 2004 (5400x2700) -> earth_bluemarble_5400.jpg
+#   Earth         NASA Blue Marble Next Generation, 5400x2700             -> earth_bluemarble_5400.jpg
+#                 (optional: if no source answers, the globe draws a plain Earth and says nothing false)
 #
 # MOON_RES=4k downloads the 4k colour TIFF (~50 MB) instead of 8k (~230 MB).
 # MOON_RES=lite needs ~4.5 MB in total (2k colour JPEG + 4 px/deg heights; no Earth image) and
@@ -22,7 +23,12 @@ APP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP"
 
 SVS="https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720"
-EARTH_URL="https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74167/world.200410.3x5400x2700.jpg"
+# The Blue Marble moved from eoimages.gsfc.nasa.gov to science.nasa.gov in 2025 (NEO archive README);
+# the old host is kept as a second try. First: August 2004 with topography and bathymetry shading.
+EARTH_URLS=(
+  "https://assets.science.nasa.gov/dynamicimage/assets/science/esd/eo/images/bmng/bmng-topography-bathymetry/august/world.topo.bathy.200408.3x5400x2700.jpg"
+  "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74167/world.200410.3x5400x2700.jpg"
+)
 OUT="public/textures"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/luna-atlas"
 SRC_LOCK="$APP/scripts/sources.sha256"
@@ -98,8 +104,26 @@ fi
 COLOR_TIF="lroc_color_16bit_srgb_${RES}.tif"
 fetch "$SVS/$COLOR_TIF"        "$COLOR_TIF"
 fetch "$SVS/ldem_16_uint.tif"  "ldem_16_uint.tif"
-fetch "$EARTH_URL"             "earth_bluemarble_5400.jpg"
-check_or_pin "$SRC_LOCK" "$CACHE" "$COLOR_TIF" ldem_16_uint.tif earth_bluemarble_5400.jpg
+check_or_pin "$SRC_LOCK" "$CACHE" "$COLOR_TIF" ldem_16_uint.tif
+
+# Earth is decoration, not data: try each source briefly, accept only a JPEG, never stop the run.
+fetch_earth() {
+  local f="$CACHE/earth_bluemarble_5400.jpg" u
+  if [[ -s "$f" ]]; then echo "have   earth_bluemarble_5400.jpg"; return 0; fi
+  for u in "${EARTH_URLS[@]}"; do
+    echo "fetch  $u"
+    if curl -fL --connect-timeout 20 --max-time 600 --retry 2 --retry-all-errors -o "$f.part" "$u" \
+        && [[ "$(head -c 3 "$f.part" | od -An -tx1 | tr -d ' \n')" == "ffd8ff" ]] \
+        && (( $(stat -c %s "$f.part") > 300000 )); then
+      mv "$f.part" "$f"; return 0
+    fi
+    rm -f "$f.part"; echo "note   that Earth source failed; trying the next" >&2
+  done
+  echo "warning: no Earth image could be downloaded; the globe draws a plain Earth (rerun later to add it)" >&2
+  return 1
+}
+HAVE_EARTH=0
+fetch_earth && HAVE_EARTH=1
 
 ensure_venv
 
@@ -116,7 +140,20 @@ else
   echo "have   $OUT/lola_16ppd_f16_mips.bin and polar caps"
 fi
 
-cp -f "$CACHE/earth_bluemarble_5400.jpg" "$OUT/earth_bluemarble_5400.jpg"
+EARTH_JSON='null'
+if (( HAVE_EARTH )); then
+  # Accept only a 2:1 world map at least 2048 px wide (a resized preview or an HTML page is rejected).
+  if .venv/bin/python -c 'import sys; from PIL import Image; w, h = Image.open(sys.argv[1]).size; sys.exit(0 if w == 2 * h and w >= 2048 else 1)' \
+      "$CACHE/earth_bluemarble_5400.jpg"; then
+    check_or_pin "$SRC_LOCK" "$CACHE" earth_bluemarble_5400.jpg
+    cp -f "$CACHE/earth_bluemarble_5400.jpg" "$OUT/earth_bluemarble_5400.jpg"
+    EARTH_JSON='"earth_bluemarble_5400.jpg"'
+  else
+    echo "warning: the Earth download is not a 2:1 world map; ignoring it" >&2
+    rm -f "$CACHE/earth_bluemarble_5400.jpg"
+  fi
+fi
+[[ "$EARTH_JSON" == 'null' ]] && rm -f "$OUT/earth_bluemarble_5400.jpg"
 
 check_or_pin "$OUT_LOCK" "$APP" "$OUT/lola_16ppd_f16_mips.bin" "$OUT/lola_cap_s_f16_mips.bin" "$OUT/lola_cap_n_f16_mips.bin"
 
@@ -128,6 +165,6 @@ cat > "$OUT/textures.json" <<JSON
  "moon_color": [$COLORS],
  "heights": {"file": "lola_16ppd_f16_mips.bin", "width": 5760, "height": 2880},
  "caps": {"south": "lola_cap_s_f16_mips.bin", "north": "lola_cap_n_f16_mips.bin", "size": 1536, "lat": 75},
- "earth": "earth_bluemarble_5400.jpg"}
+ "earth": $EARTH_JSON}
 JSON
 echo "done   textures in $OUT"
