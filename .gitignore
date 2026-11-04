@@ -31,3 +31,6 @@ data/reference/illumination/
 
 # Static judge bundle (tools/bake_static.py); deployed from dist, not committed
 frontend/app/public/data/
+
+# LROC WAC movie frames (35 MB each; download with the commands in docs)
+data/reference/lroc_movie/
