@@ -144,3 +144,46 @@ not revisited.
 
 The post hoc breakdown (`tools/wac_manypoint_diagnostics.py`) is descriptive only. It will be
 added below when run.
+
+## Many-point test rerun after the horizon fix: PASS (2026-11-04)
+
+The horizon bug found on 2026-11-04 (`horizon_origin_bug_2026-11-04.md`) affected exactly this test:
+every point was modelled at 0 m, where the ground sample under the observer could become a +90°
+"wall" (point never lit) or a 0° floor. The fix came from an independent gate (the shadow-match
+tool), not from this test. The rerun uses the **unchanged** tool, pixel draw and pre-registered
+criterion. Only the horizon code differs (algorithm 2.1 → 2.2).
+
+Run by the team; report `data/derived/wac_manypoint_20261104T095402Z.json`, checkpoint
+`data/derived/wac_manypoint_bf771b4182ee8399.jsonl` (on that machine). Gate: Site 001 28.71% vs
+production 28.720%, Site 004 0.00% vs 0.0%. These two published points were not affected by the bug.
+
+| group | n | median (model − WAC) | mean | share within 10 pp | Spearman |
+|---|---|---|---|---|---|
+| **ALL (scored)** | 100 | **−0.6** | −4.3 | **80%** | **0.92** |
+| Site 001 tile | 50 | −2.0 | −3.8 | 80% | 0.96 |
+| Site 004 tile | 50 | −0.3 | −4.8 | 80% | 0.92 |
+| WAC 0–5 % | 20 | −0.8 | −1.5 | 100% | 0.32 |
+| WAC 5–20 % | 20 | −0.3 | −1.9 | 85% | 0.74 |
+| WAC 20–35 % | 20 | +1.7 | −0.2 | 90% | 0.95 |
+| WAC 35–50 % | 20 | −0.1 | −0.1 | 100% | 0.87 |
+| WAC ≥ 50 % | 20 | **−16.7** | −17.7 | 25% | −0.00 |
+
+Criterion: median within ±5 pp passes (−0.6); ≥ 70% within 10 pp passes (80%); Spearman ≥ 0.80
+passes (0.92); n ≥ 30 passes. **Verdict: PASS.**
+
+### What this shows
+
+* **The earlier FAIL was mostly the bug.** With it fixed, the model agrees with LROC's observed
+  illumination across dark, partly lit and moderately lit ground: median gap −0.6 points, 80% of
+  pixels within 10 points, ranking 0.92.
+* **The brightest ground is still modelled too dark.** Where LROC saw ≥ 50% illumination, the
+  model is a median 16.7 points low, only 25% are within 10 points, and the ranking inside that
+  band is no better than chance. This is the remaining open discrepancy. Candidate causes, in
+  test order: (1) a WAC pixel counts as lit when part of its 100 m area is lit, while the model
+  averages 9 points (the brightest ground is ridges and rims, where partial lighting is
+  common); (2) WAC image-timing bias (try the time-weighted map); (3) 0 m observer on a 5 m DEM
+  at grazing Sun.
+* Both runs stay on record: the first FAIL (buggy model) and this PASS (fixed model) under the
+  same criterion. Quote this one as **"agrees with LROC's observed illumination at 100 pixels
+  (median −0.6 points), except on the brightest ridges where it is ~17 points low"**.
+
