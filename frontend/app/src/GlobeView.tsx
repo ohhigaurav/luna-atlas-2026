@@ -6,7 +6,10 @@ import { GlobeEngine, type SkySample } from './engine/GlobeEngine';
 import type { PinSite } from './engine/pins';
 import { sampleTimesMs, skyAt, type SkyGeometry } from './api/sky';
 
-export type GlobeHandle = { flyToSite: (s: PinSite) => void; flyHome: () => void; skipIntro: () => void; viewFromEarth: () => void };
+export type GlobeHandle = {
+  flyToSite: (s: PinSite) => void; flyHome: () => void; skipIntro: () => void; viewFromEarth: () => void;
+  screenOf: (s: PinSite) => { x: number; y: number; facing: boolean } | null;
+};
 
 type Props = {
   sites: PinSite[];
@@ -77,6 +80,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     flyHome: () => engine.current?.flyHome(),
     skipIntro: () => engine.current?.skip(),
     viewFromEarth: () => engine.current?.viewFromEarth(),
+    screenOf: (s) => engine.current?.screenOf(s) ?? null,
   }), []);
 
   useEffect(() => {

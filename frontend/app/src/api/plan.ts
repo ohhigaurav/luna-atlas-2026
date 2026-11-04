@@ -80,9 +80,11 @@ export function isoZ(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
-export function findLandingWindows(siteId: string, startMs: number, days: number, missionDays: number, signal?: AbortSignal) {
+export function findLandingWindows(siteId: string, startMs: number, days: number, missionDays: number, signal?: AbortSignal,
+  maxSunElevationDeg: number | null = 20) {
   return post<LandingResult>('/api/landing-windows',
-    { site_id: siteId, search_start_utc: isoZ(startMs), search_days: days, mission_days: missionDays }, signal);
+    { site_id: siteId, search_start_utc: isoZ(startMs), search_days: days, mission_days: missionDays,
+      max_sun_elevation_deg: maxSunElevationDeg }, signal);
 }
 
 export function checkSite(siteId: string, startMs: number, days: number, signal?: AbortSignal) {

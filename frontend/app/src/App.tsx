@@ -4,7 +4,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './hud.css';
 import { GlobeView, type GlobeHandle } from './GlobeView';
-import { PlanPanel } from './PlanPanel';
+import { AnswerCard } from './plan/AnswerCard';
+import { LandingRing } from './plan/LandingRing';
+import { SEARCH_DAYS, usePlan } from './plan/usePlan';
 import { loadDataSource, type DataSource, type ReferenceSite } from './data/source';
 import { fetchSkyGeometry, sampleTimesMs, skyAt, type SkyGeometry } from './api/sky';
 import { isoZ } from './api/plan';
@@ -104,6 +106,16 @@ export default function App() {
   }, [live, window_, loadSky]);
 
   const onSelect = useCallback((s: PinSite | null) => setSelected(s as ReferenceSite | null), []);
+  const plan = usePlan(selected?.site_id ?? null, live, Date.now());
+  const screenOf = useCallback((s: PinSite) => globe.current?.screenOf(s) ?? null, []);
+  const jump = useCallback((ms: number) => { setFollowNow(false); setPlaying(false); setCursor(ms); }, [setCursor]);
+
+  // The ring covers SEARCH_DAYS from its start: load sky geometry for that window so any jump is lit.
+  const planStart = plan.settings.searchStartMs;
+  useEffect(() => {
+    if (!selected || !live) return;
+    loadSky(planStart, planStart + SEARCH_DAYS * 86400e3);
+  }, [selected, live, planStart, loadSky]);
   const onIntroDone = useCallback(() => setIntroDone(true), []);
   const byId = useCallback((id: string) => data?.sites.find((s) => s.site_id === id), [data]);
 
@@ -189,13 +201,15 @@ export default function App() {
             <span className="la-tag">Reference site, not official</span>
             {(() => { const t = positionTag(selected); return t && <span className={`la-tag${t.warn ? ' warn' : ''}`}>{t.text}</span>; })()}
           </div>
-          <PlanPanel
-            siteId={selected.site_id}
+          <AnswerCard
             siteName={selected.name}
             live={live}
-            cursorMs={cursorMs}
-            onPlanned={(a, b) => { setFollowNow(false); setPlaying(false); loadSky(a, b); }}
-            onJump={(ms) => { setFollowNow(false); setPlaying(false); setCursor(ms); }}
+            settings={plan.settings}
+            data={plan.data}
+            answer={plan.answer}
+            onSettings={plan.update}
+            onJump={jump}
+            onFlyDown={(ms) => { jump(ms); globe.current?.flyToSite(selected); }}
           />
           <div className="row">
             {selected.source_url && <a className="la-hint" href={selected.source_url} target="_blank" rel="noreferrer">Coordinate source</a>}
@@ -203,6 +217,11 @@ export default function App() {
             <button type="button" className="la-btn" onClick={() => globe.current?.flyHome()}>Whole Moon (Esc)</button>
           </div>
         </aside>
+      )}
+
+      {selected && live && (
+        <LandingRing site={selected} screenOf={screenOf} settings={plan.settings} data={plan.data}
+          answer={plan.answer} onSettings={plan.update} onJump={jump} />
       )}
 
       {!introDone && !reducedMotion && (

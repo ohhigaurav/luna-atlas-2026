@@ -245,6 +245,15 @@ export class GlobeEngine {
     this.opts.onIntroDone?.();
   }
 
+  /** Where a site is on screen right now (CSS px in the container), and whether it faces us. */
+  screenOf(site: PinSite): { x: number; y: number; facing: boolean } {
+    const p = latLonToThree(site.latitude_deg, site.longitude_deg);
+    const toCam = this.camera.position.clone().sub(p);
+    const facing = p.dot(toCam) > 0;
+    const ndc = p.clone().project(this.camera);
+    return { x: (ndc.x + 1) / 2 * this.container.clientWidth, y: (1 - ndc.y) / 2 * this.container.clientHeight, facing };
+  }
+
   flyToSite(site: PinSite): void {
     this.pins.selectedId = site.site_id;
     this.opts.onSelect?.(site);
