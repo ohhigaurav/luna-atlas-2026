@@ -287,12 +287,29 @@ def main() -> int:
         scored = inside & disc & ~edge_band(model, int(EDGE_BAND_M / t.a))
         s = score(model, photo_lit, scored)
         passed = s["agreement"] >= PASS_AGREEMENT and s["shadow_iou"] >= PASS_IOU
+        # Diagnostics added after the first run (not part of the verdict): how much better than trivial
+        # models, and how good including the excluded edge band.
+        everything = inside & disc
+        base_dark = float((~photo_lit[scored]).mean())
+        lit_union = (model | photo_lit)[scored].sum()
+        diag = {
+            "photo_shadow_fraction": base_dark,
+            "all_dark_baseline_agreement": base_dark,
+            "all_lit_baseline_agreement": 1.0 - base_dark,
+            "lit_iou": float((model & photo_lit)[scored].sum() / lit_union) if lit_union else 1.0,
+            "with_edge_band": score(model, photo_lit, everything),
+            "edge_band_share_of_disc": float((everything & ~scored).sum() / max(everything.sum(), 1)),
+        }
         sub_lon = sky["series"]["sun"]["sub_lon_east_deg"][0]
         print(f"{name}: Sun toward {sub_lon:.1f} E, {math.degrees(math.asin(-sun[2])):+.2f} deg above the horizontal "
               f"at the pole; Otsu {threshold}; agreement {s['agreement']:.1%}, shadow IoU {s['shadow_iou']:.2f} -> "
               f"{'PASS' if passed else 'FAIL'}", flush=True)
+        print(f"    diagnostics: photo is {base_dark:.0%} shadow (all-dark guess would agree {base_dark:.1%}); "
+              f"lit-area IoU {diag['lit_iou']:.2f}; including the edge band ({diag['edge_band_share_of_disc']:.0%} of the "
+              f"imaged disc): agreement {diag['with_edge_band']['agreement']:.1%}, shadow IoU "
+              f"{diag['with_edge_band']['shadow_iou']:.2f}", flush=True)
         results.append({"frame": name, "utc": when.isoformat(), "coverage": coverage, "scored": True,
-                        "otsu_threshold": threshold, "passed": passed, **s})
+                        "otsu_threshold": threshold, "passed": passed, **s, "diagnostics_post_hoc": diag})
 
         g = photo.astype(float)
         panel_model = np.where(model, 200.0, 15.0)
