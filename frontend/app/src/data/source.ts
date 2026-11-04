@@ -46,28 +46,33 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await r.json()) as T;
 }
 
-async function detectMode(): Promise<Mode> {
-  if (import.meta.env.VITE_STATIC === '1') return 'static';
+/**
+ * Live if the backend answers. Probe with /api/reference-sites (a small JSON file the app needs
+ * anyway), not /api/health: health re-hashes every kernel and DEM (~300 MB) and can take longer
+ * than any sensible probe timeout, which silently dropped the app into static mode.
+ */
+async function detectLive(): Promise<ReferenceSite[] | null> {
+  if (import.meta.env.VITE_STATIC === '1') return null;
   try {
-    const r = await fetch('/api/health', { signal: AbortSignal.timeout(2500) });
-    if (r.ok) return 'live';
-  } catch { /* no backend: fall through to the bundle */ }
-  return 'static';
+    const r = await fetch('/api/reference-sites', { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    return ((await r.json()) as { sites: ReferenceSite[] }).sites;
+  } catch {
+    return null; // no backend: fall through to the bundle
+  }
 }
 
 export async function loadDataSource(): Promise<DataSource> {
-  const mode = await detectMode();
-  if (mode === 'live') {
+  const liveSites = await detectLive();
+  if (liveSites) {
     const now = Date.now();
     // "The Moon right now": a short window around this moment, so the opening is today's lighting.
     const start = new Date(now - 2 * 3600e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
     const end = new Date(now + 2 * 86400e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
-    const [sitesRes, sky] = await Promise.all([
-      getJson<{ sites: ReferenceSite[] }>('/api/reference-sites'),
-      fetchSkyGeometry(start, end, 30),
-    ]);
-    return { mode, sites: sitesRes.sites, sky, initialCursorMs: now };
+    const sky = await fetchSkyGeometry(start, end, 30);
+    return { mode: 'live', sites: liveSites, sky, initialCursorMs: now };
   }
+  const mode: Mode = 'static';
   let manifest: StaticManifest;
   try {
     manifest = await getJson<StaticManifest>(`${base}data/manifest.json`);
