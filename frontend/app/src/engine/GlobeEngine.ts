@@ -270,6 +270,14 @@ export class GlobeEngine {
     this.fly(C1, T1);
   }
 
+  /** Look at the Moon from Earth's direction: the phase you would see in the sky at this moment. */
+  viewFromEarth(): void {
+    this.pins.selectedId = null;
+    this.opts.onSelect?.(null);
+    this.mode = 'globe';
+    this.fly(this.earthWorld.clone().setLength(HOME_DISTANCE), new THREE.Vector3());
+  }
+
   flyHome(): void {
     this.pins.selectedId = null;
     this.opts.onSelect?.(null);
