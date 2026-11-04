@@ -25,8 +25,13 @@ cd "$APP"
 SVS="https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720"
 # The Blue Marble moved from eoimages.gsfc.nasa.gov to science.nasa.gov in 2025 (NEO archive README);
 # the old host is kept as a second try. First: August 2004 with topography and bathymetry shading.
+# The new host is an image-resizing service: ask it for an explicit JPEG size (without parameters it
+# sent a 132 KB preview). The second URL is the one NASA's own page uses. Earth spans a few dozen
+# pixels on screen, so 2048-4096 px is far more than enough.
+BMNG="https://assets.science.nasa.gov/dynamicimage/assets/science/esd/eo/images/bmng/bmng-topography-bathymetry/august/world.topo.bathy.200408.3x5400x2700.jpg"
 EARTH_URLS=(
-  "https://assets.science.nasa.gov/dynamicimage/assets/science/esd/eo/images/bmng/bmng-topography-bathymetry/august/world.topo.bathy.200408.3x5400x2700.jpg"
+  "$BMNG?w=4096&h=2048&fit=clip&fm=jpg&q=90"
+  "$BMNG?w=2048&h=1024&fit=clip&crop=faces%2Cfocalpoint"
   "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74167/world.200410.3x5400x2700.jpg"
 )
 OUT="public/textures"
@@ -114,9 +119,10 @@ fetch_earth() {
     echo "fetch  $u"
     if curl -fL --connect-timeout 20 --max-time 600 --retry 2 --retry-all-errors -o "$f.part" "$u" \
         && [[ "$(head -c 3 "$f.part" | od -An -tx1 | tr -d ' \n')" == "ffd8ff" ]] \
-        && (( $(stat -c %s "$f.part") > 300000 )); then
+        && (( $(stat -c %s "$f.part") > 100000 )); then
       mv "$f.part" "$f"; return 0
     fi
+    [[ -s "$f.part" ]] && echo "note   got $(stat -c %s "$f.part") bytes of $(file -b "$f.part" 2>/dev/null | cut -c1-60)" >&2
     rm -f "$f.part"; echo "note   that Earth source failed; trying the next" >&2
   done
   echo "warning: no Earth image could be downloaded; the globe draws a plain Earth (rerun later to add it)" >&2
