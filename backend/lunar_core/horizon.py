@@ -148,6 +148,8 @@ def calculate_terrain_horizon(
                 continue
             if not isfinite(sample.elevation_m):
                 raise ValueError(f"terrain elevation for azimuth {azimuth} must be finite or None")
+            if sample.distance_m == 0.0:
+                continue  # the ground under the observer is never a horizon candidate (0/0 at height 0)
             elevation = apparent_elevation_rad(
                 reference_radius_m=reference_radius_m,
                 observer_radius_m=observer_radius_m,

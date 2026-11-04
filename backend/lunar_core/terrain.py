@@ -781,33 +781,10 @@ def build_horizon_from_dem_assets(
                     )
                 fallback_sample_count += int(finer_eligible.sum())
 
-        known = np.isfinite(heights)
-        radii = reference_radius_m + np.where(known, heights, 0.0)
-        angles = distances[None, :] / reference_radius_m
-        apparent = np.arctan2(radii * np.cos(angles) - observer_radius_m, radii * np.sin(angles))
-        apparent = np.where(known, apparent, -np.inf)
-        reaches_origin = math.isclose(float(distances[0]), 0.0)
-        reaches_range = math.isclose(float(distances[-1]), max_range_m)
-        bins: list[HorizonBin] = []
-        for az_index in range(count):
-            nodata_count = int((~known[az_index]).sum())
-            if not np.any(known[az_index]):
-                bins.append(HorizonBin(
-                    azimuth_deg=float(azimuths[az_index]), elevation_rad=None,
-                    controlling_distance_m=None, coverage_status="none",
-                    sample_count=int(distances.size), nodata_count=nodata_count,
-                ))
-                continue
-            maximum_index = int(np.argmax(apparent[az_index]))
-            complete = nodata_count == 0 and reaches_origin and reaches_range
-            bins.append(HorizonBin(
-                azimuth_deg=float(azimuths[az_index]),
-                elevation_rad=float(apparent[az_index, maximum_index]),
-                controlling_distance_m=float(distances[maximum_index]),
-                coverage_status="complete" if complete else "incomplete",
-                sample_count=int(distances.size),
-                nodata_count=nodata_count,
-            ))
+        bins = horizon_bins_from_samples(
+            heights, distances, azimuths, reference_radius_m=reference_radius_m,
+            observer_radius_m=observer_radius_m, max_range_m=max_range_m,
+        )
 
         # Captured while every dataset is still open.
         asset_metadata = [
@@ -866,7 +843,51 @@ def build_horizon_from_dem_assets(
     return horizon, site_ground_elevation, metadata
 
 
-HORIZON_ALGORITHM_VERSION = "terrain-horizon-2.1-dense-near-field"
+HORIZON_ALGORITHM_VERSION = "terrain-horizon-2.2-no-origin-sample"
+
+
+def horizon_bins_from_samples(
+    heights: Any, distances: Any, azimuths: Any, *, reference_radius_m: float,
+    observer_radius_m: float, max_range_m: float,
+) -> list[HorizonBin]:
+    """Per-azimuth maximum apparent elevation from an (azimuth x distance) grid of terrain heights.
+
+    The sample at distance 0 (the ground under the observer) only proves coverage starting at the
+    origin; it is never a horizon candidate. Its apparent elevation is atan2(h_ground - h_observer, 0):
+    -90 deg when the observer is above the ground, but 0/0 at observer height 0, where sub-nanometre
+    rounding in the two ground samples used to decide between -90, 0 and +90 deg. A +90 deg result
+    made the whole sky "blocked" (fixed 2026-11-04; horizon algorithm 2.2).
+    """
+    import numpy as np
+
+    known = np.isfinite(heights)
+    radii = reference_radius_m + np.where(known, heights, 0.0)
+    angles = distances[None, :] / reference_radius_m
+    apparent = np.arctan2(radii * np.cos(angles) - observer_radius_m, radii * np.sin(angles))
+    apparent = np.where(known & (distances[None, :] > 0.0), apparent, -np.inf)
+    reaches_origin = math.isclose(float(distances[0]), 0.0)
+    reaches_range = math.isclose(float(distances[-1]), max_range_m)
+    bins: list[HorizonBin] = []
+    for az_index in range(len(azimuths)):
+        nodata_count = int((~known[az_index]).sum())
+        if not np.any(known[az_index] & (distances > 0.0)):
+            bins.append(HorizonBin(
+                azimuth_deg=float(azimuths[az_index]), elevation_rad=None,
+                controlling_distance_m=None, coverage_status="none",
+                sample_count=int(distances.size), nodata_count=nodata_count,
+            ))
+            continue
+        maximum_index = int(np.argmax(apparent[az_index]))
+        complete = nodata_count == 0 and reaches_origin and reaches_range
+        bins.append(HorizonBin(
+            azimuth_deg=float(azimuths[az_index]),
+            elevation_rad=float(apparent[az_index, maximum_index]),
+            controlling_distance_m=float(distances[maximum_index]),
+            coverage_status="complete" if complete else "incomplete",
+            sample_count=int(distances.size),
+            nodata_count=nodata_count,
+        ))
+    return bins
 
 
 def _horizon_cache_key(
