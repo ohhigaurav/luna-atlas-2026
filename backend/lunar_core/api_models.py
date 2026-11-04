@@ -225,3 +225,29 @@ class LandingRequest(BaseModel):
     @classmethod
     def landing_start_must_be_explicit_utc(cls, value: datetime) -> datetime:
         return _utc_datetime(value)
+
+
+class EllipseRequest(BaseModel):
+    """Landing-ellipse risk (see lunar_core.landing_ellipse)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    site_id: str = Field(min_length=1, max_length=100)
+    start_utc: datetime
+    days: int = Field(default=14, ge=1, le=30)
+    semi_major_m: float = Field(default=250.0, ge=25.0, le=1500.0)
+    semi_minor_m: float | None = Field(default=None, ge=25.0, le=1500.0)
+    orientation_deg: float = Field(default=0.0, ge=0.0, lt=180.0)
+    spacing_m: float | None = Field(default=None, ge=25.0, le=500.0)
+    panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
+
+    @field_validator("start_utc")
+    @classmethod
+    def ellipse_start_must_be_explicit_utc(cls, value: datetime) -> datetime:
+        return _utc_datetime(value)
+
+    @model_validator(mode="after")
+    def axes_ordered(self) -> EllipseRequest:
+        if self.semi_minor_m is not None and self.semi_minor_m > self.semi_major_m:
+            raise ValueError("semi_minor_m must not exceed semi_major_m")
+        return self

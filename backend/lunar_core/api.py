@@ -24,6 +24,7 @@ from lunar_core.analysis_service import (
 from lunar_core.api_models import (
     AnalysisRequest,
     CheckRequest,
+    EllipseRequest,
     FinderRequest,
     LandingRequest,
     SkyGeometryRequest,
@@ -318,6 +319,21 @@ def landing_windows(request: LandingRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Landing search rejected: {exc}") from exc
+
+
+@app.post("/api/landing-ellipse", tags=["analysis"])
+def landing_ellipse(request: EllipseRequest) -> dict[str, Any]:
+    """Best / typical / worst conditions over a landing ellipse (polar sites; production analysis per point)."""
+    from lunar_core.landing_ellipse import run_landing_ellipse
+
+    try:
+        return run_landing_ellipse(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Ellipse rejected: {exc}") from exc
 
 
 @app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)

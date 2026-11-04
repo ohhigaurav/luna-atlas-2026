@@ -213,6 +213,8 @@ def run_location_scan(
     spacing_m: float = 100.0,
     progress: Callable[[int, int, dict[str, Any]], None] | None = None,
     save: bool = True,
+    offsets: Sequence[GridOffset] | None = None,
+    grid_description: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Analyse every grid point around ``site_id`` with the production pipeline.
 
@@ -225,7 +227,10 @@ def run_location_scan(
 
     if request.horizon_mode != "terrain":
         raise ValueError("location scan requires horizon_mode='terrain'")
-    offsets = scan_offsets(radius_m, spacing_m)
+    if offsets is None:
+        offsets = scan_offsets(radius_m, spacing_m)
+    elif not offsets or len(offsets) > MAX_SCAN_POINTS:
+        raise ValueError(f"offsets must hold 1 to {MAX_SCAN_POINTS} points")
     with svc._RUN_LOCK:
         sites = svc._load_sites()
         if site_id not in sites:
@@ -282,7 +287,7 @@ def run_location_scan(
             "latitude_deg": base_lat, "longitude_deg": base_lon,
             "catalogue_kind": base.get("catalogue_kind"), "source_url": base.get("source_url"),
         },
-        "grid": {
+        "grid": grid_description or {
             "radius_m": radius_m, "spacing_m": spacing_m, "point_count": len(offsets),
             "layout": "square grid in local east/north, clipped to a disc; spherical geodesic offsets",
         },
