@@ -6,7 +6,7 @@ import { GlobeEngine, type SkySample } from './engine/GlobeEngine';
 import type { PinSite } from './engine/pins';
 import { sampleTimesMs, skyAt, type SkyGeometry } from './api/sky';
 
-export type GlobeHandle = { flyToSite: (s: PinSite) => void; flyHome: () => void; skipIntro: () => void };
+export type GlobeHandle = { flyToSite: (s: PinSite) => void; flyHome: () => void; skipIntro: () => void; viewFromEarth: () => void };
 
 type Props = {
   sites: PinSite[];
@@ -68,20 +68,23 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
   const engine = useRef<GlobeEngine | null>(null);
   const cb = useRef({ onSelect, onIntroDone, onError });
   cb.current = { onSelect, onIntroDone, onError };
+  // The sky can be replaced (a plan loads geometry for its own dates) without restarting the globe.
+  const skyRef = useRef({ sky, times: sampleTimesMs(sky) });
+  useEffect(() => { skyRef.current = { sky, times: sampleTimesMs(sky) }; }, [sky]);
 
   useImperativeHandle(handle, () => ({
     flyToSite: (s) => engine.current?.flyToSite(s),
     flyHome: () => engine.current?.flyHome(),
     skipIntro: () => engine.current?.skip(),
+    viewFromEarth: () => engine.current?.viewFromEarth(),
   }), []);
 
   useEffect(() => {
     const el = host.current;
     if (!el) return;
     let cancelled = false;
-    const times = sampleTimesMs(sky);
     const sample = (ms: number): SkySample => {
-      const s = skyAt(sky, times, ms);
+      const s = skyAt(skyRef.current.sky, skyRef.current.times, ms);
       return { sunDir: s.sunDir, earthDir: s.earthDir, earthIllumFrac: s.earthIllumFrac, earthDistanceKm: s.earthDistanceKm };
     };
     loadTextureSet().then((set) => {
@@ -105,7 +108,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
       });
     });
     return () => { cancelled = true; engine.current?.dispose(); engine.current = null; };
-  }, [sites, sky, cursorRef, reducedMotion]);
+  }, [sites, cursorRef, reducedMotion]);
 
   return <div ref={host} className="la-stage" />;
 }
