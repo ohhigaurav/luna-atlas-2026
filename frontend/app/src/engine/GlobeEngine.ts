@@ -47,10 +47,10 @@ export type EngineOptions = {
   onError?: (message: string) => void;
 };
 
-const HOME_DISTANCE = 3.9;   // whole disc in frame with margin (fov 35 deg)
+const HOME_DISTANCE = 4.6;   // whole disc between the top bar and the time rail (fov 35 deg)
 const EXPOSURE = 1.2;
 const INTRO_EXPOSURE = 0.7;  // opening shot: the lit Earth and the star field read, the night side stays dark
-const HOME_SHIFT = 0.15;     // globe sits right of centre, leaving room for the title
+const HOME_SHIFT = 0.15;     // default framing before the HUD reports its panels (setInsets)
 const D2R = Math.PI / 180;
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -76,10 +76,16 @@ export class GlobeEngine {
   private sunWorld = new THREE.Vector3(1, 0, 0);
   private earthWorld = new THREE.Vector3(1, 0, 0);
   private shift = 0;          // horizontal framing offset, fraction of width
+  private homeShift = HOME_SHIFT; // centre of the area the HUD panels leave free
+  private grid: THREE.LineSegments;
+  private ray = new THREE.Raycaster();
   private introPut: ((k: number) => void) | null = null;
   private skipRequested = false;
   private disposed = false;
   private readonly onKey = (e: KeyboardEvent) => {
+    // Keys typed into the HUD (search box, sliders) or meant for an open sheet are not for the camera.
+    const t = e.target as HTMLElement | null;
+    if (e.defaultPrevented || t?.closest?.('input, textarea, select') || document.querySelector('.la-sheet, .la-scrim')) return;
     if (this.tweens.active && !e.repeat) { this.tweens.finishAll(); if (e.key !== 'Escape') return; } // any key skips
     if (e.key === 'Escape' && this.mode === 'site') this.flyHome();
   };
@@ -108,6 +114,8 @@ export class GlobeEngine {
     this.scene.add(this.stars, this.glare.group, this.earth.group);
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(1, opts.sphereSegments ?? 512, Math.round((opts.sphereSegments ?? 512) / 2)), new THREE.MeshBasicMaterial({ color: 0x15181f }));
     this.scene.add(this.moon);
+    this.grid = createGraticule();
+    this.scene.add(this.grid);
 
     this.controls = new OrbitControls(this.camera, cv);
     this.controls.enableDamping = true;
@@ -228,13 +236,13 @@ export class GlobeEngine {
     const starMat = this.stars.material as THREE.ShaderMaterial;
     this.tweens.add({ duration: 1600, easing: ease.inOutSine, step: (k) => { starMat.uniforms.opacity.value = k; } }, now);
     this.tweens.add({ delay: 1200, duration: 3600, easing: ease.inOutSine, step: (k) => { this.renderer.toneMappingExposure = THREE.MathUtils.lerp(INTRO_EXPOSURE, EXPOSURE, k); } }, now);
-    this.tweens.add({ delay: 2500, duration: 5500, easing: ease.inOutSine, step: (k) => { this.setShift(k * HOME_SHIFT); } }, now);
+    this.tweens.add({ delay: 2500, duration: 5500, easing: ease.inOutSine, step: (k) => { this.setShift(k * this.homeShift); } }, now);
     this.tweens.add({ duration: 8000, easing: ease.linear, step: put, done: () => this.introDone() }, now);
   }
 
   private introDone(): void {
     this.renderer.toneMappingExposure = EXPOSURE;
-    this.setShift(HOME_SHIFT);
+    this.setShift(this.homeShift);
     this.pins.root.style.transition = 'opacity .6s ease';
     this.pins.root.style.opacity = '1';
     (this.stars.material as THREE.ShaderMaterial).uniforms.opacity.value = 1;
@@ -244,6 +252,43 @@ export class GlobeEngine {
     this.drifting = !this.opts.reducedMotion;
     this.opts.onIntroDone?.();
   }
+
+  /**
+   * The HUD reports how much of the left and right edges its panels cover; the globe is framed in
+   * the space between (desktop only; phones keep the vertical framing).
+   */
+  setInsets(leftPx: number, rightPx: number): void {
+    const w = this.container.clientWidth || 1;
+    const next = (leftPx - rightPx) / (2 * w);
+    if (Math.abs(next - this.homeShift) < 1e-4) return;
+    this.homeShift = next;
+    if (this.introPut || this.flying) return;   // the running move ends on the new framing
+    const s0 = this.shift;
+    this.tweens.add({ duration: this.opts.reducedMotion ? 0 : 450, easing: ease.inOutCubic,
+      step: (k) => this.setShift(THREE.MathUtils.lerp(s0, next, k)) }, performance.now());
+  }
+
+  /** Planetocentric latitude / east longitude under a screen point (CSS px in the container), or null. */
+  pick(x: number, y: number): { lat: number; lon: number } | null {
+    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    this.ray.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, 1 - (y / h) * 2), this.camera);
+    const o = this.ray.ray.origin, d = this.ray.ray.direction;
+    const b = o.dot(d), c = o.lengthSq() - 1, disc = b * b - c;
+    if (disc < 0) return null;
+    const t = -b - Math.sqrt(disc);
+    if (t < 0) return null;
+    const p = o.clone().addScaledVector(d, t);
+    const lat = Math.asin(Math.max(-1, Math.min(1, p.y))) / D2R;
+    let lon = Math.atan2(-p.z, p.x) / D2R;
+    if (lon < 0) lon += 360;
+    return { lat, lon };
+  }
+
+  /** Latitude/longitude lines every 15 deg (equator and prime meridian brighter). */
+  setGrid(on: boolean): void { this.grid.visible = on; }
+
+  /** Live state per site (e.g. 'day' / 'night'), shown on its marker. */
+  setPinStates(states: Record<string, string>): void { this.pins.setStates(states); }
 
   /** Where a site is on screen right now (CSS px in the container), and whether it faces us. */
   screenOf(site: PinSite): { x: number; y: number; facing: boolean } {
@@ -308,7 +353,7 @@ export class GlobeEngine {
     this.flying = true;
     this.controls.enabled = false;
     const tgt = new THREE.Vector3();
-    const s0 = this.shift, s1 = this.mode === 'site' ? 0 : HOME_SHIFT;
+    const s0 = this.shift;  // ends on homeShift as it is at each step (panels may open mid-flight)
     this.tweens.add({
       duration, easing: ease.inOutCubic,
       step: (k) => {
@@ -317,7 +362,7 @@ export class GlobeEngine {
         this.camera.position.copy(u0).applyQuaternion(qk).multiplyScalar(r);
         tgt.lerpVectors(T0, T1, ease.inOutSine(k));
         this.camera.lookAt(tgt);
-        this.setShift(THREE.MathUtils.lerp(s0, s1, k));
+        this.setShift(THREE.MathUtils.lerp(s0, this.homeShift, k));
       },
       done: () => {
         this.flying = false;
@@ -376,11 +421,12 @@ export class GlobeEngine {
     if (w < 760) {
       // Phones: the title card sits on top, so the globe moves into the lower part of the screen.
       if (Math.abs(f) < 1e-4) this.camera.clearViewOffset();
-      else this.camera.setViewOffset(w, h, 0, -(f / HOME_SHIFT) * 0.17 * h, w, h);
+      else this.camera.setViewOffset(w, h, 0, -0.17 * h, w, h);
       return;
     }
-    if (Math.abs(f) < 1e-4) this.camera.clearViewOffset();
-    else this.camera.setViewOffset(w, h, -f * w, 0, w, h);
+    // Desktop: centre on the area between the panels (f) and between the top bar (44 px) and the
+    // time rail (~70 px), so the disc never sits under the HUD.
+    this.camera.setViewOffset(w, h, -f * w, 13, w, h);
   }
 
   private resize(): void {
@@ -404,4 +450,26 @@ export class GlobeEngine {
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
+}
+
+/** A cartographic graticule just above the mean surface, faint enough not to fight the terrain. */
+function createGraticule(): THREE.LineSegments {
+  const R = 1.0012, pts: number[] = [], major: number[] = [];
+  const push = (a: THREE.Vector3, b: THREE.Vector3, m: boolean) => { (m ? major : pts).push(a.x, a.y, a.z, b.x, b.y, b.z); };
+  for (let lat = -75; lat <= 75; lat += 15) {
+    for (let lon = 0; lon < 360; lon += 2) push(latLonToThree(lat, lon).multiplyScalar(R), latLonToThree(lat, lon + 2).multiplyScalar(R), lat === 0);
+  }
+  for (let lon = 0; lon < 360; lon += 15) {
+    for (let lat = -88; lat < 88; lat += 2) push(latLonToThree(lat, lon).multiplyScalar(R), latLonToThree(lat + 2, lon).multiplyScalar(R), lon === 0);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([...pts, ...major], 3));
+  const n = pts.length / 3;
+  geo.addGroup(0, n, 0);
+  geo.addGroup(n, major.length / 3, 1);
+  const mat = (o: number) => new THREE.LineBasicMaterial({ color: 0xb8c6d8, transparent: true, opacity: o, depthWrite: false, toneMapped: false });
+  const lines = new THREE.LineSegments(geo, [mat(0.09), mat(0.2)]);
+  lines.renderOrder = 1;
+  lines.visible = false;
+  return lines;
 }

@@ -66,9 +66,10 @@ export async function loadDataSource(): Promise<DataSource> {
   const liveSites = await detectLive();
   if (liveSites) {
     const now = Date.now();
-    // "The Moon right now": a short window around this moment, so the opening is today's lighting.
+    // "The Moon right now": today's lighting, and 30 days ahead so every site can say when its
+    // Sun next rises or sets (one lunar day is 29.5 days).
     const start = new Date(now - 2 * 3600e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
-    const end = new Date(now + 2 * 86400e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const end = new Date(now + 30 * 86400e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
     const sky = await fetchSkyGeometry(start, end, 30);
     return { mode: 'live', sites: liveSites, sky, initialCursorMs: now };
   }

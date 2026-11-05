@@ -20,22 +20,29 @@ export function latLonToThree(latDeg: number, lonDeg: number): THREE.Vector3 {
 }
 
 const CSS = `
-.la-pins{position:absolute;inset:0;overflow:hidden;pointer-events:none;font-family:Inter,system-ui,sans-serif}
+.la-pins{position:absolute;inset:0;overflow:hidden;pointer-events:none;font-family:var(--font-ui,system-ui),sans-serif}
 .la-pin,.la-cluster{position:absolute;left:0;top:0;pointer-events:auto;border:0;background:none;padding:0;
-  width:44px;height:44px;margin:-22px 0 0 -22px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  width:40px;height:40px;margin:-20px 0 0 -20px;display:flex;align-items:center;justify-content:center;cursor:pointer;
   will-change:transform,opacity;outline:none}
-.la-dot{width:9px;height:9px;border-radius:50%;background:#e8edf5;box-shadow:0 0 0 2px rgba(5,7,13,.65),0 0 10px rgba(223,230,255,.85);
-  transition:transform .15s ease}
-.la-pin:hover .la-dot,.la-pin:focus-visible .la-dot{transform:scale(1.5)}
-.la-pin.sel .la-dot{width:12px;height:12px;background:#fff;box-shadow:0 0 0 3px rgba(223,230,255,.35),0 0 0 8px rgba(223,230,255,.12),0 0 18px rgba(255,255,255,.9)}
-.la-pin:focus-visible .la-dot,.la-cluster:focus-visible .la-count{outline:2px solid #dfe6ff;outline-offset:4px}
-.la-label{position:absolute;left:30px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:13px;font-weight:500;
-  color:#e8edf5;background:rgba(16,24,40,.86);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:3px 8px;
+.la-mk{position:relative;width:11px;height:11px;border-radius:50%;box-sizing:border-box;border:1.5px solid #e9edf2;
+  background:rgba(6,8,12,.55);box-shadow:0 0 0 1px rgba(0,0,0,.55);transition:transform .15s ease}
+.la-mk::after{content:'';position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:#e9edf2}
+.la-pin.day .la-mk{border-color:#f2b84b}.la-pin.day .la-mk::after{background:#f2b84b}
+.la-pin.night .la-mk{border-color:#7d8796}.la-pin.night .la-mk::after{background:#7d8796}
+.la-pin:hover .la-mk,.la-pin:focus-visible .la-mk{transform:scale(1.35)}
+.la-pin.sel .la-mk{width:15px;height:15px;border-width:2px;border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 6px rgba(255,255,255,.12)}
+.la-pin.sel .la-mk::after{background:#fff}
+.la-pin:focus-visible .la-mk,.la-cluster:focus-visible .la-count{outline:2px solid #fff;outline-offset:4px}
+.la-label{position:absolute;left:24px;top:50%;transform:translateY(-50%);white-space:nowrap;
+  font:500 12px/1.25 var(--font-cond,system-ui),sans-serif;letter-spacing:.02em;color:#eef1f5;
+  background:rgba(7,9,13,.82);border-left:2px solid rgba(233,237,242,.6);padding:3px 7px 3px 6px;
   opacity:0;transition:opacity .15s ease;pointer-events:none}
-.la-label small{display:block;font-size:12px;font-weight:400;color:#a7b3c4}
+.la-pin.day .la-label{border-left-color:#f2b84b}.la-pin.night .la-label{border-left-color:#7d8796}
+.la-label small{display:block;font:400 11px/1.3 var(--font-mono,monospace);color:#9aa5b4;letter-spacing:0}
 .la-pin:hover .la-label,.la-pin:focus-visible .la-label,.la-pin.sel .la-label,.la-pins.near .la-pin .la-label{opacity:1}
-.la-count{min-width:30px;height:30px;border-radius:15px;padding:0 8px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
-  font:600 13px/1 'JetBrains Mono',monospace;color:#0b1220;background:#e8edf5;box-shadow:0 0 0 3px rgba(5,7,13,.6),0 0 14px rgba(223,230,255,.7)}
+.la-count{min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  font:500 12px/1 var(--font-mono,monospace);color:#eef1f5;background:rgba(7,9,13,.85);border:1.5px solid #e9edf2;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5)}
 `;
 
 type PinEl = { site: PinSite; dir: THREE.Vector3; el: HTMLButtonElement };
@@ -75,10 +82,10 @@ export class PinLayer {
       el.type = 'button';
       el.className = 'la-pin';
       el.setAttribute('aria-label', `${site.name}${site.group ? `, ${site.group}` : ''}. Fly there`);
-      const dot = document.createElement('span'); dot.className = 'la-dot';
+      const dot = document.createElement('span'); dot.className = 'la-mk';
       const label = document.createElement('span'); label.className = 'la-label';
       label.textContent = shortName(site.name);
-      if (site.group) { const sm = document.createElement('small'); sm.textContent = site.group; label.appendChild(sm); }
+      { const sm = document.createElement('small'); sm.textContent = coordText(site.latitude_deg, site.longitude_deg); label.appendChild(sm); }
       el.append(dot, label);
       el.addEventListener('click', () => this.onPick(site));
       this.root.appendChild(el);
@@ -171,7 +178,23 @@ export class PinLayer {
     return this.clusters[i];
   }
 
+  /** Add a state class ('day', 'night', ...) to each site's marker; unknown ids are cleared. */
+  setStates(states: Record<string, string>): void {
+    for (const p of this.pins) {
+      const want = states[p.site.site_id] ?? '';
+      if (p.el.dataset.state === want) continue;
+      if (p.el.dataset.state) p.el.classList.remove(p.el.dataset.state);
+      if (want) p.el.classList.add(want);
+      p.el.dataset.state = want;
+    }
+  }
+
   dispose(): void { this.root.remove(); }
+}
+
+function coordText(lat: number, lon: number): string {
+  const e = lon > 180 ? lon - 360 : lon;
+  return `${Math.abs(lat).toFixed(2)}°${lat < 0 ? 'S' : 'N'} ${Math.abs(e).toFixed(2)}°${e < 0 ? 'W' : 'E'}`;
 }
 
 /** "Apollo 11 (Tranquility Base)" -> "Apollo 11"; keeps names short on the globe. */

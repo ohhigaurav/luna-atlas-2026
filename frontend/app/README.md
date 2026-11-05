@@ -28,8 +28,8 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 
 | command | what it checks |
 |---|---|
-| `npm test` | unit tests: sky interpolation, display formats, Moon phase, landing answer logic |
-| `npm run check:shader` | the Moon shader in headless WebGL2: terminator within 1 deg of the Sun direction, map orientation, slope sign, cast shadows (9 criteria) |
+| `npm test` | unit tests: sky interpolation, formats, Moon phase, landing answer, typed dates, calendar days, site day/night, lander power model |
+| `npm run check:shader` | the Moon shader in headless WebGL2: terminator within 1 deg of the Sun direction, map orientation, slope sign, cast shadows, no speckle from sub-pixel relief (10 criteria) |
 | `npm run build` | TypeScript (strict) + production bundle in `dist/` |
 
 ## What is on screen
@@ -38,10 +38,15 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 |---|---|---|
 | Globe: LROC colour, LOLA relief and cast shadows, Earth, Sun glare, opening shot, flights | `src/engine/` (plain three.js, mounted by `GlobeView.tsx`) | `POST /api/sky-geometry` |
 | Site pins (buttons, clustered at the pole) | `src/engine/pins.ts` | `GET /api/reference-sites` |
-| Live clock and "% lit from Earth" chip | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |
-| Answer card: next landing date, ☀ / 🌍 / ⏱ chips, fixes when nothing fits | `src/plan/AnswerCard.tsx`, `src/plan/answer.ts` | `POST /api/landing-windows` |
-| Landing ring: 90 days around the pin, launch knob, mission-length handle | `src/plan/LandingRing.tsx` | landing windows + `POST /api/check` bands |
-| Time dock | `App.tsx` | shared clock |
+| Site index (left): every site, day or night now and when that changes, flat ground | `src/ui/SiteIndex.tsx`, `src/state/siteState.ts` | sky-geometry vectors |
+| Top bar: UTC clock (live dot while it follows the wall clock), "% lit from Earth" | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |
+| Site panel (right): next landing date, daylight / Earth / countdown, fixes when nothing fits, mission length, launch date, quick dates, 90-day strip | `src/plan/SitePanel.tsx`, `src/plan/answer.ts` | `POST /api/landing-windows` + `POST /api/check` bands |
+| Landing ring: 90 days around the pin, launch knob, mission-length handle | `src/plan/LandingRing.tsx` | same |
+| Calendar heat map: each UTC day green (window), amber (Sun up), grey (dark) | `src/plan/Calendar.tsx`, `src/plan/calendarDays.ts` | same |
+| Ctrl K: sites, typed dates (`13 jan 2027`, `next month`, `2027-03`, `+10d`), actions | `src/ui/CommandBar.tsx`, `src/state/when.ts` | none |
+| Surface: the real horizon with the Sun and Earth now and over 30 days; "Keep the lander alive" battery game (illustrative power model, labelled) | `src/surface/` | `POST /api/check` → `GET /api/runs/{id}` series |
+| Evidence: LRO photo vs our shadows wipe slider (6 frames, the failing one included), real-mission table, JPL Horizons | `src/proof/` | `public/proof/` (from `python tools/export_proof.py`), figures copied from `validation/evidence/` |
+| Time rail, pointer readout (lat/lon and Sun height under the cursor) | `App.tsx` | shared clock |
 
 **Live or static.** If the backend answers `GET /api/reference-sites`, the app is live ("the Moon
 right now", any date). Otherwise it loads the precomputed judge bundle from `public/data/`
@@ -55,6 +60,18 @@ right now", any date). Otherwise it loads the precomputed judge bundle from `pub
   illustrative.
 - Colour never carries meaning alone (glyphs ✓ ✕ and words go with it); keyboard reaches everything.
 - Camera motion is presentation; the Sun, Earth and terminator move only with data.
+
+## Evidence pictures (F22)
+
+The wipe slider needs the shadow-match pictures, which are made on the machine that ran
+`tools/shadow_match.py`. Copy them into the app once and commit them:
+
+```bash
+python tools/export_proof.py      # writes frontend/app/public/proof/
+```
+
+Without them the evidence screen still shows the verdict and every number (they come from the
+committed evidence files) and says how to add the pictures.
 
 ## Textures
 

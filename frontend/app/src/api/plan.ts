@@ -50,6 +50,7 @@ export type CheckResult = {
     caveats: string[];
   };
   run_id: string;
+  run_url: string;
   cache_hit: boolean;
   compute_seconds: number | null;
 };
@@ -87,6 +88,25 @@ export function findLandingWindows(siteId: string, startMs: number, days: number
       max_sun_elevation_deg: maxSunElevationDeg }, signal);
 }
 
-export function checkSite(siteId: string, startMs: number, days: number, signal?: AbortSignal) {
-  return post<CheckResult>('/api/check', { site_id: siteId, start_utc: isoZ(startMs), days, panel_height_m: 2 }, signal);
+export function checkSite(siteId: string, startMs: number, days: number, signal?: AbortSignal, panelHeightM = 2) {
+  return post<CheckResult>('/api/check', { site_id: siteId, start_utc: isoZ(startMs), days, panel_height_m: panelHeightM }, signal);
+}
+
+/** One row of a saved run's series (analysis_service.run_analysis timeline). */
+export type RunRow = {
+  utc: string;
+  sun_azimuth_deg: number; sun_elevation_deg: number; sun_horizon_deg: number; sun_visible_upper_limb: boolean;
+  earth_azimuth_deg: number; earth_elevation_deg: number; earth_horizon_deg: number; earth_center_clear: boolean;
+};
+export type HorizonBin = { azimuth_deg: number; elevation_deg: number | null; coverage_status?: string };
+export type SavedRun = {
+  run_id: string;
+  settings: { horizon_mode: string; sun_observer_height_m: number; antenna_height_m: number };
+  sites: { site: { site_id: string; name: string }; terrain_status: string; horizon_profile: HorizonBin[]; earth_horizon_profile: HorizonBin[]; series: RunRow[] }[];
+};
+
+export async function fetchRun(runUrl: string, signal?: AbortSignal): Promise<SavedRun> {
+  const r = await fetch(runUrl, { signal });
+  if (!r.ok) throw new ApiError(r.status, `run ${r.status}`);
+  return (await r.json()) as SavedRun;
 }

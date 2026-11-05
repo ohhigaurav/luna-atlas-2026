@@ -121,7 +121,11 @@ const frag = /* glsl */ `
   // keep the smallest clearance angle. Compared with the Sun's apparent radius it gives the
   // visible fraction of the solar disc (0 = fully shadowed, 1 = full Sun). Flat ground never
   // shadows itself: the ray rises d tan(e) + d^2 / 2R above the sphere.
-  float sunVisibility(vec3 n0, vec3 s, float h0) {
+  // pixKm is the ground size of one screen pixel. Every sample, and the start height, is read at
+  // a mip level no finer than one pixel, so the ray is compared with heights smoothed to the same
+  // scale on both ends. Comparing a full-resolution start height with mip-averaged neighbours
+  // made isolated pixels see walls that are not there (speckle near the terminator, 4 Nov).
+  float sunVisibility(vec3 n0, vec3 s, float pixKm) {
     float e = dot(n0, s);                          // sin(Sun elevation) over the smooth sphere
     if (shadowSteps < 0.5 || e > 0.75 || e < -0.05) return 1.0;
     vec3 t = s - n0 * e;
@@ -131,12 +135,12 @@ const frag = /* glsl */ `
     float tanE = e / c;
     float texelKm = PI * R_KM / max(1.0 / texel.y, 1.0);
     float clearance = 1e9;
-    float d = 0.6;                                 // km; geometric steps out to ~175 km
+    float d = 0.6;                                 // km; geometric steps (x1.28) out to ~175 km
     for (int i = 0; i < 32; i++) {
       if (float(i) >= shadowSteps) break;
       vec3 p = normalize(n0 + t * (d / R_KM));
-      float lod = clamp(log2(d / (6.0 * texelKm)), 0.0, 9.0);
-      float ray = h0 + d * tanE + d * d / (2.0 * R_KM);
+      float lod = clamp(log2(max(d / 6.0, pixKm) / texelKm), 0.0, 9.0);
+      float ray = heightAt(n0, lod) + d * tanE + d * d / (2.0 * R_KM);
       clearance = min(clearance, (ray - heightAt(p, lod)) / d);
       d *= 1.28;
     }
@@ -219,7 +223,7 @@ const frag = /* glsl */ `
     float mu  = max(dot(Nw, V), 1e-3);
     // Lunar-Lambert reflectance (McEwen): Lommel-Seeliger term + Lambert term.
     float sun = 2.0 * L * mu0 / (mu0 + mu) + (1.0 - L) * mu0;
-    if (mu0 > 0.0) sun *= sunVisibility(n0, normalize(sunDir), heightAt(n0, 0.0));
+    if (mu0 > 0.0) sun *= sunVisibility(n0, normalize(sunDir), R_KM * length(fwidth(vObjN)));
 
     // Earthshine: Earth as a dim, phase-weighted light from its true direction.
     float mu0e = max(dot(Nw, Ew), 0.0);

@@ -9,6 +9,10 @@ import { sampleTimesMs, skyAt, type SkyGeometry } from './api/sky';
 export type GlobeHandle = {
   flyToSite: (s: PinSite) => void; flyHome: () => void; skipIntro: () => void; viewFromEarth: () => void;
   screenOf: (s: PinSite) => { x: number; y: number; facing: boolean } | null;
+  pick: (x: number, y: number) => { lat: number; lon: number } | null;
+  setInsets: (leftPx: number, rightPx: number) => void;
+  setGrid: (on: boolean) => void;
+  setPinStates: (states: Record<string, string>) => void;
 };
 
 type Props = {
@@ -69,6 +73,8 @@ function pickColor(set: TextureSet): string {
 export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIntroDone, onError, handle }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<GlobeEngine | null>(null);
+  // Calls that arrive before the engine exists (textures still loading) are replayed on creation.
+  const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string> }>({});
   const cb = useRef({ onSelect, onIntroDone, onError });
   cb.current = { onSelect, onIntroDone, onError };
   // The sky can be replaced (a plan loads geometry for its own dates) without restarting the globe.
@@ -81,6 +87,10 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     skipIntro: () => engine.current?.skip(),
     viewFromEarth: () => engine.current?.viewFromEarth(),
     screenOf: (s) => engine.current?.screenOf(s) ?? null,
+    pick: (x, y) => engine.current?.pick(x, y) ?? null,
+    setInsets: (l, r) => { pending.current.insets = [l, r]; engine.current?.setInsets(l, r); },
+    setGrid: (on) => { pending.current.grid = on; engine.current?.setGrid(on); },
+    setPinStates: (st) => { pending.current.states = st; engine.current?.setPinStates(st); },
   }), []);
 
   useEffect(() => {
@@ -110,6 +120,10 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
         onIntroDone: () => cb.current.onIntroDone(),
         onError: (m) => cb.current.onError(m),
       });
+      const q = pending.current;
+      if (q.insets) engine.current.setInsets(q.insets[0], q.insets[1]);
+      if (q.grid !== undefined) engine.current.setGrid(q.grid);
+      if (q.states) engine.current.setPinStates(q.states);
     });
     return () => { cancelled = true; engine.current?.dispose(); engine.current = null; };
   }, [sites, cursorRef, reducedMotion]);

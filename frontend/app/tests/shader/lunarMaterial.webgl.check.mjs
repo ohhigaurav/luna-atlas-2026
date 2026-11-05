@@ -27,13 +27,15 @@ function run(){
   // float -> half
   const f32=new Float32Array(1), u32=new Uint32Array(f32.buffer);
   function half(v){f32[0]=v;const x=u32[0];const s=(x>>>16)&0x8000;let e=((x>>>23)&0xff)-127+15;let m=(x>>>13)&0x3ff;if(e<=0)return s;if(e>=31)return s|0x7c00;return s|(e<<10)|m;}
-  function heightTex(W,H,fn){ // row 0 = south, as lola_to_f16.py writes
+  function heightTex(W,H,fn,mips){ // row 0 = south, as lola_to_f16.py writes
     const d=new Uint16Array(W*H); for(let j=0;j<H;j++){const lat=-90+(j+0.5)*180/H; for(let i=0;i<W;i++){const lon=-180+(i+0.5)*360/W; d[j*W+i]=half(fn(lat,lon));}}
     const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,t);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.R16F,W,H,0,gl.RED,gl.HALF_FLOAT,d);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    if(mips){ gl.getExtension('EXT_color_buffer_half_float'); gl.getExtension('EXT_color_buffer_float'); gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); }
     gl.uniform1i(U('dispMap'),1); gl.uniform2f(U('texel'),1/W,1/H);
     const R=1737.4; gl.uniform2f(U('kmPerUv'), 2*Math.PI*R, Math.PI*R);
   }
@@ -96,6 +98,18 @@ function run(){
         const nME=[Math.sqrt(1-r2),sy,-sx].map((v,q,a)=>q===0?a[0]:q===1?-a[2]:a[1]); const d=nME[0]*sME[0]+nME[1]*sME[1]+nME[2]*sME[2];
         const ang=Math.asin(Math.max(-1,Math.min(1,d)))*180/Math.PI; if(Math.abs(ang)<1) continue; n2++; if((px[(j*N+i)*4]>0)!==(ang>0)) bad2++; } }
     out.flatWithShadows={checkedPixels:n2, wrongBeyond1deg:bad2}; }
+  // 7) No speckle: sub-pixel LOLA-like noise (+-0.4 km per 7.5 km texel, mipmapped as in the app)
+  //    under a Sun 15-60 deg up must not shadow isolated pixels. Real relief this small casts
+  //    shadows shorter than a pixel at this scale. (4 Nov: the start height was read at full
+  //    resolution and the march at mip levels; pits saw walls that are not there.)
+  { let s2=11; const r2n=()=>((s2=(Math.imul(s2,1664525)+1013904223)>>>0)/4294967296);
+    const noise=new Float32Array(1440*720).map(()=>0.8*(r2n()-0.5));
+    let k=0; heightTex(1440,720,()=>noise[k++],true); colorTex(()=>255);
+    const sME=dirME(0,84); const base=render([0,84],{gain:0}), sh=render([0,84],{gain:0,shadow:24});
+    let n3=0, dark=0; for(let j=0;j<N;j++)for(let i=0;i<N;i++){ const sx=(i+0.5)/N*2-1, sy=(j+0.5)/N*2-1, rr=sx*sx+sy*sy; if(rr>0.9) continue;
+      const nME=[Math.sqrt(1-rr),sx,sy]; const ang=Math.asin(nME[0]*sME[0]+nME[1]*sME[1]+nME[2]*sME[2])*180/Math.PI; if(ang<4||ang>30) continue;
+      const q=(j*N+i)*4; n3++; if(sh[q] < 0.5*base[q]) dark++; }
+    out.speckle={checkedPixels:n3, isolatedDark:dark}; }
   // 4) Lommel-Seeliger flatness: brightness near limb vs centre at full phase, L=1 vs L=0
   heightTex(64,32,()=>0); colorTex(()=>255);
   const a=render([0,0],{L:1}); const bL=render([0,0],{L:0});
@@ -122,6 +136,7 @@ const checks = r.error ? [['shader ran', false, r.error]] : [
   ['lunar-Lambert keeps the limb bright (L=1) and Lambert darkens it (L=0)', r.limbOverCentre.lunarLambert_L1 > 0.9 && r.limbOverCentre.lambert_L0 < 0.6, r.limbOverCentre],
   ['a 5 km wall casts a shadow away from a low Sun', r.castShadow.eastSunShadow < 0.1 * r.castShadow.eastSunNoShadow, r.castShadow],
   ['the same wall does not shadow the side facing the Sun', Math.abs(r.castShadow.westSunShadow - r.castShadow.westSunNoShadow) <= 2, r.castShadow],
+  ['sub-pixel noise does not speckle a lit Moon', r.speckle.checkedPixels > 5000 && r.speckle.isolatedDark <= 0.002 * r.speckle.checkedPixels, r.speckle],
   ['flat ground never shadows itself', r.flatWithShadows.checkedPixels > 20000 && r.flatWithShadows.wrongBeyond1deg === 0, r.flatWithShadows],
 ];
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
