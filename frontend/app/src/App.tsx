@@ -14,9 +14,12 @@ import type { PinSite } from './engine/pins';
 import { formatLat, formatLon } from './state/format';
 import { litFraction, moonPhase } from './state/phase';
 import { siteNormal, siteNow, type SiteNow } from './state/siteState';
-import { SiteIndex } from './ui/SiteIndex';
+import { Gazetteer } from './ui/Gazetteer';
+import { Neatline, FRAME_IN } from './ui/Neatline';
+import { useOutlook } from './plan/useOutlook';
+import { outlookText } from './state/outlook';
 import { CommandBar, type Command } from './ui/CommandBar';
-import { Mark, PlayIcon } from './ui/Icons';
+import { PlayIcon } from './ui/Icons';
 import { ProofView } from './proof/ProofView';
 import type { MissionCase } from './proof/evidence';
 import { SurfaceView } from './surface/SurfaceView';
@@ -26,6 +29,7 @@ const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21
 const STEP_MS = 30 * 60e3;
 const HOUR = 3600e3, DAY = 86400e3;
 const D2R = Math.PI / 180;
+const CARTOUCHE = FRAME_IN + 14 + 372; // left edge of the free chart area (px)
 
 const two = (n: number) => String(n).padStart(2, '0');
 function utcParts(ms: number) {
@@ -55,6 +59,7 @@ export default function App() {
   const [grid, setGrid] = useState(false);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
   const [narrow, setNarrow] = useState(() => window.innerWidth <= 900);
+  const [vw, setVw] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
   const cursorRef = useRef(0);
   const globe = useRef<GlobeHandle>(null);
   const reducedMotion = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, []);
@@ -67,7 +72,7 @@ export default function App() {
       },
       (e: unknown) => setFatal(e instanceof Error ? e.message : String(e)),
     );
-    const r = () => setNarrow(window.innerWidth <= 900);
+    const r = () => { setNarrow(window.innerWidth <= 900); setVw({ w: window.innerWidth, h: window.innerHeight }); };
     window.addEventListener('resize', r);
     return () => window.removeEventListener('resize', r);
   }, []);
@@ -137,8 +142,8 @@ export default function App() {
   // Frame the globe in the space the panels leave free.
   useEffect(() => {
     if (narrow) globe.current?.setInsets(0, 0);
-    else globe.current?.setInsets(312, selected ? 384 : 0);
-  }, [selected, narrow, data]);
+    else globe.current?.setInsets(CARTOUCHE, FRAME_IN);
+  }, [narrow, data]);
   useEffect(() => { globe.current?.setGrid(grid); }, [grid, data]);
 
   // Ctrl/⌘ K opens the command bar from anywhere.
@@ -167,11 +172,17 @@ export default function App() {
     for (const s of data.sites) out[s.site_id] = siteNow(sky, times, s.latitude_deg, s.longitude_deg, t);
     return out;
   }, [sky, times, data, stateKey]);
+  const { outlook } = useOutlook(data?.sites ?? null, live, selected?.site_id ?? null);
   useEffect(() => {
-    const m: Record<string, string> = {};
-    for (const [id, st] of Object.entries(states)) m[id] = st.day ? 'day' : 'night';
+    const m: Record<string, string> = {}, notes: Record<string, string> = {};
+    for (const [id, st] of Object.entries(states)) {
+      const o = outlook[id];
+      m[id] = `${st.day ? 'day' : 'night'}${o?.kind === 'window' ? ' window' : ''}`;
+      notes[id] = o && o.kind !== 'pending' ? outlookText(o) : st.day ? 'Sun up now' : 'night now';
+    }
     globe.current?.setPinStates(m);
-  }, [states]);
+    globe.current?.setPinNotes(notes);
+  }, [states, outlook]);
 
   // Readout under the pointer: where it is and how high the Sun stands there (smooth sphere).
   const hoverRaf = useRef(0);
@@ -216,7 +227,7 @@ export default function App() {
   if (!data || !sky || !span) {
     return (
       <div className="la-app">
-        <div className="la-boot" role="status"><Mark /><span>Asking JPL SPICE where the Sun is…</span><div className="la-bar" /></div>
+        <div className="la-boot" role="status"><span>Asking JPL SPICE where the Sun is…</span><div className="la-bar" /></div>
       </div>
     );
   }
@@ -225,7 +236,7 @@ export default function App() {
   const sel = selected ? states[selected.site_id] ?? null : null;
 
   return (
-    <div className={`la-app${selected ? ' side-open' : ''}${sheet ? ` sheet-open sheet-${sheet.kind}` : ''}`}>
+    <div className={`la-app${selected ? ' site-open' : ''}${sheet ? ` sheet-open sheet-${sheet.kind}` : ''}`}>
       <div className="la-stage" onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         <GlobeView
           sites={data.sites}
@@ -239,41 +250,49 @@ export default function App() {
         />
       </div>
 
-      <header className="la-top">
-        <div className="la-brand"><Mark />Luna Atlas<small>{live ? 'live, JPL SPICE' : `as of ${data.sky.settings.start_utc.slice(0, 10)}`}</small></div>
-        <span className="la-spacer" />
+      {!narrow && <Neatline globe={globe} centerX={(CARTOUCHE + vw.w - FRAME_IN) / 2} centerY={vw.h / 2} quiet={!!sheet} />}
+
+      <header className="la-margin top">
         {phase && (
-          <div className="la-tele la-hide-narrow">
-            <button type="button" onClick={() => globe.current?.viewFromEarth()} title="Turn the Moon to face Earth: the phase in your sky at this time">
-              <span>From Earth</span><b>{Math.round(phase.fraction * 100)}% lit</b><span>{phase.name.toLowerCase()}</span>
-            </button>
-          </div>
+          <button type="button" className="la-mlink" onClick={() => globe.current?.viewFromEarth()} title="Turn the Moon to face Earth: the phase in your sky at this time">
+            {Math.round(phase.fraction * 100)}% lit from Earth, {phase.name.toLowerCase()}
+          </button>
         )}
-        <div className="la-tele la-clock" title={`Local ${localTime(cursorMs)}`}>
-          <i className={`la-live${followNow ? '' : ' off'}`} aria-hidden="true" />
-          <b>{now.date}</b><b>{now.time}</b><span>UTC</span>
-        </div>
+        <span className="la-clock" title={`Local ${localTime(cursorMs)}`}>
+          <i className={`la-live${followNow ? '' : ' off'}`} aria-hidden="true" />{now.date} {now.time} UTC
+        </span>
+        <button type="button" className={`la-mlink${grid ? ' on' : ''}`} aria-pressed={grid} onClick={() => setGrid((g) => !g)}>Grid</button>
       </header>
 
-      <SiteIndex sites={data.sites} states={states} cursorMs={cursorMs} selectedId={selected?.site_id ?? null}
-        onPick={pick} onSearch={() => setCmd(true)} onProof={() => setSheet({ kind: 'proof' })} />
-
-      {selected && (
-        <SitePanel
-          site={selected}
-          live={live}
-          now={sel}
-          cursorMs={cursorMs}
-          settings={plan.settings}
-          data={plan.data}
-          answer={plan.answer}
-          onSettings={plan.update}
-          onJump={jump}
-          onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
-          onClose={() => globe.current?.flyHome()}
-          onProof={() => setSheet({ kind: 'proof' })}
-        />
-      )}
+      <aside className="la-cartouche">
+        <div className="la-carto-brand">
+          <span className="la-mark">Luna Atlas</span>
+          <span>{live ? 'live, Sun and Earth from JPL SPICE' : `precomputed, as of ${data.sky.settings.start_utc.slice(0, 10)}`}</span>
+        </div>
+        {selected ? (
+          <SitePanel
+            site={selected}
+            live={live}
+            now={sel}
+            cursorMs={cursorMs}
+            settings={plan.settings}
+            data={plan.data}
+            answer={plan.answer}
+            onSettings={plan.update}
+            onJump={jump}
+            onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
+            onClose={() => globe.current?.flyHome()}
+            onProof={() => setSheet({ kind: 'proof' })}
+          />
+        ) : (
+          <Gazetteer sites={data.sites} live={live} states={states} outlook={outlook} cursorMs={cursorMs}
+            onPick={pick} onSearch={() => setCmd(true)} onProof={() => setSheet({ kind: 'proof' })} />
+        )}
+        {!selected && <footer className="la-sources">
+          Moon: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Earth: NASA Blue Marble, rotation not modelled. Star field illustrative.
+          Sites are reference points from published sources, not official challenge coordinates.
+        </footer>}
+      </aside>
 
       {selected && live && !sheet && (
         <LandingRing site={selected} screenOf={screenOf} settings={plan.settings} data={plan.data}
@@ -281,20 +300,14 @@ export default function App() {
       )}
 
       {introDone && !sheet && (
-        <>
-          <div className="la-readout" aria-hidden="true">
+        <footer className="la-margin bottom">
+          <span className="la-readout">
             {hover ? (
-              <>
-                <span>{formatLat(hover.lat)} {formatLon(hover.lon)}</span>
-                {hoverSun !== null && <span>Sun <b className={hoverSun > 0 ? 'sun-c' : undefined}>{hoverSun.toFixed(1)}°</b> here, flat ground</span>}
-              </>
-            ) : <span>Drag to turn, scroll to zoom, click a site</span>}
-          </div>
-          <button type="button" className={`la-btn la-gridbtn${grid ? ' on' : ''}`} aria-pressed={grid} onClick={() => setGrid((g) => !g)}>
-            Lat/lon grid
-          </button>
-          <div className="la-credits">Moon: NASA SVS CGI Moon Kit (LROC colour, LOLA relief)<br />Earth: Blue Marble, rotation not modelled · stars illustrative</div>
-        </>
+              <>{formatLat(hover.lat)} {formatLon(hover.lon)}
+                {hoverSun !== null && <>, Sun <b className={hoverSun > 0 ? 'sun-c' : undefined}>{hoverSun.toFixed(1)}°</b> up on flat ground</>}</>
+            ) : 'Drag to turn, scroll to zoom, click a site'}
+          </span>
+        </footer>
       )}
 
       {!introDone && !reducedMotion && (

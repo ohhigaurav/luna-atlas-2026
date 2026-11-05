@@ -23,6 +23,8 @@ Touchdown candidates are the analysis samples (30 min apart), so window edges ar
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import time
 from collections.abc import Sequence
@@ -30,9 +32,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from lunar_core import analysis_service
+from lunar_core import __version__, analysis_service
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
+CACHE_SCHEMA = "landing-cache-1"
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -202,11 +205,39 @@ def explain(result: dict[str, Any], *, mission_days: float, site_name: str) -> l
     return lines
 
 
+def _cache_path(request: LandingRequest) -> Any:
+    """Result cache: same request, software, horizon algorithm and kernel/DEM manifests."""
+    from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
+
+    material: dict[str, Any] = {"schema": CACHE_SCHEMA, "version": __version__, "horizon": HORIZON_ALGORITHM_VERSION,
+                                "request": request.model_dump(mode="json"), "step": STEP_MIN, "chunk": CHUNK_DAYS}
+    for path in (analysis_service.KERNEL_MANIFEST, analysis_service.DEM_MANIFEST):
+        try:
+            material[path.name] = path.stat().st_mtime_ns
+        except OSError:
+            material[path.name] = None
+    key = hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:32]
+    return analysis_service.RUNS_DIR.parent / "cache" / "landing" / f"{key}.json"
+
+
 def run_landing(request: LandingRequest) -> dict[str, Any]:
+    """Cached: the app asks the same question for every site on opening (pin status, PRD F24)."""
     sites = analysis_service._load_sites()
     if request.site_id not in sites:
         raise ValueError(f"unknown site ID: {request.site_id}")
-    site = sites[request.site_id]
+    cache = _cache_path(request)
+    if cache.is_file():
+        try:
+            return {**json.loads(cache.read_text(encoding="utf-8")), "cache_hit": True}
+        except (OSError, json.JSONDecodeError):
+            cache.unlink(missing_ok=True)
+    result = _compute_landing(request, sites[request.site_id])
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(result), encoding="utf-8")
+    return {**result, "cache_hit": False}
+
+
+def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str, Any]:
     started = time.monotonic()
     mode = "terrain" if float(site["latitude_deg"]) <= POLAR_LIMIT_DEG else "flat"
     note = None

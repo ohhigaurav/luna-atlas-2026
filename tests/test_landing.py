@@ -119,5 +119,8 @@ def test_full_pipeline_on_synthetic_geometry(monkeypatch: pytest.MonkeyPatch) ->
     for o in r["opportunities"]:
         assert o["daylight_after_best_h"] >= 6.0 - 0.6 and o["earth_in_view_during_mission_pct"] == 100.0
     assert r["summary"][0].startswith("Next landing opportunity")
+    assert r["cache_hit"] is False
+    again = landing.run_landing(req)  # same question: served from the result cache, same answer
+    assert again["cache_hit"] is True and again["opportunities"] == r["opportunities"]
     long = landing.run_landing(req.model_copy(update={"mission_days": 1.0}))
     assert long["opportunity_count"] == 0 and long["closest_miss"]["failed_rules"] == ["daylight"]

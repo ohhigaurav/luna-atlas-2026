@@ -7,6 +7,14 @@ import { ApiError, checkSite, findLandingWindows, type CheckResult, type Landing
 import { nextLanding, type Answer } from './answer';
 
 export const SEARCH_DAYS = 90;
+export const DEFAULT_MISSION_DAYS = 10;
+export const DEFAULT_MAX_SUN_DEG = 20;
+
+/** One landing question, as the planner and the pin outlook both ask it (shared cache key). */
+export function landingRequest(siteId: string, startMs: number, missionDays: number, maxSunDeg: number | null) {
+  return cached(JSON.stringify(['L', siteId, startMs, missionDays, maxSunDeg]),
+    () => findLandingWindows(siteId, startMs, SEARCH_DAYS, missionDays, undefined, maxSunDeg));
+}
 const DAY = 86400e3;
 
 export type PlanSettings = {
@@ -23,7 +31,7 @@ export type PlanData =
   | { status: 'error'; message: string };
 
 const cache = new Map<string, Promise<unknown>>();
-function cached<T>(key: string, make: () => Promise<T>): Promise<T> {
+export function cached<T>(key: string, make: () => Promise<T>): Promise<T> {
   let p = cache.get(key) as Promise<T> | undefined;
   if (!p) {
     p = make();
@@ -41,7 +49,7 @@ export function utcMidnight(ms: number): number {
 export function usePlan(siteId: string | null, live: boolean, nowMs: number) {
   const [settings, setSettings] = useState<PlanSettings>(() => {
     const start = utcMidnight(Date.now());
-    return { searchStartMs: start, missionDays: 10, maxSunDeg: 20, notBeforeMs: start };
+    return { searchStartMs: start, missionDays: DEFAULT_MISSION_DAYS, maxSunDeg: DEFAULT_MAX_SUN_DEG, notBeforeMs: start };
   });
   const [data, setData] = useState<PlanData>({ status: 'idle' });
   const seq = useRef(0);
@@ -53,8 +61,7 @@ export function usePlan(siteId: string | null, live: boolean, nowMs: number) {
     // Mission-length drags fire often: wait for the hand to settle, then ask.
     const t = setTimeout(() => {
       setData({ status: 'loading', since: performance.now() });
-      const lkey = JSON.stringify(['L', siteId, searchStartMs, missionDays, maxSunDeg]);
-      const landingP = cached(lkey, () => findLandingWindows(siteId, searchStartMs, SEARCH_DAYS, missionDays, undefined, maxSunDeg));
+      const landingP = landingRequest(siteId, searchStartMs, missionDays, maxSunDeg);
       landingP.then(
         (landing) => {
           if (my !== seq.current) return;

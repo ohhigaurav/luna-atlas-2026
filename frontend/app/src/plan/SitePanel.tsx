@@ -6,7 +6,7 @@ import type { UtcRange } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
-import { CalIcon, ClockIcon, CloseIcon, EarthIcon, SunIcon } from '../ui/Icons';
+import { CalIcon, ClockIcon, EarthIcon, SunIcon } from '../ui/Icons';
 import { fixes, formatDuration, formatIn, type Answer } from './answer';
 import { Calendar } from './Calendar';
 import { SEARCH_DAYS, utcMidnight, type PlanData, type PlanSettings } from './usePlan';
@@ -105,12 +105,12 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
   ];
 
   return (
-    <aside className="la-side" aria-label={site.name}>
+    <section className="la-carto-body site" aria-label={site.name}>
       <div className="la-side-scroll">
         <section className="la-sec">
+          <button type="button" className="la-back" onClick={onClose} aria-label="All sites, whole Moon (Esc)">‹ All sites</button>
           <div className="la-site-head">
             <h2>{site.name}</h2>
-            <button type="button" className="la-x" aria-label="Close and show the whole Moon (Esc)" onClick={onClose}><CloseIcon /></button>
             <span className="co">{formatLat(site.latitude_deg)}  {formatLon(site.longitude_deg)}{site.group ? ` · ${site.group}` : ''}</span>
             <div className="la-tags">
               <span className="la-tag">Reference site, not official</span>
@@ -145,7 +145,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
               {data.status === 'ready' && answer?.kind === 'window' && (
                 <>
                   <span className="sr-only">{data.landing.summary[0]}</span>
-                  <span className="la-cap">Next landing window</span>
+                  <span className="la-cap good-c">Next landing window</span>
                   <button type="button" className="la-big" onClick={() => onJump(answer.bestMs)} title={data.landing.summary[0]}>
                     <span>{bigDate(answer.bestMs)}</span> <small>{timeOf(answer.bestMs)}</small>
                   </button>
@@ -239,6 +239,6 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
           {site.source_url && <a className="la-link" href={site.source_url} target="_blank" rel="noreferrer">Coordinate source</a>}
         </section>
       </div>
-    </aside>
+    </section>
   );
 }

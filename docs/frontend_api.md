@@ -61,6 +61,10 @@ Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these def
 `search_days` 90 (max 180), `mission_days` 10, `panel_height_m` 2,
 `require_earth_at_landing` true, `max_sun_elevation_deg` 20 (null turns that rule off).
 
+Cached (5 Nov): an identical request with the same software, horizon algorithm and kernel/DEM
+manifests is answered from `data/cache/landing/` with `"cache_hit": true`. The app asks this for
+every site on opening (green pins), so the first opening is slow and later ones are instant.
+
 Response (abridged):
 
 ```json

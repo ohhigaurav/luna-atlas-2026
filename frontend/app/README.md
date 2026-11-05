@@ -38,9 +38,11 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 |---|---|---|
 | Globe: LROC colour, LOLA relief and cast shadows, Earth, Sun glare, opening shot, flights | `src/engine/` (plain three.js, mounted by `GlobeView.tsx`) | `POST /api/sky-geometry` |
 | Site pins (buttons, clustered at the pole) | `src/engine/pins.ts` | `GET /api/reference-sites` |
-| Site index (left): every site, day or night now and when that changes, flat ground | `src/ui/SiteIndex.tsx`, `src/state/siteState.ts` | sky-geometry vectors |
-| Top bar: UTC clock (live dot while it follows the wall clock), "% lit from Earth" | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |
-| Site panel (right): next landing date, daylight / Earth / countdown, fixes when nothing fits, mission length, launch date, quick dates, 90-day strip | `src/plan/SitePanel.tsx`, `src/plan/answer.ts` | `POST /api/landing-windows` + `POST /api/check` bands |
+| Chart frame: graduated neatline with coordinate ticks read off the globe, scale bar, north arrow | `src/ui/Neatline.tsx` | the camera (ray-cast) |
+| Title block (left): legend, gazetteer with each site's landing outlook and day/night now | `src/ui/Gazetteer.tsx`, `src/state/outlook.ts`, `src/state/siteState.ts` | `POST /api/landing-windows` (all sites, one at a time, cached), sky-geometry |
+| Green pins: a landing window within 30 days; amber: Sun up now; hollow: night | `src/engine/pins.ts`, `src/plan/useOutlook.ts` | same |
+| Marginalia: UTC clock (live dot while it follows the wall clock), "% lit from Earth", grid | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |
+| Site view (in the title block): next landing date, daylight / Earth / countdown, fixes when nothing fits, mission length, launch date, quick dates, 90-day strip | `src/plan/SitePanel.tsx`, `src/plan/answer.ts` | `POST /api/landing-windows` + `POST /api/check` bands |
 | Landing ring: 90 days around the pin, launch knob, mission-length handle | `src/plan/LandingRing.tsx` | same |
 | Calendar heat map: each UTC day green (window), amber (Sun up), grey (dark) | `src/plan/Calendar.tsx`, `src/plan/calendarDays.ts` | same |
 | Ctrl K: sites, typed dates (`13 jan 2027`, `next month`, `2027-03`, `+10d`), actions | `src/ui/CommandBar.tsx`, `src/state/when.ts` | none |

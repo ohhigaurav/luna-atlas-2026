@@ -19,33 +19,42 @@ export function latLonToThree(latDeg: number, lonDeg: number): THREE.Vector3 {
   return new THREE.Vector3(x, z, -y);
 }
 
+// Chart style: markers are small symbols, names are set like a printed lunar chart (serif italic
+// with a dark halo, no boxes). Green = a landing window within 30 days (from the API), amber = Sun
+// up now, hollow = night; the word under the name says the same thing, so colour is never alone.
 const CSS = `
-.la-pins{position:absolute;inset:0;overflow:hidden;pointer-events:none;font-family:var(--font-ui,system-ui),sans-serif}
+.la-pins{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .la-pin,.la-cluster{position:absolute;left:0;top:0;pointer-events:auto;border:0;background:none;padding:0;
-  width:40px;height:40px;margin:-20px 0 0 -20px;display:flex;align-items:center;justify-content:center;cursor:pointer;
-  will-change:transform,opacity;outline:none}
-.la-mk{position:relative;width:11px;height:11px;border-radius:50%;box-sizing:border-box;border:1.5px solid #e9edf2;
-  background:rgba(6,8,12,.55);box-shadow:0 0 0 1px rgba(0,0,0,.55);transition:transform .15s ease}
-.la-mk::after{content:'';position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:#e9edf2}
-.la-pin.day .la-mk{border-color:#f2b84b}.la-pin.day .la-mk::after{background:#f2b84b}
-.la-pin.night .la-mk{border-color:#7d8796}.la-pin.night .la-mk::after{background:#7d8796}
-.la-pin:hover .la-mk,.la-pin:focus-visible .la-mk{transform:scale(1.35)}
-.la-pin.sel .la-mk{width:15px;height:15px;border-width:2px;border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 6px rgba(255,255,255,.12)}
-.la-pin.sel .la-mk::after{background:#fff}
-.la-pin:focus-visible .la-mk,.la-cluster:focus-visible .la-count{outline:2px solid #fff;outline-offset:4px}
-.la-label{position:absolute;left:24px;top:50%;transform:translateY(-50%);white-space:nowrap;
-  font:500 12px/1.25 var(--font-cond,system-ui),sans-serif;letter-spacing:.02em;color:#eef1f5;
-  background:rgba(7,9,13,.82);border-left:2px solid rgba(233,237,242,.6);padding:3px 7px 3px 6px;
-  opacity:0;transition:opacity .15s ease;pointer-events:none}
-.la-pin.day .la-label{border-left-color:#f2b84b}.la-pin.night .la-label{border-left-color:#7d8796}
-.la-label small{display:block;font:400 11px/1.3 var(--font-mono,monospace);color:#9aa5b4;letter-spacing:0}
-.la-pin:hover .la-label,.la-pin:focus-visible .la-label,.la-pin.sel .la-label,.la-pins.near .la-pin .la-label{opacity:1}
-.la-count{min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
-  font:500 12px/1 var(--font-mono,monospace);color:#eef1f5;background:rgba(7,9,13,.85);border:1.5px solid #e9edf2;
-  box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  width:36px;height:36px;margin:-18px 0 0 -18px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  will-change:transform,opacity;outline:none;color:#ece7dc}
+.la-mk{position:relative;width:8px;height:8px;border-radius:50%;box-sizing:border-box;border:1.5px solid #9aa0a8;background:#000;
+  transition:transform .15s ease}
+.la-pin.day .la-mk{border-color:#f2b84b;background:#f2b84b}
+.la-pin.window .la-mk{width:10px;height:10px;border:2px solid #000;background:#5ed394;
+  box-shadow:0 0 0 1.5px #5ed394,0 0 14px 3px rgba(94,211,148,.55);animation:la-breathe 3.2s ease-in-out infinite}
+@keyframes la-breathe{50%{box-shadow:0 0 0 1.5px #5ed394,0 0 22px 7px rgba(94,211,148,.28)}}
+@media (prefers-reduced-motion:reduce){.la-pin.window .la-mk{animation:none}}
+.la-pin:hover .la-mk,.la-pin:focus-visible .la-mk{transform:scale(1.4)}
+.la-pin.sel .la-mk{transform:scale(1.5);outline:1.5px solid #ece7dc;outline-offset:4px}
+.la-pin:focus-visible .la-mk,.la-cluster:focus-visible .la-count{outline:2px solid #fff;outline-offset:5px}
+.la-label{position:absolute;left:24px;top:50%;transform:translateY(-52%);white-space:nowrap;text-align:left;
+  font:italic 400 15px/1.15 'Source Serif 4 Caption','Source Serif 4',Georgia,serif;color:#ece7dc;
+  text-shadow:0 0 3px #000,0 0 6px #000,0 1px 2px #000;opacity:0;transition:opacity .15s ease;pointer-events:none}
+.la-label small{display:block;margin-top:1px;font:500 11.5px/1.2 'IBM Plex Sans Condensed',system-ui,sans-serif;font-style:normal;
+  letter-spacing:.02em;color:#b9b4aa;font-variant-numeric:tabular-nums}
+.la-pin.day .la-label small{color:#f2c46f}
+.la-pin.window .la-label small{color:#7fe0aa}
+.la-pin:hover .la-label,.la-pin:focus-visible .la-label,.la-pin.sel .la-label,.la-pin.window .la-label,.la-pins.near .la-pin .la-label{opacity:1}
+.la-pin.quiet:not(:hover):not(:focus-visible) .la-label{opacity:0}
+.la-pin:hover,.la-pin:focus-visible{z-index:2}
+.la-count{position:relative;min-width:24px;height:24px;padding:0 6px;box-sizing:border-box;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font:600 12.5px/1 'IBM Plex Sans Condensed',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#ece7dc;background:rgba(0,0,0,.78);
+  border:1.5px solid #ece7dc}
+.la-count i{position:absolute;top:-7px;right:-11px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;font:600 11px/16px 'IBM Plex Sans Condensed',system-ui,sans-serif;
+  font-style:normal;color:#00170b;background:#5ed394;box-shadow:0 0 10px rgba(94,211,148,.7)}
 `;
 
-type PinEl = { site: PinSite; dir: THREE.Vector3; el: HTMLButtonElement };
+type PinEl = { site: PinSite; dir: THREE.Vector3; el: HTMLButtonElement; labelW?: number };
 
 export class PinLayer {
   readonly root: HTMLDivElement;
@@ -134,6 +143,18 @@ export class PinLayer {
       }
     }
     let ci = 0, spread = Infinity;
+    // Labels that would overlap one already placed stay hidden until hovered (selected first).
+    const boxes: [number, number, number, number][] = [];
+    const singles = groups.filter((g) => g.length === 1).map((g) => vis[g[0]])
+      .sort((a, b) => Number(b.p.site.site_id === this.selectedId) - Number(a.p.site.site_id === this.selectedId));
+    for (const v of singles) {
+      const lab = v.p.el.lastElementChild as HTMLElement;
+      const lw = (v.p.labelW ||= lab.offsetWidth || 120);
+      const box: [number, number, number, number] = [v.x + 14, v.y - 18, v.x + 24 + lw, v.y + 18];
+      const hit = boxes.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+      v.p.el.classList.toggle('quiet', hit && v.p.site.site_id !== this.selectedId);
+      if (!hit) boxes.push(box);
+    }
     for (const g of groups) {
       if (g.length === 1) {
         const v = vis[g[0]];
@@ -154,7 +175,11 @@ export class PinLayer {
       btn.style.opacity = a.toFixed(3);
       btn.style.transform = `translate(${cx.toFixed(1)}px,${cy.toFixed(1)}px)`;
       btn.setAttribute('aria-label', `${g.length} sites close together: ${members.map((m) => shortName(m.name)).join(', ')}. Zoom in`);
-      (btn.firstChild as HTMLElement).textContent = String(g.length);
+      const green = g.filter((k) => vis[k].p.el.classList.contains('window')).length;
+      const badge = btn.firstChild as HTMLElement;
+      badge.textContent = String(g.length);
+      if (green) { const i = document.createElement('i'); i.textContent = String(green); badge.appendChild(i); }
+      btn.setAttribute('aria-label', `${g.length} sites close together${green ? `, ${green} with a landing window within 30 days` : ''}: ${members.map((m) => shortName(m.name)).join(', ')}. Zoom in`);
       btn.onclick = () => this.onCluster(dir.normalize(), members);
     }
     for (let k = ci; k < this.clusters.length; k++) this.clusters[k].style.display = 'none';
@@ -183,9 +208,18 @@ export class PinLayer {
     for (const p of this.pins) {
       const want = states[p.site.site_id] ?? '';
       if (p.el.dataset.state === want) continue;
-      if (p.el.dataset.state) p.el.classList.remove(p.el.dataset.state);
-      if (want) p.el.classList.add(want);
+      for (const c of (p.el.dataset.state ?? '').split(' ')) if (c) p.el.classList.remove(c);
+      for (const c of want.split(' ')) if (c) p.el.classList.add(c);
       p.el.dataset.state = want;
+    }
+  }
+
+  /** The small line under each name (status from the API); empty restores the coordinates. */
+  setNotes(notes: Record<string, string>): void {
+    for (const p of this.pins) {
+      const sm = p.el.querySelector('small');
+      const text = notes[p.site.site_id] || coordText(p.site.latitude_deg, p.site.longitude_deg);
+      if (sm && sm.textContent !== text) { sm.textContent = text; p.labelW = 0; }
     }
   }
 

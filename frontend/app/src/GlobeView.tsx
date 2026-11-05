@@ -13,6 +13,8 @@ export type GlobeHandle = {
   setInsets: (leftPx: number, rightPx: number) => void;
   setGrid: (on: boolean) => void;
   setPinStates: (states: Record<string, string>) => void;
+  setPinNotes: (notes: Record<string, string>) => void;
+  project: (latDeg: number, lonDeg: number) => { x: number; y: number; facing: boolean } | null;
 };
 
 type Props = {
@@ -74,7 +76,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<GlobeEngine | null>(null);
   // Calls that arrive before the engine exists (textures still loading) are replayed on creation.
-  const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string> }>({});
+  const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string>; notes?: Record<string, string> }>({});
   const cb = useRef({ onSelect, onIntroDone, onError });
   cb.current = { onSelect, onIntroDone, onError };
   // The sky can be replaced (a plan loads geometry for its own dates) without restarting the globe.
@@ -91,6 +93,8 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     setInsets: (l, r) => { pending.current.insets = [l, r]; engine.current?.setInsets(l, r); },
     setGrid: (on) => { pending.current.grid = on; engine.current?.setGrid(on); },
     setPinStates: (st) => { pending.current.states = st; engine.current?.setPinStates(st); },
+    setPinNotes: (n) => { pending.current.notes = n; engine.current?.setPinNotes(n); },
+    project: (la, lo) => engine.current?.project(la, lo) ?? null,
   }), []);
 
   useEffect(() => {
@@ -124,6 +128,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
       if (q.insets) engine.current.setInsets(q.insets[0], q.insets[1]);
       if (q.grid !== undefined) engine.current.setGrid(q.grid);
       if (q.states) engine.current.setPinStates(q.states);
+      if (q.notes) engine.current.setPinNotes(q.notes);
     });
     return () => { cancelled = true; engine.current?.dispose(); engine.current = null; };
   }, [sites, cursorRef, reducedMotion]);

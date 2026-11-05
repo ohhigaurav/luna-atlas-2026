@@ -289,6 +289,12 @@ export class GlobeEngine {
 
   /** Live state per site (e.g. 'day' / 'night'), shown on its marker. */
   setPinStates(states: Record<string, string>): void { this.pins.setStates(states); }
+  setPinNotes(notes: Record<string, string>): void { this.pins.setNotes(notes); }
+
+  /** Screen position (CSS px) of a surface point and whether it faces the camera. */
+  project(latDeg: number, lonDeg: number): { x: number; y: number; facing: boolean } {
+    return this.screenOf({ site_id: '', name: '', latitude_deg: latDeg, longitude_deg: lonDeg });
+  }
 
   /** Where a site is on screen right now (CSS px in the container), and whether it faces us. */
   screenOf(site: PinSite): { x: number; y: number; facing: boolean } {
@@ -419,9 +425,8 @@ export class GlobeEngine {
     this.shift = f;
     const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
     if (w < 760) {
-      // Phones: the title card sits on top, so the globe moves into the lower part of the screen.
-      if (Math.abs(f) < 1e-4) this.camera.clearViewOffset();
-      else this.camera.setViewOffset(w, h, 0, -0.17 * h, w, h);
+      // Phones: the title block takes the lower half, so the globe moves into the upper part.
+      this.camera.setViewOffset(w, h, 0, 0.24 * h, w, h);
       return;
     }
     // Desktop: centre on the area between the panels (f) and between the top bar (44 px) and the
