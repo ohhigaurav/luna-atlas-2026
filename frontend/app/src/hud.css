@@ -78,6 +78,9 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-mlink.on { color: var(--text); }
 .la-mlink.on::before { content: '✓ '; }
 .la-mlink:focus-visible { outline: 2px solid var(--select); outline-offset: 3px; }
+.la-progress { display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.la-progress i { display: block; height: 2px; background: var(--line); }
+.la-progress b { display: block; height: 100%; background: var(--good); transition: width 0.4s ease; }
 .la-clock { display: inline-flex; align-items: center; gap: 7px; font: 600 14px var(--font-cond); color: var(--text); }
 .la-live { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(94, 211, 148, 0.2); }
 .la-live.off { background: var(--text-3); box-shadow: none; }
@@ -424,4 +427,5 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
   .la-carto-body { flex: none; min-height: auto; }
   .la-list, .la-side-scroll { flex: none; overflow: visible; }
   .la-time .la-when { display: none; }
+  .la-progress { position: fixed; top: 84px; left: 8px; right: 8px; font-size: 12px; }
 }

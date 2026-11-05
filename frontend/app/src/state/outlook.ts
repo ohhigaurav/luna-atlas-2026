@@ -35,3 +35,24 @@ export function outlookText(o: Outlook): string {
     case 'window': return o.openNow ? 'land now' : `land ${new Date(o.fromMs).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}`;
   }
 }
+
+export type Timing = { polar: boolean; ms: number };
+
+/**
+ * Time left for the sites still to check, from how long the checked ones took (mean per kind:
+ * polar sites use real terrain and are slower). A kind not measured yet borrows the slower known
+ * mean. Null until one site has been timed. An estimate: the UI says "about".
+ */
+export function etaMs(timings: Timing[], left: { polar: number; flat: number }): number | null {
+  if (!timings.length) return null;
+  const mean = (p: boolean) => { const t = timings.filter((x) => x.polar === p); return t.length ? t.reduce((a, x) => a + x.ms, 0) / t.length : null; };
+  const mp = mean(true), mf = mean(false), slow = Math.max(mp ?? 0, mf ?? 0);
+  return left.polar * (mp ?? slow) + left.flat * (mf ?? slow);
+}
+
+/** "about 3 min left", "about 40 s left", "almost done". */
+export function etaText(ms: number): string {
+  if (ms < 5000) return 'almost done';
+  if (ms < 60e3) return `about ${Math.round(ms / 10e3) * 10 || 10} s left`;
+  return `about ${Math.round(ms / 60e3)} min left`;
+}

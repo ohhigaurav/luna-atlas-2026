@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { outlookOf, outlookText } from '../src/state/outlook';
+import { etaMs, etaText, outlookOf, outlookText } from '../src/state/outlook';
 import type { LandingResult } from '../src/api/plan';
 
 const NOW = Date.parse('2026-11-05T12:00:00Z');
@@ -27,5 +27,18 @@ describe('outlookOf (pin status)', () => {
       opp('2026-12-06T00:00:00Z', '2026-12-07T00:00:00Z', '2026-12-06T06:00:00Z')]), NOW);
     expect(o.kind).toBe('none');
     expect(outlookText(o)).toBe('no window ≤ 30 d');
+  });
+});
+
+describe('etaMs (pin progress)', () => {
+  it('uses the mean time per kind of site, and the slower mean for a kind not timed yet', () => {
+    expect(etaMs([], { polar: 3, flat: 2 })).toBeNull();
+    expect(etaMs([{ polar: false, ms: 4000 }, { polar: false, ms: 6000 }], { polar: 2, flat: 3 })).toBe(2 * 5000 + 3 * 5000);
+    expect(etaMs([{ polar: false, ms: 5000 }, { polar: true, ms: 20000 }], { polar: 2, flat: 1 })).toBe(45000);
+  });
+  it('reads as a rounded estimate', () => {
+    expect(etaText(3000)).toBe('almost done');
+    expect(etaText(42000)).toBe('about 40 s left');
+    expect(etaText(150000)).toBe('about 3 min left');
   });
 });

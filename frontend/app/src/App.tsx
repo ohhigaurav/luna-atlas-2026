@@ -17,6 +17,7 @@ import { siteNormal, siteNow, type SiteNow } from './state/siteState';
 import { Gazetteer } from './ui/Gazetteer';
 import { Neatline, FRAME_IN } from './ui/Neatline';
 import { useOutlook } from './plan/useOutlook';
+import { OutlookProgress } from './ui/OutlookProgress';
 import { outlookText } from './state/outlook';
 import { CommandBar, type Command } from './ui/CommandBar';
 import { PlayIcon } from './ui/Icons';
@@ -172,7 +173,7 @@ export default function App() {
     for (const s of data.sites) out[s.site_id] = siteNow(sky, times, s.latitude_deg, s.longitude_deg, t);
     return out;
   }, [sky, times, data, stateKey]);
-  const { outlook } = useOutlook(data?.sites ?? null, live, selected?.site_id ?? null);
+  const { outlook, progress } = useOutlook(data?.sites ?? null, live, selected?.site_id ?? null);
   useEffect(() => {
     const m: Record<string, string> = {}, notes: Record<string, string> = {};
     for (const [id, st] of Object.entries(states)) {
@@ -253,6 +254,10 @@ export default function App() {
       {!narrow && <Neatline globe={globe} centerX={(CARTOUCHE + vw.w - FRAME_IN) / 2} centerY={vw.h / 2} quiet={!!sheet} />}
 
       <header className="la-margin top">
+        {live && (
+          <OutlookProgress checked={Object.values(outlook).filter((o) => o.kind !== 'pending').length}
+            total={Object.keys(outlook).length} etaMs={progress.etaMs} at={progress.at} />
+        )}
         {phase && (
           <button type="button" className="la-mlink" onClick={() => globe.current?.viewFromEarth()} title="Turn the Moon to face Earth: the phase in your sky at this time">
             {Math.round(phase.fraction * 100)}% lit from Earth, {phase.name.toLowerCase()}

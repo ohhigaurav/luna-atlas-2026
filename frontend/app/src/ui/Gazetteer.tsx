@@ -61,7 +61,7 @@ export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSe
         <div className="row"><Symbol kind="night" /><span>Night now</span><b>{sites.length - day}</b></div>
         <p className="la-fine">
           {live
-            ? <>Windows: {DEFAULT_MISSION_DAYS}-day mission, Sun at most {DEFAULT_MAX_SUN_DEG}° up and Earth in view at touchdown; real terrain near the pole. {checked < sites.length ? `Checked ${checked} of ${sites.length}…` : `All ${sites.length} checked.`}</>
+            ? <>Windows: {DEFAULT_MISSION_DAYS}-day mission, Sun at most {DEFAULT_MAX_SUN_DEG}° up and Earth in view at touchdown; real terrain near the pole. {checked < sites.length ? `Checking: ${checked} of ${sites.length} done.` : `All ${sites.length} checked.`}</>
             : <>Landing windows need the live backend. Day and night here are for flat ground.</>}
         </p>
       </section>
