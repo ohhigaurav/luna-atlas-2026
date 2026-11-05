@@ -1,0 +1,65 @@
+AVGVISIB_85S_060M_201608.TIF: 5058x5058 int16, 60 m px, range 0.000..0.884
+AVGVISIB_85S_060M_201608_EARTH.TIF: 5058x5058 int16, 60 m px, range 0.000..0.618
+LPSR_85S_060M_201608.TIF: 5058x5058 int16, 60 m px, range 0.000..1.000
+48 points drawn (12, 12, 12, 12, 0 per stratum)
+Sun/Earth track: 18.6 years hourly from 2009-07-13 ...
+  163067 hourly samples
+  1/48 map sun 0.000 ours 0.000 | map earth 0.317 ours 0.259 (~8 min left)
+  2/48 map sun 0.000 ours 0.000 | map earth 0.409 ours 0.361 (~8 min left)
+  3/48 map sun 0.012 ours 0.004 | map earth 0.457 ours 0.411 (~7 min left)
+  4/48 map sun 0.005 ours 0.002 | map earth 0.384 ours 0.336 (~7 min left)
+  5/48 map sun 0.041 ours 0.029 | map earth 0.278 ours 0.314 (~7 min left)
+  6/48 map sun 0.006 ours 0.002 | map earth 0.385 ours 0.336 (~6 min left)
+  7/48 map sun 0.001 ours 0.000 | map earth 0.178 ours 0.067 (~6 min left)
+  8/48 map sun 0.000 ours 0.000 | map earth 0.000 ours 0.000 (~6 min left)
+  9/48 map sun 0.000 ours 0.000 | map earth 0.418 ours 0.377 (~5 min left)
+  10/48 map sun 0.002 ours 0.001 | map earth 0.000 ours 0.000 (~5 min left)
+  11/48 map sun 0.025 ours 0.012 | map earth 0.472 ours 0.427 (~5 min left)
+  12/48 map sun 0.033 ours 0.022 | map earth 0.168 ours 0.062 (~5 min left)
+  13/48 map sun 0.101 ours 0.077 | map earth 0.410 ours 0.362 (~5 min left)
+  14/48 map sun 0.175 ours 0.159 | map earth 0.036 ours 0.006 (~4 min left)
+  15/48 map sun 0.185 ours 0.161 | map earth 0.481 ours 0.436 (~4 min left)
+  16/48 map sun 0.184 ours 0.168 | map earth 0.539 ours 0.495 (~4 min left)
+  17/48 map sun 0.066 ours 0.048 | map earth 0.487 ours 0.436 (~4 min left)
+  18/48 map sun 0.074 ours 0.066 | map earth 0.425 ours 0.430 (~4 min left)
+  19/48 map sun 0.175 ours 0.154 | map earth 0.406 ours 0.373 (~4 min left)
+  20/48 map sun 0.152 ours 0.131 | map earth 0.257 ours 0.215 (~3 min left)
+  21/48 map sun 0.129 ours 0.116 | map earth 0.534 ours 0.491 (~3 min left)
+  22/48 map sun 0.124 ours 0.166 | map earth 0.476 ours 0.506 (~3 min left)
+  23/48 map sun 0.165 ours 0.144 | map earth 0.339 ours 0.286 (~3 min left)
+  24/48 map sun 0.077 ours 0.067 | map earth 0.375 ours 0.325 (~3 min left)
+  25/48 map sun 0.316 ours 0.297 | map earth 0.535 ours 0.491 (~3 min left)
+  26/48 map sun 0.329 ours 0.303 | map earth 0.492 ours 0.447 (~3 min left)
+  27/48 map sun 0.379 ours 0.420 | map earth 0.607 ours 0.560 (~3 min left)
+  28/48 map sun 0.200 ours 0.179 | map earth 0.563 ours 0.518 (~2 min left)
+  29/48 map sun 0.325 ours 0.307 | map earth 0.000 ours 0.000 (~2 min left)
+  30/48 map sun 0.302 ours 0.281 | map earth 0.000 ours 0.000 (~2 min left)
+  31/48 map sun 0.315 ours 0.292 | map earth 0.185 ours 0.001 (~2 min left)
+  32/48 map sun 0.200 ours 0.214 | map earth 0.000 ours 0.000 (~2 min left)
+  33/48 map sun 0.226 ours 0.158 | map earth 0.000 ours 0.000 (~2 min left)
+  34/48 map sun 0.362 ours 0.345 | map earth 0.015 ours 0.000 (~2 min left)
+  35/48 map sun 0.298 ours 0.265 | map earth 0.109 ours 0.057 (~2 min left)
+  36/48 map sun 0.268 ours 0.245 | map earth 0.000 ours 0.000 (~1 min left)
+  37/48 map sun 0.423 ours 0.398 | map earth 0.574 ours 0.528 (~1 min left)
+  38/48 map sun 0.444 ours 0.428 | map earth 0.599 ours 0.552 (~1 min left)
+  39/48 map sun 0.437 ours 0.387 | map earth 0.602 ours 0.555 (~1 min left)
+  40/48 map sun 0.405 ours 0.366 | map earth 0.509 ours 0.404 (~1 min left)
+  41/48 map sun 0.451 ours 0.423 | map earth 0.571 ours 0.526 (~1 min left)
+  42/48 map sun 0.415 ours 0.399 | map earth 0.575 ours 0.530 (~1 min left)
+  43/48 map sun 0.402 ours 0.387 | map earth 0.000 ours 0.000 (~1 min left)
+  44/48 map sun 0.423 ours 0.421 | map earth 0.000 ours 0.000 (~0 min left)
+  45/48 map sun 0.418 ours 0.412 | map earth 0.600 ours 0.555 (~0 min left)
+  46/48 map sun 0.443 ours 0.462 | map earth 0.000 ours 0.000 (~0 min left)
+  47/48 map sun 0.414 ours 0.391 | map earth 0.000 ours 0.000 (~0 min left)
+  48/48 map sun 0.424 ours 0.408 | map earth 0.000 ours 0.000 (~0 min left)
+
+             n  median d   mean d  |d|<=0.1  spearman
+sun h0      48    -0.016   -0.013     100%      0.99  PASS
+earth h0    48    -0.045   -0.036      92%      0.99  PASS
+psr h0     agreement 94%  PASS
+sun h2      48    -0.009   -0.005     100%      0.99  PASS
+earth h2    48    -0.043   -0.027      96%      0.99  PASS
+psr h2     agreement 94%  PASS
+
+VERDICT (0 m, criterion fixed before the run): PASS
+report: data/derived/goddard_comparison_20261105T132707Z.json

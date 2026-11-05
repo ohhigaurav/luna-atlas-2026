@@ -61,3 +61,16 @@ export const HORIZONS = {
   headline: 'Sun and Earth positions vs JPL Horizons: worst 0.04″ elevation, 0.02″ azimuth, 0.011 km range',
   tolerance: 'Tolerance 1″ / 1″ / 1 km, committed before the run · 20 comparisons, 8 near the horizon',
 };
+
+export const GODDARD = {
+  file: 'validation/evidence/goddard_maps_2026-11-05.md',
+  verdict: 'Pass',
+  headline: 'Average sunlight and Earth in view vs NASA Goddard south-pole maps (PGDA 69), 18.6 years hourly',
+  rule: 'Sun and Earth each: median gap ≤ 0.05, ≥ 70% of points within 0.10, Spearman ≥ 0.80; permanent shadow ≥ 90% agreement. Fixed before the first run.',
+  rows: [
+    { what: 'Sun visibility', n: 48, medianGap: -0.016, within: '100%', spearman: 0.99, pass: true },
+    { what: 'Earth visibility', n: 48, medianGap: -0.045, within: '92%', spearman: 0.99, pass: true },
+  ],
+  psrAgreementPct: 94,
+  caveat: 'Earth reads about 9% low (cause open), so it passes narrowly; brightest ridges (> 0.6) not tested. Their DEM 60 m, ours 240 m.',
+};
