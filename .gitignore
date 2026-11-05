@@ -34,3 +34,6 @@ frontend/app/public/data/
 
 # LROC WAC movie frames (35 MB each; download with the commands in docs)
 data/reference/lroc_movie/
+
+# NASA Goddard PGDA 69 illumination maps (downloaded locally)
+data/reference/pgda69/
