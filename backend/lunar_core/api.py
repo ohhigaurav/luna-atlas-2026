@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,15 @@ then restart the server. While developing, <code>npm run dev</code> serves it at
 <a href="http://localhost:5173">localhost:5173</a>.</p>
 <p>The API is up: <a href="/api/health">/api/health</a>. The old four-screen app is at
 <a href="/legacy">/legacy</a>.</p></main></body></html>"""
+
+
+@app.on_event("startup")
+def _warm_landing_cache() -> None:
+    """Pins are ready when the browser opens (lunar_core.warm); only when run_local.sh asks."""
+    if os.environ.get("LUNA_WARM_LANDING") == "1":
+        from lunar_core import warm
+
+        warm.start()
 
 
 @app.get("/", include_in_schema=False)

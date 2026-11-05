@@ -2,6 +2,7 @@
 # Bootstrap and run the local app. Use --offline after dependencies are already installed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export LUNA_WARM_LANDING="${LUNA_WARM_LANDING:-1}"  # warm the green-pin answers on start (lunar_core.warm)
 cd "$ROOT"
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8000}"

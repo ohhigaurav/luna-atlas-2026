@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import threading
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -205,6 +206,10 @@ def explain(result: dict[str, Any], *, mission_days: float, site_name: str) -> l
     return lines
 
 
+_KEY_LOCKS: dict[str, threading.Lock] = {}
+_KEY_LOCKS_GUARD = threading.Lock()
+
+
 def _cache_path(request: LandingRequest) -> Any:
     """Result cache: same request, software, horizon algorithm and kernel/DEM manifests."""
     from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
@@ -226,15 +231,20 @@ def run_landing(request: LandingRequest) -> dict[str, Any]:
     if request.site_id not in sites:
         raise ValueError(f"unknown site ID: {request.site_id}")
     cache = _cache_path(request)
-    if cache.is_file():
-        try:
-            return {**json.loads(cache.read_text(encoding="utf-8")), "cache_hit": True}
-        except (OSError, json.JSONDecodeError):
-            cache.unlink(missing_ok=True)
-    result = _compute_landing(request, sites[request.site_id])
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(result), encoding="utf-8")
-    return {**result, "cache_hit": False}
+    # The background warmer and the browser can ask the same question at once: the second waits
+    # for the first and reads its answer instead of computing it again.
+    with _KEY_LOCKS_GUARD:
+        key_lock = _KEY_LOCKS.setdefault(cache.name, threading.Lock())
+    with key_lock:
+        if cache.is_file():
+            try:
+                return {**json.loads(cache.read_text(encoding="utf-8")), "cache_hit": True}
+            except (OSError, json.JSONDecodeError):
+                cache.unlink(missing_ok=True)
+        result = _compute_landing(request, sites[request.site_id])
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(result), encoding="utf-8")
+        return {**result, "cache_hit": False}
 
 
 def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str, Any]:

@@ -124,3 +124,17 @@ def test_full_pipeline_on_synthetic_geometry(monkeypatch: pytest.MonkeyPatch) ->
     assert again["cache_hit"] is True and again["opportunities"] == r["opportunities"]
     long = landing.run_landing(req.model_copy(update={"mission_days": 1.0}))
     assert long["opportunity_count"] == 0 and long["closest_miss"]["failed_rules"] == ["daylight"]
+
+
+def test_cache_warmer_asks_the_apps_question() -> None:
+    # The warmer only helps if its requests equal the app's (same cache key): compare with usePlan.ts.
+    import re
+    from pathlib import Path
+
+    from lunar_core import warm
+
+    ts = (Path(__file__).resolve().parents[1] / "frontend/app/src/plan/usePlan.ts").read_text(encoding="utf-8")
+    num = lambda name: float(re.search(rf"export const {name} = ([\d.]+);", ts).group(1))  # noqa: E731
+    assert (num("SEARCH_DAYS"), num("DEFAULT_MISSION_DAYS"), num("DEFAULT_MAX_SUN_DEG")) == \
+        (warm.SEARCH_DAYS, warm.MISSION_DAYS, warm.MAX_SUN_DEG)
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT00:00:00Z", warm._today_utc())
