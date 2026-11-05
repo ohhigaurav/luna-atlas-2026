@@ -1,0 +1,92 @@
+{
+  "created_utc": "20261104T084738Z",
+  "frames": [
+    {
+      "frame": "WAC_MOVIE_S20090920T0850",
+      "utc": "2009-09-20T08:50:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 97,
+      "passed": true,
+      "pixels": 64754,
+      "agreement": 0.9909966951848534,
+      "shadow_iou": 0.9905410886671534,
+      "model_lit_photo_dark": 0.009003304815146555,
+      "model_dark_photo_lit": 0.0
+    },
+    {
+      "frame": "WAC_MOVIE_S20090924T0707",
+      "utc": "2009-09-24T07:07:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 109,
+      "passed": true,
+      "pixels": 62352,
+      "agreement": 0.9403066461380549,
+      "shadow_iou": 0.9367512362567335,
+      "model_lit_photo_dark": 0.05969335386194509,
+      "model_dark_photo_lit": 0.0
+    },
+    {
+      "frame": "WAC_MOVIE_S20090928T0001",
+      "utc": "2009-09-28T00:01:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 91,
+      "passed": true,
+      "pixels": 63772,
+      "agreement": 0.9569560308599385,
+      "shadow_iou": 0.9515351612846272,
+      "model_lit_photo_dark": 0.04304396914006147,
+      "model_dark_photo_lit": 0.0
+    },
+    {
+      "frame": "WAC_MOVIE_S20091002T0015",
+      "utc": "2009-10-02T00:15:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 84,
+      "passed": false,
+      "pixels": 59341,
+      "agreement": 0.8274885829359128,
+      "shadow_iou": 0.7426337489943685,
+      "model_lit_photo_dark": 0.17251141706408724,
+      "model_dark_photo_lit": 0.0
+    },
+    {
+      "frame": "WAC_MOVIE_S20091010T0042",
+      "utc": "2009-10-10T00:42:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 76,
+      "passed": true,
+      "pixels": 61859,
+      "agreement": 0.9373413731227469,
+      "shadow_iou": 0.9218942065491184,
+      "model_lit_photo_dark": 0.06265862687725311,
+      "model_dark_photo_lit": 0.0
+    },
+    {
+      "frame": "WAC_MOVIE_S20091015T0124",
+      "utc": "2009-10-15T01:24:00+00:00",
+      "coverage": 1.0,
+      "scored": true,
+      "otsu_threshold": 59,
+      "passed": true,
+      "pixels": 65851,
+      "agreement": 0.997023583544669,
+      "shadow_iou": 0.9969654275495827,
+      "model_lit_photo_dark": 0.0029764164553309743,
+      "model_dark_photo_lit": 0.0
+    }
+  ],
+  "overall_pass": true,
+  "rules": {
+    "disc_km": 15.0,
+    "observer_m": 0.0,
+    "edge_band_m": 200.0,
+    "min_coverage": 0.5,
+    "pass_agreement": 0.85,
+    "pass_iou": 0.7
+  }
+}
