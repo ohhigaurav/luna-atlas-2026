@@ -32,7 +32,13 @@ data/derived/
 data/reference/illumination/
 
 # Static judge bundle (tools/bake_static.py); deployed from dist, not committed
-frontend/app/public/data/
+frontend/app/public/data/*
+# Moon weather forecast: ship the small files (mp4, lit bits, json), not frames.u8 (37 MB)
+!frontend/app/public/data/shadow_movie/
+frontend/app/public/data/shadow_movie/*
+!frontend/app/public/data/shadow_movie/movie.mp4
+!frontend/app/public/data/shadow_movie/lit.u8
+!frontend/app/public/data/shadow_movie/movie.json
 
 # LROC WAC movie frames (35 MB each; download with the commands in docs)
 data/reference/lroc_movie/
