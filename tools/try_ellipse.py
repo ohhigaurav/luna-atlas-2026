@@ -24,8 +24,15 @@ def main() -> int:
     from lunar_core.landing_ellipse import run_landing_ellipse
 
     for site in args.sites:
+        print(f"{site}: computing ...", flush=True)
+
+        def tick(done: int, total: int, rec: dict) -> None:
+            sun = rec.get("sunlit_percent")
+            what = f"{sun:.0f}% sun" if sun is not None else rec.get("status")
+            print(f"  point {done}/{total}: {rec['east_m']:+.0f} m E, {rec['north_m']:+.0f} m N -> {what}", flush=True)
+
         r = run_landing_ellipse(EllipseRequest(site_id=site, start_utc=args.start, days=args.days,
-                                               semi_major_m=args.radius))
+                                               semi_major_m=args.radius), progress=tick)
         risk, e = r["risk"], r["ellipse"]
         print(f"\n== {site}: {e['point_count']} points, {e['spacing_m']:.0f} m apart, radius {e['semi_major_m']:.0f} m "
               f"({r['compute_seconds']} s{', cached' if r['cache_hit'] else ''}) ==")

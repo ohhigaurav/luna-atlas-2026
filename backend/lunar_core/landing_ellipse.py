@@ -113,7 +113,7 @@ def _cache_path(request: EllipseRequest) -> Any:
     return analysis_service.RUNS_DIR.parent / "cache" / "ellipses" / f"{key}.json"
 
 
-def run_landing_ellipse(request: EllipseRequest) -> dict[str, Any]:
+def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[str, Any]:
     sites = analysis_service._load_sites()
     if request.site_id not in sites:
         raise ValueError(f"unknown site ID: {request.site_id}")
@@ -138,7 +138,7 @@ def run_landing_ellipse(request: EllipseRequest) -> dict[str, Any]:
             "orientation_deg": request.orientation_deg, "spacing_m": spacing, "point_count": len(offsets),
             "layout": "square grid in local east/north clipped to the ellipse; spherical geodesic offsets"}
     scan = location_scan.run_location_scan(request.site_id, analysis, offsets=offsets, grid_description=grid,
-                                           save=False)
+                                           save=False, progress=progress)
     payload = {
         "schema_version": "1.0",
         "kind": "landing_ellipse",
