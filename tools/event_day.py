@@ -75,6 +75,12 @@ def import_command(args: argparse.Namespace) -> list[str]:
     return cmd
 
 
+def _terrain_label(landing: dict[str, Any]) -> str:
+    t = landing.get("terrain") or {}
+    finest = t.get("finest_resolution_m")
+    return f"{finest:g} m" if finest else str(landing.get("horizon_mode") or "–")
+
+
 def _fmt_h(hours: float | None, lower: bool = False) -> str:
     if hours is None:
         return "–"
@@ -96,6 +102,7 @@ def site_row(site: dict[str, Any], landing: dict[str, Any] | None, error: str | 
         opp = landing["opportunities"][0] if landing["opportunities"] else None
         row.update({
             "horizon_mode": landing.get("horizon_mode"),
+            "terrain_label": _terrain_label(landing),
             "opportunity_count": landing["opportunity_count"],
             "next_window": None if opp is None else {
                 "from_utc": opp["touchdown_from_utc"], "until_utc": opp["touchdown_until_utc"],
@@ -123,7 +130,7 @@ def report_markdown(rows: list[dict[str, Any]], compare: list[dict[str, Any]], m
         window = ("**" + nw["from_utc"][:16] + " → " + nw["until_utc"][:16] + "**") if nw else (
             "error: " + r["error"] if r.get("error") else "none in 90 d")
         lines.append(
-            f"| {r['name']} | {r['latitude_deg']:.4f} | {r['longitude_deg']:.4f} | {r.get('horizon_mode') or '–'} | {window} | "
+            f"| {r['name']} | {r['latitude_deg']:.4f} | {r['longitude_deg']:.4f} | {r.get('terrain_label') or r.get('horizon_mode') or '–'} | {window} | "
             + (f"{nw['sun_deg']:.2f}°" if nw else "–") + " | "
             + (_fmt_h(nw["daylight_h"], nw["daylight_lower_bound"]) if nw else "–") + " | "
             + (f"{nw['earth_pct']:.0f}%" if nw else "–") + " | "
@@ -201,7 +208,7 @@ def main() -> int:
         ref = row["nearest_reference"]
         warn = f"  ⚠ {ref['km']:.1f} km from nearest reference ({ref['name']})" if ref and ref["km"] > SANITY_KM else ""
         print(f"  {i}/{len(placed)} {site['name']}: " + (error or (f"next {nw['from_utc'][:16]} → {nw['until_utc'][:16]} "
-              f"({row.get('horizon_mode')})" if nw else f"no window in 90 d ({row.get('horizon_mode')})")) + warn, flush=True)
+              f"({row.get('terrain_label')})" if nw else f"no window in 90 d ({row.get('terrain_label')})")) + warn, flush=True)
 
     polar = [r for r in rows if r["polar"] and not r.get("error")]
     compare_blocks = []

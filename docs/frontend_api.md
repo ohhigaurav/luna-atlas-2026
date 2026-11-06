@@ -160,7 +160,7 @@ Response (abridged):
   "chosen_settings": {"horizon_mode": "terrain", "coarse_step_min": 30, "event_tolerance_s": 10,
                       "sun_observer_height_m": 2, "antenna_height_m": 2, "why": "..."},
   "summary": {
-    "headline": "Sunlight reaches a panel 2 m above the ground 61% of the time. Earth is above ...",
+    "headline": "Some of the Sun is visible from a panel 2 m above the ground 61% of the time; averaged over the whole disc, 55%. Earth is above ...",
     "lines": ["...", "Longest stretch of darkness: 11 d 19 h.", "..."],
     "numbers": {"sunlit_percent": 60.6, "earth_percent": 60.8, "both_percent": 39.8},
     "limits": {"source": "default mission profile ...", "all_pass": false,

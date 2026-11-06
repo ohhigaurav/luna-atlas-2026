@@ -53,6 +53,12 @@ class DEMAsset(BaseModel):
     vertical_datum_verification_note: str | None = Field(default=None, max_length=2000)
     elevation_units: Literal["m", "km", "cm", "mm"]
     nodata_policy: Literal["unknown"] = "unknown"
+    # Raster extent in south-polar stereographic metres on the manifest sphere: [xmin, ymin, xmax, ymax].
+    # With select_by_footprint, any site or point whose coordinate lies inside uses this asset too,
+    # not only the IDs in site_ids (independent review finding 1, 6 Nov): the same place must get
+    # the same terrain whether it is a reference site, an official site or a clicked point.
+    footprint_stereo_m: tuple[float, float, float, float] | None = None
+    select_by_footprint: bool = False
 
     @model_validator(mode="after")
     def ranges_valid(self) -> DEMAsset:
@@ -68,6 +74,12 @@ class DEMAsset(BaseModel):
             raise ValueError("source_url must use HTTP(S)")
         if len(set(self.site_ids)) != len(self.site_ids):
             raise ValueError("site_ids must be unique")
+        if self.select_by_footprint and self.footprint_stereo_m is None:
+            raise ValueError("select_by_footprint needs footprint_stereo_m")
+        if self.footprint_stereo_m is not None:
+            x0, y0, x1, y1 = self.footprint_stereo_m
+            if not (x1 > x0 and y1 > y0):
+                raise ValueError("footprint_stereo_m must be [xmin, ymin, xmax, ymax] with max > min")
         if self.crs_contract_verified and not (self.crs_verification_note or "").strip():
             raise ValueError("crs_verification_note is required when crs_contract_verified is true")
         if self.vertical_datum_verified and not (self.vertical_datum_verification_note or "").strip():
@@ -277,17 +289,38 @@ def dem_coverage_inventory(
     }
 
 
+def south_polar_stereo_m(latitude_deg: float, longitude_deg: float, radius_m: float) -> tuple[float, float]:
+    """x = rho sin(lon), y = rho cos(lon), rho = 2 R tan((90 + lat) / 2): the PGDA polar rasters' projection."""
+    rho = 2.0 * radius_m * math.tan(math.radians(90.0 + latitude_deg) / 2.0)
+    return rho * math.sin(math.radians(longitude_deg)), rho * math.cos(math.radians(longitude_deg))
+
+
+def asset_selected(asset: DEMAsset, site_id: str, latitude_deg: float | None, longitude_deg: float | None,
+                   radius_m: float) -> bool:
+    """By ID ("*" = all), or by location when the asset opts in and the point lies inside its footprint."""
+    if site_id in asset.site_ids or "*" in asset.site_ids:
+        return True
+    if not asset.select_by_footprint or asset.footprint_stereo_m is None or latitude_deg is None or longitude_deg is None:
+        return False
+    if latitude_deg > 0:  # the footprints are south-polar
+        return False
+    x, y = south_polar_stereo_m(latitude_deg, longitude_deg, radius_m)
+    x0, y0, x1, y1 = asset.footprint_stereo_m
+    return x0 <= x <= x1 and y0 <= y <= y1
+
+
 def preflight_dem_assets(
-    manifest_path: Path, project_root: Path, site_id: str
+    manifest_path: Path, project_root: Path, site_id: str,
+    latitude_deg: float | None = None, longitude_deg: float | None = None,
 ) -> tuple[DEMManifest, tuple[VerifiedDEMAsset, ...]]:
-    """Verify every asset selected for this site before opening any raster."""
+    """Verify every asset selected for this site (by ID, or by location; see ``asset_selected``)."""
     manifest = load_dem_manifest(manifest_path)
     if manifest.manifest_state != "configured":
         raise DEMManifestError("DEM manifest is not configured; terrain-aware analysis is disabled")
     root = project_root.resolve(strict=True)
     chosen: list[VerifiedDEMAsset] = []
     for asset in manifest.assets:
-        if site_id not in asset.site_ids and "*" not in asset.site_ids:
+        if not asset_selected(asset, site_id, latitude_deg, longitude_deg, manifest.body_radius_m):
             continue
         candidate = root / asset.relative_path
         try:
@@ -653,7 +686,7 @@ def build_horizon_from_dem_assets(
 
     root = project_root or Path(__file__).resolve().parents[2]
     dem_manifest_path = manifest_path or default_dem_manifest_path()
-    manifest, verified = preflight_dem_assets(dem_manifest_path, root, site_id)
+    manifest, verified = preflight_dem_assets(dem_manifest_path, root, site_id, latitude_deg, longitude_deg)
     verified, base_paths, override_records = _apply_asset_overrides(verified, asset_overrides, root.resolve())
     source_crs = _source_lunar_crs(manifest.body_radius_m)
 
@@ -941,7 +974,7 @@ def build_cached_horizon_from_dem_assets(
     """
     root = (project_root or Path(__file__).resolve().parents[2]).resolve(strict=True)
     manifest_file = manifest_path or default_dem_manifest_path()
-    manifest, verified = preflight_dem_assets(manifest_file, root, site_id)
+    manifest, verified = preflight_dem_assets(manifest_file, root, site_id, latitude_deg, longitude_deg)
     verified, _base_paths, override_records = _apply_asset_overrides(verified, asset_overrides, root)
     manifest_hash = sha256_file(manifest_file)
     cache_key = _horizon_cache_key(

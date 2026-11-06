@@ -13,17 +13,17 @@ itself held up.
 
 | # | Finding | Severity | Reviewer's confidence | Our status |
 |---|---|---|---|---|
-| 1 | Terrain map chosen by site ID, not by location. Official sites and clicked points never get the 5 m tiles, so the same place can read 69% vs 100% sunlight; landing and check responses do not report resolution | major | confirmed | **open:** footprint-based selection planned; needs a real-DEM run |
+| 1 | Terrain map chosen by site ID, not by location. Official sites and clicked points never get the 5 m tiles, so the same place can read 69% vs 100% sunlight; landing and check responses do not report resolution | major | confirmed | **fixed in code** 0.7.38: tiles chosen by location (`footprint_stereo_m`, `select_by_footprint`); `terrain.finest_resolution_m` and a 240 m caveat on every answer; event-day table shows it. **Takes effect after** `tools/set_dem_footprints.py` writes the footprints (needs rasterio, a development machine) |
 | 2 | Cache keys miss site coordinates, `__version__` is inert, and manifests enter by timestamp | major | confirmed | **fixed** 0.7.37 (`cache_keys.py`) |
 | 3 | At exactly 90°S the terrain rays collapse onto two meridians | major | confirmed (terrain side) | **fixed** 0.7.37: refused within about 15 m of the pole |
-| 4 | "Sunlit %" counts any sliver of the Sun; Gate E validated mean disc fraction, a different quantity | major | confirmed | **open:** disc-weighted metric and relabel planned |
+| 4 | "Sunlit %" counts any sliver of the Sun; Gate E validated mean disc fraction, a different quantity | major | confirmed | **fixed** 0.7.38: `sun_disc_percent` (mean visible disc fraction, the Gate E quantity) in check and compare; headline relabelled "some of the Sun is visible" |
 | 5 | R5 off between 77.5° and about 84.5°S (IM-1, IM-2); "best" is the first sliver of sunrise; cutoff logic wrong; min ≥ max not refused | major | confirmed (synthetic) | **fixed** 0.7.37 (R5 v2) |
-| 6 | Docs claim more than the evidence supports: C9 "validated", frontend ✅ rows checked only on the test backend, forecast "agrees with the site panel", manifest datum text | minor–major | confirmed | **open:** wording fixes planned |
+| 6 | Docs claim more than the evidence supports: C9 "validated", frontend ✅ rows checked only on the test backend, forecast "agrees with the site panel", manifest datum text | minor–major | confirmed | **fixed (docs)** 0.7.38: C9 rewritten with its limits; frontend-only ✅ rows now 🟢; manifest datum text corrected. Forecast wording handed to the frontend (PRD) |
 | 7 | Terrain effectively starts at about 66.6°S, not 60°S (200 km rays leave the raster) | minor | confirmed (arithmetic) | **partly fixed:** honest text in 0.7.37; ray capping not done |
 | 8 | Event-day distance sanity check covered polar sites only | minor | confirmed | **fixed** 0.7.37 |
 | 9 | Expert API can request a horizon of about 73 million cells under the global lock | minor (local) / major (exposed) | confirmed by reading | **fixed** 0.7.37: 5 M sample budget |
 | 10 | 0.5° azimuth bins: narrow ridges missed; "5 m" overstates the lateral detail used | minor | plausible, unmeasured | **open:** sensitivity run planned |
-| 11 | Forecast Sun mask at 0 m, site panel at 2 m (2 m doubles Site 001's sunlight per WAC evidence) | minor | confirmed | **open:** label now; re-bake at 2 m optional |
+| 11 | Forecast Sun mask at 0 m, site panel at 2 m (2 m doubles Site 001's sunlight per WAC evidence) | minor | confirmed | **label handed to frontend** (PRD); a 2 m re-bake is optional (about 3.5 h) |
 
 ## Our assessment of the findings
 

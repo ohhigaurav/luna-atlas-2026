@@ -99,8 +99,10 @@ def test_landing_windows_at_a_point(seen_sites: list[tuple[str, str]]) -> None:
     assert by_point["site"]["site_id"] == "custom-point" and by_point["site"]["origin"] == "custom"
     assert by_point["opportunities"] == by_site["opportunities"]
     assert by_point["summary"][0].startswith("Next landing opportunity")
-    # Flat fallback: the custom-point caveat (about 240 m terrain) is not shown, the fallback note is.
-    assert not any("A point you picked" in c for c in by_point["caveats"])
+    # Flat fallback: the point is labelled as picked, the 240 m terrain caveat is not shown, the fallback note is.
+    assert any("A point you picked" in c for c in by_point["caveats"])
+    assert not any("240 m regional map" in c for c in by_point["caveats"])
+    assert by_point["terrain"] is None
     assert any("Terrain was not available" in c for c in by_point["caveats"])
 
 
@@ -111,3 +113,13 @@ def test_pole_is_refused_for_terrain() -> None:
     with pytest.raises(TerrainNotReady, match="pole"):
         _build_site_horizon(site, None, AnalysisRequest(site_ids=["custom-point"], start_utc="2027-01-01T00:00:00Z",
                                                         end_utc="2027-01-02T00:00:00Z", horizon_mode="terrain"))
+
+
+def test_resolution_caveat_by_finest_dem() -> None:
+    tile = {"terrain": {"assets": [{"asset_id": "t", "native_resolution_m": 5.0, "samples_used_total": 9},
+                                   {"asset_id": "r", "native_resolution_m": 240.0, "samples_used_total": 9}]}}
+    regional = {"terrain": {"assets": [{"asset_id": "t", "native_resolution_m": 5.0, "samples_used_total": 0},
+                                       {"asset_id": "r", "native_resolution_m": 240.0, "samples_used_total": 9}]}}
+    assert custom_point.resolution_caveat(tile) is None
+    assert "240 m regional map only" in custom_point.resolution_caveat(regional)
+    assert custom_point.terrain_summary(regional)["finest_resolution_m"] == 240.0

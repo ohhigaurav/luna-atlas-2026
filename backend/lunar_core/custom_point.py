@@ -13,11 +13,29 @@ from typing import Any
 
 CUSTOM_SITE_ID = "custom-point"
 COORD_DECIMALS = 6
-CUSTOM_CAVEAT = ("A point you picked, not a catalogue site: terrain from the 240 m regional map only. "
-                 "Measured against the 5 m site maps (Sites 001 and 004, Jan 2027), it is usually within a "
-                 "few points of sunlight, but about 1 point in 7 differs by more than 10 points, and at the "
-                 "published Site 001 and 004 points by 31 and 65 points. Use a nearby 5 m site result where "
-                 "one exists.")
+REGIONAL_ONLY_CAVEAT = (
+    "Terrain from the 240 m regional map only (no 5 m site map covers this point). Measured against "
+    "the 5 m maps (Sites 001 and 004, Jan 2027), it is usually within a few points of sunlight, but about "
+    "1 point in 7 differs by more than 10 points, and at the published Site 001 and 004 points by 31 and "
+    "65 points.")
+CUSTOM_CAVEAT = "A point you picked, not a catalogue site. " + REGIONAL_ONLY_CAVEAT  # kept for older callers
+
+
+def terrain_summary(site_result: dict[str, Any]) -> dict[str, Any]:
+    """Which DEMs set this horizon: finest resolution actually sampled, and the ground height used."""
+    t = site_result.get("terrain") or {}
+    used = [a for a in t.get("assets", []) if a.get("samples_used_total", 0) > 0]
+    return {
+        "finest_resolution_m": min((float(a["native_resolution_m"]) for a in used), default=None),
+        "dem_assets": [a["asset_id"] for a in used],
+        "ground_elevation_m": t.get("site_ground_elevation_m"),
+    }
+
+
+def resolution_caveat(site_result: dict[str, Any]) -> str | None:
+    """The 240 m caveat whenever terrain came only from the regional map, whatever the site's origin."""
+    finest = terrain_summary(site_result)["finest_resolution_m"]
+    return REGIONAL_ONLY_CAVEAT if finest is not None and finest >= 100.0 else None
 
 
 def normalise(latitude_deg: float, longitude_deg: float) -> tuple[float, float]:

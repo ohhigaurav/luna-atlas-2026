@@ -48,7 +48,7 @@ from typing import Any
 from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-6"  # 4: R5; 5: clearance; 6: R5 v2 (local horizon, latitude-scaled)
+CACHE_SCHEMA = "landing-cache-7"  # 4: R5; 5: clearance; 6: R5 v2 (local horizon, latitude-scaled)
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -351,7 +351,8 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
         result["closest_miss"]["verify"] = _verify(result["closest_miss"]["touchdown_utc"])
     caveats = ["Reference site from published sources, not an official challenge coordinate."
                if site.get("origin") == "reference" else None,
-               custom_point.CUSTOM_CAVEAT if site.get("origin") == "custom" and mode == "terrain" else None,
+               "A point you picked, not a catalogue site." if site.get("origin") == "custom" else None,
+               custom_point.resolution_caveat(results[0]) if mode == "terrain" else None,
                "Flat horizon: hills are not modelled; real sunrise/sunset can differ by hours "
                "(Blue Ghost 1: modelled sunset 2.4 h late)." if mode == "flat" else None,
                note,
@@ -377,6 +378,7 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
             "touchdown_resolution_min": STEP_MIN,
         },
         "horizon_mode": mode,
+        "terrain": custom_point.terrain_summary(results[0]) if mode == "terrain" else None,
         "search": {"start_utc": samples[0].utc, "days": request.search_days},
         **result,
         "summary": explain(result, mission_days=request.mission_days, site_name=site.get("name") or site["site_id"]),
