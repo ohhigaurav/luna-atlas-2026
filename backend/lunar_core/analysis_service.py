@@ -593,14 +593,24 @@ def coverage_preflight(
     return spk_coverage, bpc_coverage
 
 
-def run_analysis(request: AnalysisRequest) -> dict[str, Any]:
-    """Run a real SPICE-backed analysis and persist a provenance-complete result."""
+def run_analysis(request: AnalysisRequest, *, extra_sites: Mapping[str, dict[str, Any]] | None = None,
+                 ) -> dict[str, Any]:
+    """Run a real SPICE-backed analysis and persist a provenance-complete result.
+
+    ``extra_sites`` adds records not in the catalogues (a user-picked point, see
+    ``lunar_core.custom_point``); they cannot replace a catalogue ID.
+    """
     with _RUN_LOCK:
-        return _run_analysis_locked(request)
+        return _run_analysis_locked(request, extra_sites)
 
 
-def _run_analysis_locked(request: AnalysisRequest) -> dict[str, Any]:
+def _run_analysis_locked(request: AnalysisRequest,
+                         extra_sites: Mapping[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     sites = _load_sites()
+    for site_id, record in (extra_sites or {}).items():
+        if site_id in sites:
+            raise AnalysisNotReady(f"extra site {site_id} would replace a catalogue site")
+        sites[site_id] = record
     missing = [site_id for site_id in request.site_ids if site_id not in sites]
     if missing:
         raise AnalysisNotReady("Unknown site IDs: " + ", ".join(missing))

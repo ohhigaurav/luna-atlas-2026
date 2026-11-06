@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -198,12 +198,27 @@ class SkyGeometryResponse(BaseModel):
     series: SkySeriesModel
 
 
+def _site_or_point(model: Any) -> Any:
+    """Exactly one of site_id, or latitude_deg + longitude_deg (lunar_core.custom_point)."""
+    has_site = model.site_id is not None
+    has_point = model.latitude_deg is not None or model.longitude_deg is not None
+    if has_site == has_point:
+        raise ValueError("give either site_id or latitude_deg and longitude_deg, not both or neither")
+    if has_point and (model.latitude_deg is None or model.longitude_deg is None):
+        raise ValueError("a point needs both latitude_deg and longitude_deg")
+    return model
+
+
 class CheckRequest(BaseModel):
     """One-button site check: the server picks every scientific setting (see lunar_core.check)."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    site_id: str = Field(min_length=1, max_length=100)
+    site_id: str | None = Field(default=None, min_length=1, max_length=100)
+    latitude_deg: float | None = Field(default=None, ge=-90.0, le=90.0,
+                                       description="Custom point: planetocentric latitude")
+    longitude_deg: float | None = Field(default=None, ge=-180.0, lt=360.0,
+                                        description="Custom point: east longitude (negative = west)")
     start_utc: datetime
     days: int = Field(default=30, ge=1, le=60)
     panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
@@ -213,13 +228,21 @@ class CheckRequest(BaseModel):
     def check_start_must_be_explicit_utc(cls, value: datetime) -> datetime:
         return _utc_datetime(value)
 
+    @model_validator(mode="after")
+    def check_site_or_point(self) -> CheckRequest:
+        return _site_or_point(self)
+
 
 class LandingRequest(BaseModel):
     """Landing opportunities search (see lunar_core.landing for the rules)."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    site_id: str = Field(min_length=1, max_length=100)
+    site_id: str | None = Field(default=None, min_length=1, max_length=100)
+    latitude_deg: float | None = Field(default=None, ge=-90.0, le=90.0,
+                                       description="Custom point: planetocentric latitude")
+    longitude_deg: float | None = Field(default=None, ge=-180.0, lt=360.0,
+                                        description="Custom point: east longitude (negative = west)")
     search_start_utc: datetime
     search_days: int = Field(default=90, ge=1, le=180)
     mission_days: float = Field(default=10.0, ge=0.25, le=30.0)
@@ -231,6 +254,10 @@ class LandingRequest(BaseModel):
     @classmethod
     def landing_start_must_be_explicit_utc(cls, value: datetime) -> datetime:
         return _utc_datetime(value)
+
+    @model_validator(mode="after")
+    def landing_site_or_point(self) -> LandingRequest:
+        return _site_or_point(self)
 
 
 class EllipseRequest(BaseModel):

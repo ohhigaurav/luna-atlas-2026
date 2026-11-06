@@ -35,6 +35,25 @@ Checked by `tools/check_sky_orientation.py`: orthonormal matrices, agreement wit
 Moon's pole and spin rate, and the sub-Moon point vs JPL Horizons. The limits were fixed before
 the first run. Until that run passes, label Earth's face "illustrative".
 
+## Any point on the Moon (new 6 Nov)
+
+`/api/landing-windows` and `/api/check` accept a clicked point instead of a site:
+
+```json
+{"latitude_deg": -89.38, "longitude_deg": 201.5, "search_start_utc": "2027-01-01T00:00:00Z"}
+```
+
+- Send either `site_id`, or `latitude_deg` and `longitude_deg`. Sending both, or neither, is a 422.
+- Latitude is planetocentric. Longitude is east, in −180 to <360; it is folded to [0, 360) and
+  rounded to 1e-6°.
+- The response's `site` is `{"site_id": "custom-point", "origin": "custom", "name": "Point 89.380° S,
+  201.500° E", ...}`.
+- Terrain comes from the 240 m regional map only (no 5 m tiles), and a caveat says so. Outside the
+  regional map, the response falls back to a flat horizon with its note, as for catalogue sites.
+- Results are cached per point. The first answer for a new point takes as long as for a site
+  (seconds to about a minute for 90 days); a repeat is instant.
+- Suggested UI: click → drop a pin → ask landing windows. Show the caveat chip "240 m terrain".
+
 ## `POST /api/check`
 
 Request: `site_id` (required); `start_utc` (ISO, must end in `Z`); `days` (1 to 60, default

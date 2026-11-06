@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from lunar_core import __version__, analysis_service
+from lunar_core import __version__, analysis_service, custom_point
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
 CACHE_SCHEMA = "landing-cache-1"
@@ -227,9 +227,8 @@ def _cache_path(request: LandingRequest) -> Any:
 
 def run_landing(request: LandingRequest) -> dict[str, Any]:
     """Cached: the app asks the same question for every site on opening (pin status, PRD F24)."""
-    sites = analysis_service._load_sites()
-    if request.site_id not in sites:
-        raise ValueError(f"unknown site ID: {request.site_id}")
+    site = custom_point.resolve(request.site_id, request.latitude_deg, request.longitude_deg,
+                                analysis_service._load_sites())
     cache = _cache_path(request)
     # The background warmer and the browser can ask the same question at once: the second waits
     # for the first and reads its answer instead of computing it again.
@@ -241,7 +240,7 @@ def run_landing(request: LandingRequest) -> dict[str, Any]:
                 return {**json.loads(cache.read_text(encoding="utf-8")), "cache_hit": True}
             except (OSError, json.JSONDecodeError):
                 cache.unlink(missing_ok=True)
-        result = _compute_landing(request, sites[request.site_id])
+        result = _compute_landing(request, site)
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(result), encoding="utf-8")
         return {**result, "cache_hit": False}
@@ -253,14 +252,16 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
     note = None
     end = request.search_start_utc + timedelta(days=request.search_days + math.ceil(request.mission_days) + 1)
 
+    extra = {site["site_id"]: site} if site.get("origin") == "custom" else None
+
     def chunks(m: str) -> list[dict[str, Any]]:
         out, cursor = [], request.search_start_utc
         while cursor < end:
             stop = min(end, cursor + timedelta(days=CHUNK_DAYS))
             out.append(analysis_service.run_analysis(AnalysisRequest(
-                site_ids=[request.site_id], start_utc=cursor, end_utc=stop, coarse_step_min=STEP_MIN,
+                site_ids=[site["site_id"]], start_utc=cursor, end_utc=stop, coarse_step_min=STEP_MIN,
                 event_tolerance_s=EVENT_TOLERANCE_S, horizon_mode=m,
-                sun_observer_height_m=request.panel_height_m, antenna_height_m=2.0)))
+                sun_observer_height_m=request.panel_height_m, antenna_height_m=2.0), extra_sites=extra))
             cursor = stop
         return out
 
@@ -287,6 +288,7 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
                       step_s=STEP_MIN * 60.0)
     caveats = ["Reference site from published sources, not an official challenge coordinate."
                if site.get("origin") == "reference" else None,
+               custom_point.CUSTOM_CAVEAT if site.get("origin") == "custom" and mode == "terrain" else None,
                "Flat horizon: hills are not modelled; real sunrise/sunset can differ by hours "
                "(Blue Ghost 1: modelled sunset 2.4 h late)." if mode == "flat" else None,
                note,
@@ -308,7 +310,7 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
         "horizon_mode": mode,
         "search": {"start_utc": samples[0].utc, "days": request.search_days},
         **result,
-        "summary": explain(result, mission_days=request.mission_days, site_name=site.get("name", request.site_id)),
+        "summary": explain(result, mission_days=request.mission_days, site_name=site.get("name") or site["site_id"]),
         "caveats": [c for c in caveats if c],
         "run_ids": [r["run_id"] for r in runs],
         "compute_seconds": round(time.monotonic() - started, 2),

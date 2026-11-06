@@ -25,7 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from lunar_core import __version__, analysis_service
+from lunar_core import __version__, analysis_service, custom_point
 from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
 from lunar_core.provenance import sha256_file
 
@@ -117,6 +117,7 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
 
     caveats = ["Reference site from published sources, not an official challenge coordinate."
                if site["site"].get("origin") == "reference" else None,
+               custom_point.CUSTOM_CAVEAT if site["site"].get("origin") == "custom" and terrain != "flat" else None,
                "Flat horizon: hills and crater walls are not modelled, so polar results can be badly off."
                if terrain == "flat" else None,
                horizon_note,
@@ -165,20 +166,20 @@ def _file_sha(path: Path) -> str | None:
         return None
 
 
-def _analysis_request(request: CheckRequest, mode: str) -> AnalysisRequest:
+def _analysis_request(request: CheckRequest, mode: str, site_id: str) -> AnalysisRequest:
     end = request.start_utc + timedelta(days=request.days)
     return AnalysisRequest(
-        site_ids=[request.site_id], start_utc=request.start_utc, end_utc=end,
+        site_ids=[site_id], start_utc=request.start_utc, end_utc=end,
         coarse_step_min=COARSE_STEP_MIN, event_tolerance_s=EVENT_TOLERANCE_S,
         sun_observer_height_m=request.panel_height_m, antenna_height_m=ANTENNA_HEIGHT_M, horizon_mode=mode,
     )
 
 
 def run_check(request: CheckRequest) -> dict[str, Any]:
-    sites = analysis_service._load_sites()
-    if request.site_id not in sites:
-        raise ValueError(f"unknown site ID: {request.site_id}")
-    latitude = float(sites[request.site_id]["latitude_deg"])
+    site = custom_point.resolve(request.site_id, request.latitude_deg, request.longitude_deg,
+                                analysis_service._load_sites())
+    extra = {site["site_id"]: site} if site.get("origin") == "custom" else None
+    latitude = float(site["latitude_deg"])
     preferred = "terrain" if latitude <= POLAR_LIMIT_DEG else "flat"
     kernel_sha = _file_sha(analysis_service.KERNEL_MANIFEST)
     dem_sha = _file_sha(analysis_service.DEM_MANIFEST)
@@ -198,7 +199,8 @@ def run_check(request: CheckRequest) -> dict[str, Any]:
             except (OSError, ValueError, KeyError, json.JSONDecodeError):
                 index.unlink(missing_ok=True)  # stale index entry: recompute, never trust it
         try:
-            run = analysis_service.run_analysis(_analysis_request(request, mode))
+            run = analysis_service.run_analysis(_analysis_request(request, mode, site["site_id"]),
+                                                extra_sites=extra)
         except analysis_service.TerrainNotReady as exc:
             note = f"Terrain was not available for this point ({exc}); this result uses a flat horizon."
             failed_indexes.append(index)
