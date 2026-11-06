@@ -291,6 +291,50 @@ export class GlobeEngine {
   setPinStates(states: Record<string, string>): void { this.pins.setStates(states); }
   setPinNotes(notes: Record<string, string>): void { this.pins.setNotes(notes); }
 
+  // ---------------------------------------------------------------- Moon weather forecast (F29)
+  private fcTex: THREE.DataTexture[] = [];
+  private fcSrc: (Uint8Array | null)[] = [null, null, null];
+
+  /**
+   * Drape the baked forecast masks on the south pole. litA/litB are Sun frames k and k+1 as bytes
+   * (0/255, row 0 = +y), mix the position between them; earth the held Earth frame. null = off.
+   */
+  setForecast(f: { n: number; halfM: number; litA: Uint8Array; litB: Uint8Array; mix: number; earth: Uint8Array | null; earthOn: boolean; bothOn: boolean } | null): void {
+    const mat = this.moonMat;
+    if (!mat) return;
+    if (!f) { mat.uniforms.fcOn.value = 0; return; }
+    if (!this.fcTex.length || this.fcTex[0].image.width !== f.n) {
+      this.fcTex.forEach((t) => t.dispose());
+      this.fcTex = [0, 1, 2].map(() => {
+        const t = new THREE.DataTexture(new Uint8Array(f.n * f.n), f.n, f.n, THREE.RedFormat, THREE.UnsignedByteType);
+        t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true;
+        return t;
+      });
+      this.fcSrc = [null, null, null];
+    }
+    const put = (i: number, data: Uint8Array | null) => {
+      if (!data || this.fcSrc[i] === data) return;
+      (this.fcTex[i].image.data as Uint8Array).set(data);
+      this.fcTex[i].needsUpdate = true;
+      this.fcSrc[i] = data;
+    };
+    put(0, f.litA); put(1, f.litB); put(2, f.earth);
+    const u = mat.uniforms;
+    u.fcLitA.value = this.fcTex[0]; u.fcLitB.value = this.fcTex[1]; u.fcEarth.value = this.fcTex[2];
+    u.fcMix.value = f.mix;
+    u.fcEarthOn.value = f.earth && f.earthOn ? 1 : 0;
+    u.fcBothOn.value = f.earth && f.bothOn ? 1 : 0;
+    u.fcHalf.value = f.halfM / (MOON_RADIUS_KM * 1000);
+    u.fcOn.value = 1;
+  }
+
+  /** Close oblique view over the south pole, the forecast square filling most of the frame. */
+  flyToSouthPole(): void {
+    this.pins.selectedId = null;
+    this.flyToPoint(new THREE.Vector3(0, -1, 0), 0.16, 38, 1);
+  }
+
   /** Screen position (CSS px) of a surface point and whether it faces the camera. */
   project(latDeg: number, lonDeg: number): { x: number; y: number; facing: boolean } {
     return this.screenOf({ site_id: '', name: '', latitude_deg: latDeg, longitude_deg: lonDeg });

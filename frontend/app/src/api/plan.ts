@@ -13,7 +13,12 @@ export type LandingOpportunity = {
   sunset_utc: string | null;
   sun_elevation_at_best_deg: number;
   earth_in_view_during_mission_pct: number;
+  verify?: Verify;
 };
+
+/** "Verify with NASA JPL": our Sun/Earth position at one instant and JPL Horizons' table for it (backend verify.py). */
+export type VerifyBody = { ours_azimuth_deg: number; ours_elevation_deg: number; observer_altitude_m?: number; horizons_url: string };
+export type Verify = { utc: string; note: string; sun: VerifyBody; earth?: VerifyBody };
 
 export type LandingResult = {
   kind: 'landing_opportunities';
@@ -23,7 +28,7 @@ export type LandingResult = {
   search: { start_utc: string; days: number };
   opportunities: LandingOpportunity[];
   opportunity_count: number;
-  closest_miss: { touchdown_utc: string; failed_rules: string[]; daylight_after_h: number; daylight_needed_h: number } | null;
+  closest_miss: { touchdown_utc: string; failed_rules: string[]; daylight_after_h: number; daylight_needed_h: number; verify?: Verify } | null;
   summary: string[];
   caveats: string[];
   compute_seconds: number;
@@ -81,15 +86,31 @@ export function isoZ(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
+/**
+ * A clicked point travels as the site ID "point:LAT,LON" inside the app; the API takes
+ * latitude_deg / longitude_deg instead of site_id for it (docs/frontend_api.md, any point).
+ */
+export function pointId(latDeg: number, lonDeg: number): string {
+  return `point:${latDeg.toFixed(4)},${(((lonDeg % 360) + 360) % 360).toFixed(4)}`;
+}
+export function parsePointId(id: string): { lat: number; lon: number } | null {
+  const m = /^point:(-?[\d.]+),(-?[\d.]+)$/.exec(id);
+  return m ? { lat: Number(m[1]), lon: Number(m[2]) } : null;
+}
+function target(siteId: string): Record<string, unknown> {
+  const p = parsePointId(siteId);
+  return p ? { latitude_deg: p.lat, longitude_deg: p.lon } : { site_id: siteId };
+}
+
 export function findLandingWindows(siteId: string, startMs: number, days: number, missionDays: number, signal?: AbortSignal,
   maxSunElevationDeg: number | null = 20) {
   return post<LandingResult>('/api/landing-windows',
-    { site_id: siteId, search_start_utc: isoZ(startMs), search_days: days, mission_days: missionDays,
+    { ...target(siteId), search_start_utc: isoZ(startMs), search_days: days, mission_days: missionDays,
       max_sun_elevation_deg: maxSunElevationDeg }, signal);
 }
 
 export function checkSite(siteId: string, startMs: number, days: number, signal?: AbortSignal, panelHeightM = 2) {
-  return post<CheckResult>('/api/check', { site_id: siteId, start_utc: isoZ(startMs), days, panel_height_m: panelHeightM }, signal);
+  return post<CheckResult>('/api/check', { ...target(siteId), start_utc: isoZ(startMs), days, panel_height_m: panelHeightM }, signal);
 }
 
 /** One row of a saved run's series (analysis_service.run_analysis timeline). */

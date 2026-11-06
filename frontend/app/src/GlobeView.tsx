@@ -15,6 +15,8 @@ export type GlobeHandle = {
   setPinStates: (states: Record<string, string>) => void;
   setPinNotes: (notes: Record<string, string>) => void;
   project: (latDeg: number, lonDeg: number) => { x: number; y: number; facing: boolean } | null;
+  setForecast: GlobeEngine['setForecast'];
+  flyToSouthPole: () => void;
 };
 
 type Props = {
@@ -95,6 +97,8 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     setPinStates: (st) => { pending.current.states = st; engine.current?.setPinStates(st); },
     setPinNotes: (n) => { pending.current.notes = n; engine.current?.setPinNotes(n); },
     project: (la, lo) => engine.current?.project(la, lo) ?? null,
+    setForecast: (f) => engine.current?.setForecast(f),
+    flyToSouthPole: () => engine.current?.flyToSouthPole(),
   }), []);
 
   useEffect(() => {

@@ -9,7 +9,7 @@ import { parseWhen, type When } from '../state/when';
 export type Command =
   | { kind: 'site'; site: ReferenceSite }
   | { kind: 'date'; when: When }
-  | { kind: 'action'; id: 'proof' | 'home' | 'now' | 'grid' | 'earth'; label: string };
+  | { kind: 'action'; id: 'proof' | 'home' | 'now' | 'grid' | 'earth' | 'forecast'; label: string };
 
 type Props = {
   sites: ReferenceSite[];
@@ -19,6 +19,7 @@ type Props = {
 };
 
 const ACTIONS: Extract<Command, { kind: 'action' }>[] = [
+  { kind: 'action', id: 'forecast', label: 'Moon weather forecast: south pole, January 2027' },
   { kind: 'action', id: 'proof', label: 'Evidence: our shadows vs LRO photos, real missions, JPL Horizons' },
   { kind: 'action', id: 'now', label: 'Back to now' },
   { kind: 'action', id: 'home', label: 'Whole Moon' },

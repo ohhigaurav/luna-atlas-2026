@@ -16,6 +16,7 @@ type Props = {
   onPick: (s: ReferenceSite) => void;
   onSearch: () => void;
   onProof: () => void;
+  onForecast: (() => void) | null;
 };
 
 const GROUPS: { key: string; title: string; test: (s: ReferenceSite) => boolean }[] = [
@@ -34,7 +35,7 @@ export function Symbol({ kind }: { kind: 'window' | 'day' | 'night' }) {
   return <i className={`la-sym ${kind}`} aria-hidden="true" />;
 }
 
-export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSearch, onProof }: Props) {
+export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSearch, onProof, onForecast }: Props) {
   const placed = new Set<string>();
   const groups = GROUPS.map((g) => {
     const members = sites.filter((s) => !placed.has(s.site_id) && g.test(s));
@@ -65,6 +66,13 @@ export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSe
             : <>Landing windows need the live backend. Day and night here are for flat ground.</>}
         </p>
       </section>
+
+      {onForecast && (
+        <button type="button" className="la-fcbtn" onClick={onForecast}>
+          <b>Moon weather forecast</b>
+          <span>Watch sunlight and Earth's line of sight sweep the south pole, every 2 hours through January 2027</span>
+        </button>
+      )}
 
       <button type="button" className="la-search" onClick={onSearch}>
         <span>Find a site or type a date</span><kbd>Ctrl K</kbd>

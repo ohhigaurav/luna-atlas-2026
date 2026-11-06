@@ -2,7 +2,7 @@
 // readouts; every readout can be touched and moves the clock to where its number comes from.
 // The API's sentences stay in tooltips and screen-reader text; the caveats stay visible.
 import { useEffect, useState, type MouseEvent as RMouseEvent } from 'react';
-import type { UtcRange } from '../api/plan';
+import type { UtcRange, Verify } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
@@ -81,6 +81,18 @@ function Outlook({ settings, data, cursorMs, onJump, onSettings }: Pick<Props, '
   );
 }
 
+/** "Verify with NASA JPL": our Sun position next to a link to JPL Horizons' own table for the same point and second. */
+function VerifyLine({ v }: { v: Verify }) {
+  return (
+    <p className="la-verify" title={v.note}>
+      Sun at {utcShort(v.utc)} UTC: ours az {v.sun.ours_azimuth_deg.toFixed(2)}°, el <b>{v.sun.ours_elevation_deg.toFixed(2)}°</b>{' '}
+      <a href={v.sun.horizons_url} target="_blank" rel="noopener noreferrer">Verify with NASA JPL ↗</a>
+      {v.earth && <>{' '}Earth el {v.earth.ours_elevation_deg.toFixed(2)}° <a href={v.earth.horizons_url} target="_blank" rel="noopener noreferrer">JPL ↗</a></>}
+      <span className="la-dim"> {v.note}</span>
+    </p>
+  );
+}
+
 export function SitePanel({ site, live, now, cursorMs, settings, data, answer, onSettings, onJump, onSurface, onClose, onProof }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [cal, setCal] = useState(false);
@@ -92,6 +104,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
   }, [data]);
 
   const tag = positionTag(site);
+  const custom = site.site_id.startsWith('point:');
   const polar = site.latitude_deg <= -75;
   const quick: { label: string; act: () => void }[] = [
     { label: 'Today', act: () => { const t = utcMidnight(Date.now()); onSettings({ searchStartMs: t, notBeforeMs: t }); } },
@@ -113,8 +126,19 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
             <h2>{site.name}</h2>
             <span className="co">{formatLat(site.latitude_deg)}  {formatLon(site.longitude_deg)}{site.group ? ` · ${site.group}` : ''}</span>
             <div className="la-tags">
-              <span className="la-tag">Reference site, not official</span>
-              {tag && <span className={`la-tag${tag.warn ? ' warn' : ''}`}>{tag.text}</span>}
+              {custom ? (
+                <>
+                  <span className="la-tag">Your point</span>
+                  <span className="la-tag warn" title="Points you click use the 240 m regional terrain map only (no 5 m tiles); outside it, a flat horizon.">
+                    {data.status === 'ready' ? (data.horizonMode === 'terrain' ? '240 m terrain' : 'flat horizon, no terrain map here') : 'terrain: 240 m map near the pole'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="la-tag">Reference site, not official</span>
+                  {tag && <span className={`la-tag${tag.warn ? ' warn' : ''}`}>{tag.text}</span>}
+                </>
+              )}
             </div>
           </div>
           {now && (
@@ -150,6 +174,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                     <span>{bigDate(answer.bestMs)}</span> <small>{timeOf(answer.bestMs)}</small>
                   </button>
                   <span className="la-range">touchdown {utcShort(answer.opportunity.touchdown_from_utc)} → {utcShort(answer.opportunity.touchdown_until_utc)} UTC · Sun {answer.opportunity.sun_elevation_at_best_deg.toFixed(1)}° at best</span>
+                  {answer.opportunity.verify && <VerifyLine v={answer.opportunity.verify} />}
                   <div className="la-tiles">
                     <button type="button" className="la-tile" title="Daylight left after touchdown. Click to see sunset."
                       onClick={() => onJump(answer.opportunity.sunset_utc && answer.bestMs === Date.parse(answer.opportunity.best_touchdown_utc)
@@ -194,6 +219,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                         ...(f.maxSunDeg !== undefined ? { maxSunDeg: f.maxSunDeg } : {}) })}>{f.label}</button>
                     ))}
                   </div>
+                  {data.landing.closest_miss?.verify && <VerifyLine v={data.landing.closest_miss.verify} />}
                   <button type="button" className="la-btn" onClick={() => onSurface(answer.touchdownMs)}>Stand there anyway</button>
                 </>
               )}

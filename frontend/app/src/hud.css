@@ -132,6 +132,36 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-proofbtn span { font: 400 14px var(--font-serif); }
 .la-proofbtn small { font-size: 11.5px; color: var(--text-3); }
 
+/* Moon weather forecast entry (flagship) */
+.la-fcbtn { all: unset; cursor: pointer; margin: 12px 20px 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px;
+  border: 1px solid rgba(94, 211, 148, 0.45); background: linear-gradient(90deg, rgba(94, 211, 148, 0.10), rgba(89, 195, 217, 0.06)); }
+.la-fcbtn b { font: 600 18px var(--font-display); }
+.la-fcbtn span { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+.la-fcbtn:hover { border-color: var(--good); }
+.la-fcbtn:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+.la-fc-now { display: flex; flex-direction: column; gap: 2px; }
+.la-fc-now b { font: 600 30px/1.1 var(--font-display); }
+.la-fc-now span:last-child { font: 500 13px var(--font-cond); color: var(--text-2); }
+.la-key.flat { margin: 0; padding: 0; border: 0; gap: 7px; }
+.la-key .row.toggle { cursor: pointer; grid-template-columns: 18px 24px 1fr; }
+.la-key .row.toggle input { margin: 0; accent-color: var(--text); }
+.la-key.flat > .row:first-child { grid-template-columns: 42px 1fr; }
+.la-key.flat > .row:first-child .la-swatch { justify-self: end; margin-right: 6px; }
+.la-swatch { width: 16px; height: 10px; display: inline-block; border: 1px solid var(--line-2); }
+.la-swatch.lit { background: linear-gradient(90deg, #d8d3c8 50%, #000 50%); }
+.la-swatch.earth { background: #1f5866; border-color: var(--earth); }
+.la-swatch.both { background: var(--good); border-color: var(--good); }
+.la-fc-probe { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.la-fc-probe b { font: 600 14px var(--font-cond); color: var(--text); }
+.la-ribbon { width: 100%; height: 58px; display: block; cursor: pointer; }
+.la-ribbon:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+.la-ribbon-key { display: flex; gap: 12px; font: 500 12px var(--font-cond); }
+.la-ribbon-key .la-dim { margin-left: auto; }
+.la-verify { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.la-verify b { font: 600 13px var(--font-cond); color: var(--text); }
+.la-verify a { color: var(--text); text-underline-offset: 3px; font-weight: 500; white-space: nowrap; }
+.la-verify a:hover { color: #fff; }
+
 /* site: the answer */
 .la-side-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b2a27 transparent; }
 .la-sec { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }

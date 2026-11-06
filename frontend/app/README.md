@@ -28,7 +28,7 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 
 | command | what it checks |
 |---|---|
-| `npm test` | unit tests: sky interpolation, formats, Moon phase, landing answer, typed dates, calendar days, site day/night, lander power model |
+| `npm test` | unit tests: sky interpolation, formats, Moon phase, landing answer, typed dates, calendar days, site day/night, lander power model, pin outlook, forecast mask indexing (against numpy) |
 | `npm run check:shader` | the Moon shader in headless WebGL2: terminator within 1 deg of the Sun direction, map orientation, slope sign, cast shadows, no speckle from sub-pixel relief (10 criteria) |
 | `npm run build` | TypeScript (strict) + production bundle in `dist/` |
 
@@ -48,6 +48,9 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 | Ctrl K: sites, typed dates (`13 jan 2027`, `next month`, `2027-03`, `+10d`), actions | `src/ui/CommandBar.tsx`, `src/state/when.ts` | none |
 | Surface: the real horizon with the Sun and Earth now and over 30 days; "Keep the lander alive" battery game (illustrative power model, labelled) | `src/surface/` | `POST /api/check` → `GET /api/runs/{id}` series |
 | Evidence: LRO photo vs our shadows wipe slider (6 frames, the failing one included), real-mission table, JPL Horizons | `src/proof/` | `public/proof/` (from `python tools/export_proof.py`), figures copied from `validation/evidence/` |
+| Moon weather forecast (F29): the south pole's sunlight every 2 h and Earth's line of sight every 6 h for January 2027, draped on the 3D pole in sync with the clock; layers (Earth, lit and Earth), probe point with month ribbon, hover readout | `src/forecast/`, `fc*` uniforms in `src/scene/lunarMaterial.ts` | `public/data/shadow_movie/` (`lit.u8`, `earth.u8`, `movie.json`, `earth.json`) from `tools/bake_shadow_movie.py`, `tools/bake_earth_movie.py` |
+| Click anywhere: landing windows for any point (240 m terrain near the pole, flat elsewhere, labelled) | `App.tsx` (`pointId`), `src/api/plan.ts` | `/api/landing-windows`, `/api/check` with `latitude_deg`, `longitude_deg` |
+| "Verify with NASA JPL ↗": our Sun/Earth position at best touchdown next to JPL Horizons' table for it | `src/plan/SitePanel.tsx` | `verify` on each opportunity |
 | Time rail, pointer readout (lat/lon and Sun height under the cursor) | `App.tsx` | shared clock |
 
 **Live or static.** If the backend answers `GET /api/reference-sites`, the app is live ("the Moon

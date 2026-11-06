@@ -97,6 +97,16 @@ const frag = /* glsl */ `
   uniform float capTexel;       // 1 / grid size
   uniform float shadowSteps;    // 0 = off; otherwise samples marched toward the Sun (max 32)
   uniform float sunAngRad;      // apparent solar radius, radians (soft edge of cast shadows)
+  // Moon weather forecast (F29): baked lit / Earth-in-view masks on a south polar stereographic
+  // square (tools/bake_shadow_movie.py). Inside it they replace the real-time cast shadow.
+  uniform float fcOn;           // 0 or 1
+  uniform sampler2D fcLitA;     // lit mask, Sun frame k   (R8, row 0 = +y)
+  uniform sampler2D fcLitB;     // lit mask, Sun frame k+1
+  uniform float fcMix;          // 0..1 between them
+  uniform sampler2D fcEarth;    // Earth-in-view mask, held between its 6 h frames
+  uniform float fcEarthOn;      // tint where Earth is in view (cyan)
+  uniform float fcBothOn;       // mark where lit AND Earth in view (green): work and talk
+  uniform float fcHalf;         // square half-width in Moon radii (stereographic x, y)
   varying vec3 vObjN;
   varying vec3 vWorldPos;
 
@@ -223,13 +233,42 @@ const frag = /* glsl */ `
     float mu  = max(dot(Nw, V), 1e-3);
     // Lunar-Lambert reflectance (McEwen): Lommel-Seeliger term + Lambert term.
     float sun = 2.0 * L * mu0 / (mu0 + mu) + (1.0 - L) * mu0;
-    if (mu0 > 0.0) sun *= sunVisibility(n0, normalize(sunDir), R_KM * length(fwidth(vObjN)));
+    float vis = mu0 > 0.0 ? sunVisibility(n0, normalize(sunDir), R_KM * length(fwidth(vObjN))) : 1.0;
+
+    // Forecast square: stereographic x, y as in tools/shadow_match.to_stereo (south pole).
+    float fw = 0.0, fEarth = 0.0, fLit = 0.0, fEdge = 0.0;
+    if (fcOn > 0.5) {
+      vec3 meN = vec3(n0.x, -n0.z, n0.y);
+      if (meN.z < -0.99) {
+        float latR = asin(clamp(meN.z, -1.0, 1.0));
+        float rho = 2.0 * tan(0.25 * PI + 0.5 * latR);
+        float lonR = atan(meN.y, meN.x);
+        vec2 xy = rho * vec2(sin(lonR), cos(lonR)) / fcHalf;            // -1..1 inside
+        vec2 fuv = vec2(0.5 * xy.x + 0.5, 0.5 - 0.5 * xy.y);              // row 0 = +y
+        vec2 a = abs(xy);
+        float m = max(a.x, a.y);
+        float px = fwidth(m);
+        fw = 1.0 - smoothstep(1.0 - 2.0 * px, 1.0, m);
+        fEdge = (1.0 - smoothstep(0.0, 1.5 * px, abs(m - 1.0))) * step(m, 1.0 + 3.0 * px);
+        fLit = mix(texture(fcLitA, fuv).r, texture(fcLitB, fuv).r, fcMix);
+        fEarth = texture(fcEarth, fuv).r;
+      }
+    }
+    sun *= mix(vis, fLit, fw);
 
     // Earthshine: Earth as a dim, phase-weighted light from its true direction.
     float mu0e = max(dot(Nw, Ew), 0.0);
     float shine = earthshineGain * earthIllum * (2.0 * mu0e / (mu0e + mu));
 
     vec3 col = albedo * (sun + shine * vec3(0.75, 0.85, 1.0));
+    if (fw > 0.0) {
+      // Earth in view: cyan wash (also on dark ground: you can talk there but not charge).
+      // Shadowed ground gets a faint cyan floor, lit ground a cyan cast; light and shadow stay readable.
+      col = mix(col, col * vec3(0.72, 1.0, 1.12) + vec3(0.0, 0.035, 0.05), fw * fcEarthOn * fEarth);
+      // Lit and Earth in view: green, where a solar lander can work and talk.
+      col = mix(col, vec3(0.37, 0.83, 0.58) * (0.35 + 0.65 * clamp(sun * 1.6, 0.0, 1.0)), fw * fcBothOn * fEarth * smoothstep(0.3, 0.7, fLit) * 0.55);
+    }
+    col = mix(col, vec3(0.93, 0.9, 0.86), fEdge * 0.7);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -306,6 +345,14 @@ export function createLunarMaterial(u: LunarUniforms): THREE.ShaderMaterial {
       capTexel: { value: u.caps ? 1 / (u.caps.south.image as { width: number }).width : 1 },
       shadowSteps: { value: u.shadowSteps ?? 24 },
       sunAngRad: { value: THREE.MathUtils.degToRad(0.2666) }, // mean solar radius seen from the Moon
+      fcOn: { value: 0 },
+      fcLitA: { value: u.dispMap },
+      fcLitB: { value: u.dispMap },
+      fcMix: { value: 0 },
+      fcEarth: { value: u.dispMap },
+      fcEarthOn: { value: 0 },
+      fcBothOn: { value: 0 },
+      fcHalf: { value: 40000 / 1737400 },
     },
   });
   mat.toneMapped = true;
