@@ -70,3 +70,61 @@ Frontend rules for static mode:
   `kernel_manifest_sha256` from the manifest, plus each run's own provenance block.
 * **Fetch lazily.** Load `sky.json` and `reference-sites.json` at start. Fetch a run file only
   when its site and height are selected, and cache it.
+
+
+## Static answers: compare, landing windows, ellipse and ground view without a server (new 6 Nov)
+
+Evaluation runs after 15 Nov for weeks, and no laptop stays on, so the static site must answer
+the challenge's core questions by itself. `tools/bake_answers.py` saves the real API responses
+the app asks for:
+
+| endpoint | baked for | from |
+|---|---|---|
+| `/api/landing-windows` | every site, the default question (90 d, 10-day mission, Sun ≤ 20°) | bundle start + 0, 7, 14, 21 d (the compare view's landing row asks from its date) |
+| `/api/check` | every site: 60 d at start and 30 d at start + 60 d (landing ring); 30 d at start for the 3D ground view, panel heights 0, 1, 2, 5, 10 m at polar sites (2 m elsewhere) | bundle start |
+| `GET /api/runs/{id}` | the runs behind those 30-day checks | – |
+| `/api/compare` | every site, **one place at a time**, 30 days | start + 0, 7, 14, 21 d |
+| `/api/landing-ellipse` | Sites 001 and 004, round, semi-axis 100 / 250 / 500 / 1000 m, 14 days | bundle start |
+
+**Files:**
+- `data/answers/index.json`: `{key_spec, baked_times, answers: {key: file}, runs: {run_id: file}, errors}`;
+- each answer file is the unmodified response plus `"static_answer": true`.
+
+### Frontend: one change in `post()` (src/api/plan.ts)
+
+In static mode, route every POST through `src/data/staticAnswers.ts` (already written; it is the
+mirror of `backend/lunar_core/static_answers.py` and is checked against shared vectors in
+`tests/static_keys.golden.json`):
+
+```ts
+const ep = endpointOf(url, idx.key_spec);
+if (!ep) throw new ApiError(404, 'needs the live server');
+if (ep === 'compare') {
+  // one stored answer per place: fetch each, concatenate rows, recompute leaders (rules below)
+}
+const file = idx.answers[makeKey(idx.key_spec, ep, body)];
+if (!file) throw new ApiError(404, `Precomputed for ${idx.baked_times.join(', ')}; this question needs the live server.`);
+return getJson(`${base}data/${file}`);
+// GET /api/runs/{id}  ->  `${base}data/${idx.runs[id]}`
+```
+
+**Static-mode rules:**
+- **Snap times:** snap the clock and every start or at time to `snapToBaked()`, and show
+  "precomputed for 8 Jan 2027".
+- **Landing search:** use the bundle start (`index.start_utc`).
+- **Compare leaders** (same as `lunar_core.compare.leaders`):
+  - highest wins for most sunlight, most Earth and most both;
+  - lowest wins for shortest darkness;
+  - longest until sunset / Earthset counts only places where the Sun / Earth is up now;
+  - highest Sun now counts only places where the Sun is up;
+  - ties are all listed.
+- **Clicked points:** inside the 80 km polar square, answer from the forecast bits ("Sun x%,
+  Earth y% this month, 240 m terrain, ground level"). Elsewhere, say "this needs the live server".
+
+### Bake order (machine with kernels and DEMs)
+
+```
+.venv/bin/python tools/bake_static.py
+.venv/bin/python tools/bake_answers.py        # ~45-60 min the first time; resumable
+cd frontend/app && npm run build              # dist/ = the complete static site
+```
