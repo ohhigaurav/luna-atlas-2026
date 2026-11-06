@@ -166,3 +166,14 @@ def test_min_sun_request_validation() -> None:
     for bad in (50, -3, "high"):
         with _pytest.raises(ValidationError):
             LandingRequest(**base, min_sun_elevation_deg=bad)
+
+
+def test_sun_clearance_above_local_horizon() -> None:
+    sun, earth = [_w(10, 80)], [_w(0, 100)]
+    ridge = [Sample(h * H, f"h{h}", 10 <= h < 80, -2.9, True, -4.1) for h in range(100)]
+    r = _eval(ridge, sun, earth)
+    o = r["opportunities"][0]
+    assert o["sun_elevation_at_best_deg"] == -2.9
+    assert o["sun_above_horizon_at_best_deg"] == pytest.approx(1.2)
+    flat = _eval(_samples(100, sun, earth), sun, earth)["opportunities"][0]
+    assert flat["sun_above_horizon_at_best_deg"] is None  # no horizon given

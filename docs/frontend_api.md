@@ -103,6 +103,12 @@ on event day without a code change. Labels and banner: an internal document (not
   light the ground".
 - **Effect:** the Apollo 11 site no longer offers "best touchdown with the Sun at −0.22°". Its best
   touchdown now has the Sun at 5° or higher.
+- Each opportunity also has `sun_above_horizon_at_best_deg`: the Sun's height above the **local
+  horizon**, as opposed to `sun_elevation_at_best_deg`, its height above the level horizontal.
+  They differ on ridges and summits. At the Malapert crest the Sun is at −2.9° from the level
+  horizontal but above the dipped horizon of a 5 km peak. Show "Sun 1.2° above the horizon" as
+  the main number and the level-horizontal elevation as a detail. `closest_miss` has
+  `sun_above_horizon_deg`.
 - The frontend need not send anything; to expose it, add "Min Sun height: auto / 0° / 5° / 10°"
   to the landing settings.
 

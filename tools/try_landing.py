@@ -40,7 +40,9 @@ def main() -> int:
             print("  " + line)
         for o in r["opportunities"][:6]:
             print(f"   - {o['touchdown_from_utc'][:16]} .. {o['touchdown_until_utc'][:16]}  best {o['best_touchdown_utc'][:16]}: "
-                  f"{o['daylight_after_best_h'] / 24:.1f} d light, Sun {o['sun_elevation_at_best_deg']:.1f} deg, "
+                  f"{o['daylight_after_best_h'] / 24:.1f} d light, Sun {o['sun_elevation_at_best_deg']:.1f} deg"
+                  + (f" ({o['sun_above_horizon_at_best_deg']:+.1f} above local horizon)"
+                     if o.get("sun_above_horizon_at_best_deg") is not None else "") + ", "
                   f"Earth {o['earth_in_view_during_mission_pct']:.0f}%")
         print(f"   candidates failing each rule: {r['candidates_failing']} of {r['candidates_checked']}")
         for c in r["caveats"]:

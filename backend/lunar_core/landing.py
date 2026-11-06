@@ -44,7 +44,7 @@ from typing import Any
 from lunar_core import __version__, analysis_service, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-4"  # 2: verify links; 3: custom-point caveat; 4: R5 sun_high
+CACHE_SCHEMA = "landing-cache-5"  # 2: verify; 3: custom caveat; 4: R5 sun_high; 5: Sun clearance
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -88,6 +88,7 @@ class Sample:
     sun_up: bool
     sun_el_deg: float
     earth_up: bool
+    sun_horizon_deg: float | None = None  # local horizon height toward the Sun (terrain or flat)
 
 
 def merge_windows(chunks: Sequence[Sequence[dict[str, Any]]]) -> list[Window]:
@@ -105,6 +106,16 @@ def merge_windows(chunks: Sequence[Sequence[dict[str, Any]]]) -> list[Window]:
     # continuation, which means the target set exactly at the seam.
     return [w if i == len(out) - 1 else Window(w.start_s, w.end_s, w.start_utc, w.end_utc, False)
             for i, w in enumerate(out)]
+
+
+def _clearance(s: Sample) -> float | None:
+    """How far the Sun's centre stands above the local horizon (terrain or flat) at that azimuth.
+
+    ``sun_el_deg`` is measured from the level (astronomical) horizontal. On a high ridge the real
+    horizon dips below it, so the Sun can shine at a negative elevation; this is the number that
+    says how high it actually looks from the ground.
+    """
+    return None if s.sun_horizon_deg is None else s.sun_el_deg - s.sun_horizon_deg
 
 
 def _containing(windows: Sequence[Window], t: float) -> Window | None:
@@ -157,6 +168,7 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
             "daylight_is_lower_bound": best["lower_bound"],
             "sunset_utc": best["window"].end_utc if not best["lower_bound"] else None,
             "sun_elevation_at_best_deg": sb.sun_el_deg,
+            "sun_above_horizon_at_best_deg": _clearance(sb),
             "earth_in_view_during_mission_pct": 100.0 * _overlap_fraction(earth, sb.t_s, sb.t_s + need_s),
         })
         current.clear()
@@ -181,6 +193,7 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
             "daylight_after_h": best["left_s"] / 3600.0,
             "daylight_needed_h": need_s / 3600.0,
             "sun_elevation_deg": best["s"].sun_el_deg,
+            "sun_above_horizon_deg": _clearance(best["s"]),
             "earth_up": best["s"].earth_up,
         }
     longest = max(sun, key=lambda w: w.end_s - w.start_s, default=None)
@@ -301,7 +314,8 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
             if samples and float(row["et_s"]) <= samples[-1].t_s + 1e-3:
                 continue  # chunk seam: the first sample repeats the previous chunk's last
             samples.append(Sample(float(row["et_s"]), row["utc"], bool(row["sun_visible_upper_limb"]),
-                                  float(row["sun_elevation_deg"]), bool(row["earth_center_clear"])))
+                                  float(row["sun_elevation_deg"]), bool(row["earth_center_clear"]),
+                                  None if row.get("sun_horizon_deg") is None else float(row["sun_horizon_deg"])))
     sun = merge_windows([r["sun_windows"] for r in results])
     earth = merge_windows([r["earth_windows"] for r in results])
     search_end_s = samples[0].t_s + request.search_days * 86400.0

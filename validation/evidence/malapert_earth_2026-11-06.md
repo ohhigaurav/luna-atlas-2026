@@ -69,3 +69,14 @@ A note on the Malapert reference point, from `data/reference/site_notes.json` th
 `/api/site-index` (`analysis_note`). The citation itself is untouched:
 "Published point is on the massif's far side from Earth (0% Earth). The DEM crest 10.7 km east
 (85.989°S, 2.101°E, 5,169 m) sees Earth 70% and Sun 84% in Nov 2026. Try it as a clicked point."
+
+## Landing windows, 2027-01-01 + 90 d (`tools/try_landing.py`; raw: `r5_check_2026-11-06.log`)
+
+- **Published point:** no window. All 4,321 candidates fail "Earth up at touchdown".
+- **DEM crest (85.9886°S, 2.1013°E):** 3 windows.
+  - First: touchdown 01-09 04:00 – 01-21 21:00 UTC, giving 22.7 days of sunlight, with Earth in
+    view for 100% of the mission.
+  - The Sun at best touchdown reads **−2.9°** from the level horizontal. From a 5.2 km summit the
+    real horizon dips lower, so the Sun shines while "below the horizontal".
+  - Answers now also give `sun_above_horizon_at_best_deg` (Sun height above the local horizon)
+    so this reads correctly.
