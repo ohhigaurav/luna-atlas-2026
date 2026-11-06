@@ -133,7 +133,10 @@ repeated questions are instant. Response:
    "period": {"sunlit_percent": 98.0, "earth_percent": 47.0, "both_percent": 46.0,
               "longest_darkness_h": 12.0, "longest_darkness_lower_bound": false,
               "longest_earth_gap_h": 360.0, "longest_earth_gap_lower_bound": true},
-   "limits_all_pass": false, "caveats": [...], "verify": {...}, "run_id": "..."}],
+   "limits_all_pass": false,
+   "limits": [{"key": "darkness", "label": "Longest darkness", "value_h": 310.0, "limit_h": 50.0,
+               "text": "12 d 22 h", "lower_bound": false, "status": "fail"}, ...],
+   "caveats": [...], "verify": {...}, "run_id": "..."}],
  "leaders": {"most_sunlight": ["reference-lola-site-001"], "longest_until_earthset": [...], ...}}
 ```
 

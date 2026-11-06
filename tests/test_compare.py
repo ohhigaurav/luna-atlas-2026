@@ -52,6 +52,10 @@ def test_leaders_ties_and_up_only() -> None:
     assert lead["longest_until_sunset"] == ["c"]          # b is down: not a candidate
     assert lead["longest_until_earthset"] == ["b"] and lead["highest_sun_now"] == ["a"]
     assert compare.leaders([_row("x", 0, 0, 0, 0, False, 0, False, 0, -5)])["highest_sun_now"] == []
+    # Higher over level ground but lower over its own hills does not lead.
+    hi, lo = _row("hi", 0, 0, 0, 0, True, 1, False, 0, 5.0), _row("lo", 0, 0, 0, 0, True, 1, False, 0, 3.0)
+    hi["now"]["sun"]["horizon_deg"], lo["now"]["sun"]["horizon_deg"] = 4.0, 0.5
+    assert compare.leaders([hi, lo])["highest_sun_now"] == ["lo"]
 
 
 def test_request_limits() -> None:
@@ -80,6 +84,8 @@ def test_compare_site_and_point_end_to_end() -> None:
         assert row["now"]["sun"]["up"] == (row["sun_next"]["event"] == "sunset")
         assert row["verify"]["sun"]["horizons_url"].startswith("https://ssd.jpl.nasa.gov/")
         assert 0.0 <= row["period"]["sunlit_percent"] <= 100.0
+        assert {c["key"] for c in row["limits"]} >= {"darkness", "earth_gap", "joint_outage"}
+        assert row["limits_all_pass"] == all(c["status"] in ("pass", "no_limit") for c in row["limits"])
     assert set(r["leaders"]) >= {"most_sunlight", "longest_until_earthset"}
     with pytest.raises(ValueError, match="twice"):
         compare.run_compare(CompareRequest(places=[{"site_id": TEST_SITE["site_id"]}] * 2,

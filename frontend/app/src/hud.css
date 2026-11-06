@@ -775,3 +775,4 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-cmp-land b.good-c { color: var(--good); }
 .la-cmp .c-go { all: unset; cursor: pointer; margin-top: 4px; font: 600 12.5px var(--font-ui); color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .la-cmp .c-go:focus-visible { outline: 2px solid var(--select); }
+.la-cmp .c-lim { display: block; font-size: 12px; color: var(--text-2); line-height: 1.35; }

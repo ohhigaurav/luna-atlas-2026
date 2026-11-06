@@ -89,6 +89,8 @@ def _row(result: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
                                                   or m["longest_dte_gap"].get("truncated_end")),
         },
         "limits_all_pass": bool(result["summary"]["limits"]["all_pass"]),
+        # Which limit fails, not just whether one does (default mission profile, same as /api/check).
+        "limits": result["summary"]["limits"]["checks"],
         "caveats": result["summary"]["caveats"],
         "verify": result.get("verify"),
         "run_id": result["run_id"],
@@ -117,7 +119,9 @@ def leaders(rows: list[dict[str, Any]]) -> dict[str, list[str]]:
         "shortest_darkness": best({k: r["period"]["longest_darkness_h"] for k, r in keyed.items()}, higher=False),
         "longest_until_sunset": best({k: r["sun_next"]["in_h"] for k, r in keyed.items() if r["sun_next"]["up"]}),
         "longest_until_earthset": best({k: r["earth_next"]["in_h"] for k, r in keyed.items() if r["earth_next"]["up"]}),
-        "highest_sun_now": best({k: r["now"]["sun"]["elevation_deg"] for k, r in keyed.items() if r["now"]["sun"]["up"]}),
+        # Height above the local (terrain) horizon at the Sun's azimuth, the number the table shows.
+        "highest_sun_now": best({k: r["now"]["sun"]["elevation_deg"] - r["now"]["sun"].get("horizon_deg", 0.0)
+                                 for k, r in keyed.items() if r["now"]["sun"]["up"]}),
     }
 
 

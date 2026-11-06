@@ -42,6 +42,9 @@ export type LimitCheck = {
   text: string;
   status: 'pass' | 'fail' | 'unknown' | 'no_limit' | string;
   lower_bound?: boolean;
+  value_h?: number;
+  limit_h?: number | null;
+  limit_pct?: number;
 };
 
 export type CheckResult = {

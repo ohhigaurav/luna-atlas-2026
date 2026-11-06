@@ -1,6 +1,6 @@
 // POST /api/compare (docs/frontend_api.md): 1-6 places side by side at one moment and over the
 // next days. Each place is the cached one-button check, so repeats are instant.
-import { parsePointId, post, isoZ, type Verify } from './plan';
+import { parsePointId, post, isoZ, type LimitCheck, type Verify } from './plan';
 
 export type NextEvent = { up: boolean; event: string; utc: string | null; in_h: number; lower_bound: boolean; none_in_period?: boolean };
 export type BodyNow = { up: boolean; elevation_deg: number; azimuth_deg: number; horizon_deg: number };
@@ -18,6 +18,8 @@ export type CompareRow = {
     longest_earth_gap_h: number; longest_earth_gap_lower_bound: boolean;
   };
   limits_all_pass: boolean;
+  /** Each limit of the default mission profile (backend 6 Nov; older backends omit it). */
+  limits?: LimitCheck[];
   caveats: string[];
   verify: Verify | null;
   run_id: string;
