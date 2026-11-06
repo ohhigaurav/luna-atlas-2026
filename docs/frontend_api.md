@@ -9,6 +9,7 @@ For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`
 | Sun/Earth direction for lighting the globe | `POST /api/sky-geometry` `{start_utc, end_utc, step_min}` |
 | **"When can I land here?"** (the main question) | `POST /api/landing-windows` `{site_id, search_start_utc, search_days, mission_days}` |
 | **"Check this site"** for a chosen date | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
+| **compare 2–6 sites/points side by side** (challenge core) | `POST /api/compare` `{places, at_utc, days}` |
 | full time series for the surface sky view and time dock | `GET /api/runs/{run_id}` (the check returns `run_url`) |
 
 ## `POST /api/sky-geometry`: stars and Earth's face (new 6 Nov)
@@ -72,6 +73,39 @@ Suggested UI: a small "Verify with NASA JPL ↗" link next to the Sun height. It
 link, show "ours: 1.83°" so a judge can compare the two numbers. Horizons has no lunar hills,
 so the matching numbers are the sky position above the level horizon, not sunrise times; `note`
 says this in one line.
+
+## `POST /api/compare`: sites and dates side by side (new 6 Nov; challenge core)
+
+```json
+{"places": [{"site_id": "reference-lola-site-001"}, {"site_id": "reference-lola-site-004"},
+            {"latitude_deg": -89.45, "longitude_deg": 223.2}],
+ "at_utc": "2027-01-10T00:00:00Z", "days": 30, "panel_height_m": 2}
+```
+
+Send 1–6 places: catalogue sites or clicked points. Each runs the cached one-button check, so
+repeated questions are instant. Response:
+
+```json
+{"kind": "site_comparison", "at_utc": "...", "days": 30,
+ "rows": [{"key": "reference-lola-site-001", "site": {...}, "horizon_mode": "terrain",
+   "now": {"sun": {"up": true, "elevation_deg": 1.21, "azimuth_deg": 312.4, "horizon_deg": 0.35},
+           "earth": {"up": true, "elevation_deg": 2.9, "azimuth_deg": 2.1, "horizon_deg": 0.8}},
+   "sun_next":   {"up": true,  "event": "sunset",   "utc": "...", "in_h": 412.5, "lower_bound": false},
+   "earth_next": {"up": true,  "event": "earthset", "utc": "...", "in_h": 330.0, "lower_bound": false},
+   "period": {"sunlit_percent": 98.0, "earth_percent": 47.0, "both_percent": 46.0,
+              "longest_darkness_h": 12.0, "longest_darkness_lower_bound": false,
+              "longest_earth_gap_h": 360.0, "longest_earth_gap_lower_bound": true},
+   "limits_all_pass": false, "caveats": [...], "verify": {...}, "run_id": "..."}],
+ "leaders": {"most_sunlight": ["reference-lola-site-001"], "longest_until_earthset": [...], ...}}
+```
+
+- `sun_next` / `earth_next` give the **time to sunset or sunrise, and to Earthset or
+  Earthrise**. The challenge asks for these by name.
+- `lower_bound: true` means the event is beyond the analysed days: show "≥ 30 d".
+- `none_in_period: true` means it never rises in the period.
+- `leaders` names the best key per metric; ties are listed together. There is no combined score.
+  Highlight the leader's cell in each row.
+- Changing the date or a place means asking again.
 
 ## `POST /api/check`
 

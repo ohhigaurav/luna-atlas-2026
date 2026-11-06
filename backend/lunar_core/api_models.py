@@ -260,6 +260,36 @@ class LandingRequest(BaseModel):
         return _site_or_point(self)
 
 
+
+class PlaceRef(BaseModel):
+    """A catalogue site or a clicked point (lunar_core.custom_point)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    site_id: str | None = Field(default=None, min_length=1, max_length=100)
+    latitude_deg: float | None = Field(default=None, ge=-90.0, le=90.0)
+    longitude_deg: float | None = Field(default=None, ge=-180.0, lt=360.0)
+
+    @model_validator(mode="after")
+    def place_site_or_point(self) -> PlaceRef:
+        return _site_or_point(self)
+
+
+class CompareRequest(BaseModel):
+    """Side-by-side comparison of 1-6 places at one moment and over the next days (lunar_core.compare)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    places: list[PlaceRef] = Field(min_length=1, max_length=6)
+    at_utc: datetime
+    days: int = Field(default=30, ge=1, le=60)
+    panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
+
+    @field_validator("at_utc")
+    @classmethod
+    def compare_time_must_be_explicit_utc(cls, value: datetime) -> datetime:
+        return _utc_datetime(value)
+
 class EllipseRequest(BaseModel):
     """Landing-ellipse risk (see lunar_core.landing_ellipse)."""
 
