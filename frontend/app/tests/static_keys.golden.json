@@ -1,0 +1,23 @@
+{
+  "note": "Shared by tests/test_static_answers.py and frontend/app/tests/staticAnswers.test.ts: both implementations must produce these keys.",
+  "cases": [
+    {"endpoint": "landing-windows",
+     "body": {"site_id": "reference-lola-site-001", "search_start_utc": "2027-01-01T00:00:00Z", "search_days": 90,
+              "mission_days": 10, "max_sun_elevation_deg": 20},
+     "key": "landing-windows?place=reference-lola-site-001&search_start_utc=2027-01-01T00:00:00Z&search_days=90&mission_days=10&panel_height_m=2&require_earth_at_landing=true&max_sun_elevation_deg=20&min_sun_elevation_deg=auto"},
+    {"endpoint": "landing-windows",
+     "body": {"latitude_deg": -89.45, "longitude_deg": -137.31, "search_start_utc": "2027-01-01T00:00:00.000Z",
+              "search_days": 90, "mission_days": 2.5, "max_sun_elevation_deg": null},
+     "key": "landing-windows?place=point:-89.4500,222.6900&search_start_utc=2027-01-01T00:00:00Z&search_days=90&mission_days=2.5&panel_height_m=2&require_earth_at_landing=true&max_sun_elevation_deg=null&min_sun_elevation_deg=auto"},
+    {"endpoint": "check",
+     "body": {"site_id": "reference-apollo-11", "start_utc": "2027-03-02T00:00:00Z", "days": 60, "panel_height_m": 2.0},
+     "key": "check?place=reference-apollo-11&start_utc=2027-03-02T00:00:00Z&days=60&panel_height_m=2"},
+    {"endpoint": "compare",
+     "body": {"site_id": "reference-lola-site-004", "at_utc": "2027-01-08T00:00:00+00:00", "days": 30, "panel_height_m": 2},
+     "key": "compare?place=reference-lola-site-004&at_utc=2027-01-08T00:00:00Z&days=30&panel_height_m=2"},
+    {"endpoint": "landing-ellipse",
+     "body": {"site_id": "reference-lola-site-004", "start_utc": "2027-01-01T00:00:00Z", "days": 14, "semi_major_m": 250,
+              "semi_minor_m": 250, "orientation_deg": 0, "panel_height_m": 2},
+     "key": "landing-ellipse?site_id=reference-lola-site-004&start_utc=2027-01-01T00:00:00Z&days=14&semi_major_m=250&semi_minor_m=250&orientation_deg=0&spacing_m=null&panel_height_m=2"}
+  ]
+}
