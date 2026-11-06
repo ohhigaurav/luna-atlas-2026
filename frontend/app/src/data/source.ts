@@ -14,7 +14,16 @@ export type ReferenceSite = PinSite & {
   source_record?: string;
   terrain_status?: string;
   position_kind?: string;
+  /** "official" (challenge sites, from 13 Nov) or "reference"; from GET /api/site-index. */
+  origin?: string;
+  kind?: string;
+  /** Our measured finding about this site, kept apart from the citation (docs/frontend_api.md). */
+  analysis_note?: { text: string; evidence?: string; suggested_point?: { latitude_deg: number; longitude_deg: number; label: string } };
 };
+
+/** GET /api/site-index without the sites: whether the official challenge list is in yet. */
+export type SiteIndexInfo = { official_state: string; official_count: number; reference_count?: number; note?: string };
+type SiteIndex = SiteIndexInfo & { sites: ReferenceSite[] };
 
 export type StaticManifest = {
   schema_version: string;
@@ -23,7 +32,7 @@ export type StaticManifest = {
   git_commit: string | null;
   kernel_manifest_sha256: string;
   settings: { start_utc: string; end_utc: string; step_min: number; heights_m: number[]; flat_height_m: number; antenna_height_m: number };
-  files: { reference_sites: string; sky: string };
+  files: { reference_sites: string; site_index?: string; sky: string };
   runs: Record<string, { file: string; run_id: string; site_id: string; horizon_mode: string; sun_observer_height_m: number }>;
   notes?: Record<string, string>;
   disclaimer?: string;
@@ -36,7 +45,16 @@ export type DataSource = {
   /** The instant the opening is lit for: now (live) or the bundle's first sample (static). */
   initialCursorMs: number;
   manifest?: StaticManifest;
+  index: SiteIndexInfo;
 };
+
+/** Official sites first (the API already orders them; keep it true for any source). */
+function fromIndex(ix: SiteIndex): { sites: ReferenceSite[]; index: SiteIndexInfo } {
+  const { sites, ...info } = ix;
+  const off = sites.filter((x) => x.origin === 'official'), rest = sites.filter((x) => x.origin !== 'official');
+  return { sites: [...off, ...rest], index: { ...info, official_count: info.official_count ?? off.length } };
+}
+const REFERENCE_ONLY: SiteIndexInfo = { official_state: 'awaiting_official_source', official_count: 0 };
 
 const base = import.meta.env.BASE_URL;
 
@@ -51,27 +69,31 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
  * anyway), not /api/health: health re-hashes every kernel and DEM (~300 MB) and can take longer
  * than any sensible probe timeout, which silently dropped the app into static mode.
  */
-async function detectLive(): Promise<ReferenceSite[] | null> {
+async function detectLive(): Promise<{ sites: ReferenceSite[]; index: SiteIndexInfo } | null> {
   if (import.meta.env.VITE_STATIC === '1') return null;
   try {
-    const r = await fetch('/api/reference-sites', { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return null;
-    return ((await r.json()) as { sites: ReferenceSite[] }).sites;
+    // The site index (official challenge sites first) is the source; an older backend without it
+    // falls back to the reference catalogue.
+    const r = await fetch('/api/site-index', { signal: AbortSignal.timeout(8000) });
+    if (r.ok) return fromIndex((await r.json()) as SiteIndex);
+    const f = await fetch('/api/reference-sites', { signal: AbortSignal.timeout(8000) });
+    if (!f.ok) return null;
+    return { sites: ((await f.json()) as { sites: ReferenceSite[] }).sites, index: REFERENCE_ONLY };
   } catch {
     return null; // no backend: fall through to the bundle
   }
 }
 
 export async function loadDataSource(): Promise<DataSource> {
-  const liveSites = await detectLive();
-  if (liveSites) {
+  const live = await detectLive();
+  if (live) {
     const now = Date.now();
     // "The Moon right now": today's lighting, and 30 days ahead so every site can say when its
     // Sun next rises or sets (one lunar day is 29.5 days).
     const start = new Date(now - 2 * 3600e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
     const end = new Date(now + 30 * 86400e3).toISOString().replace(/\.\d{3}Z$/, 'Z');
     const sky = await fetchSkyGeometry(start, end, 30);
-    return { mode: 'live', sites: liveSites, sky, initialCursorMs: now };
+    return { mode: 'live', sites: live.sites, index: live.index, sky, initialCursorMs: now };
   }
   const mode: Mode = 'static';
   let manifest: StaticManifest;
@@ -80,9 +102,12 @@ export async function loadDataSource(): Promise<DataSource> {
   } catch {
     throw new Error('No backend and no baked data. Start ./scripts/run_local.sh, or bake the static bundle (docs/static_bundle.md).');
   }
+  const siteIndex = manifest.files.site_index
+    ? getJson<SiteIndex>(`${base}data/${manifest.files.site_index}`).then(fromIndex)
+    : Promise.reject(new Error('no site index in this bundle'));
   const [sitesRes, sky] = await Promise.all([
-    getJson<{ sites: ReferenceSite[] }>(`${base}data/${manifest.files.reference_sites}`),
+    siteIndex.catch(() => getJson<{ sites: ReferenceSite[] }>(`${base}data/${manifest.files.reference_sites}`).then((r) => ({ sites: r.sites, index: REFERENCE_ONLY }))),
     getJson<SkyGeometry>(`${base}data/${manifest.files.sky}`),
   ]);
-  return { mode, sites: sitesRes.sites, sky, initialCursorMs: Date.parse(sky.series.utc[0]), manifest };
+  return { mode, sites: sitesRes.sites, index: sitesRes.index, sky, initialCursorMs: Date.parse(sky.series.utc[0]), manifest };
 }

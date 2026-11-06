@@ -753,3 +753,16 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
   .g-compass, .g-find { display: none; }
   .la-sheet { left: 0 !important; right: 0 !important; top: 0 !important; bottom: 0 !important; border-radius: 0; }
 }
+
+/* site index (6 Nov): where a site's coordinates come from, and our measured note on it */
+.sc-where { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.sc-origin { font: 600 12px var(--font-ui); padding: 2px 8px; border-radius: 999px; color: var(--text-2); border: 1px dashed rgba(255, 255, 255, 0.28); }
+.sc-origin.official { color: var(--text); border-style: solid; border-color: rgba(255, 255, 255, 0.55); }
+.la-tag.official { border-style: solid; color: var(--text); }
+.sc-note { margin-top: 12px; padding: 10px 12px !important; border-left: 2px solid var(--sun); background: rgba(255, 255, 255, 0.04); border-radius: 0 8px 8px 0;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.la-card > .sc-top > .sc-note { padding: 10px 12px !important; }
+.sc-note p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
+.sc-note a { color: var(--text); text-underline-offset: 2px; }
+.hl-banner { font-size: 13px !important; color: var(--text-3) !important; }
+.sc-note .la-btn { text-align: left; border-radius: 10px; font-size: 14px; padding: 7px 12px; }

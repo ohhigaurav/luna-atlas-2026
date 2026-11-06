@@ -3,6 +3,7 @@
 // The API's sentences stay in tooltips and screen-reader text; the caveats stay visible.
 import { useEffect, useState, type MouseEvent as RMouseEvent } from 'react';
 import type { UtcRange, Verify } from '../api/plan';
+import { originLabel } from './SiteCard';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
@@ -148,7 +149,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                 </>
               ) : (
                 <>
-                  <span className="la-tag">Reference site, not official</span>
+                  <span className={`la-tag${site.origin === 'official' ? ' official' : ''}`}>{originLabel(site)}</span>
                   {tag && <span className={`la-tag${tag.warn ? ' warn' : ''}`}>{tag.text}</span>}
                 </>
               )}

@@ -39,7 +39,7 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 | Globe: LROC colour, LOLA relief and cast shadows, Earth, Sun glare, opening shot, flights | `src/engine/` (plain three.js, mounted by `GlobeView.tsx`) | `POST /api/sky-geometry` |
 | Site pins (buttons, clustered at the pole) | `src/engine/pins.ts` | `GET /api/reference-sites` |
 | Date bar (top): the moment every answer is for; day steps, picker, play, Now, scrub | `src/ui/DateBar.tsx` | shared clock |
-| Site card: plain verdict for the date, Sun and Earth now with sunset/Earthset, actions; Details = expert controls | `src/plan/SiteCard.tsx`, `src/plan/SitePanel.tsx` (details) | `/api/landing-windows`, `/api/compare` |
+| Site card: origin tag (official / reference / your point), our measured note with evidence + "Try" point, plain verdict for the date, Sun and Earth now with sunset/Earthset, actions; Details = expert controls | `src/plan/SiteCard.tsx`, `src/plan/SitePanel.tsx` (details) | `/api/landing-windows`, `/api/compare` |
 | Home: welcome and pin legend with counts | `App.tsx`, `src/state/outlook.ts`, `src/state/siteState.ts` | `/api/landing-windows` (all sites, cached), sky-geometry |
 | Green pins: a landing window within 30 days; amber: Sun up now; hollow: night | `src/engine/pins.ts`, `src/plan/useOutlook.ts` | same |
 | Marginalia: UTC clock (live dot while it follows the wall clock), "% lit from Earth", grid | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |

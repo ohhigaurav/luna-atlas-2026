@@ -26,12 +26,22 @@ type Props = {
   onStand: (ms: number) => void;
   onCompare: () => void;
   onClose: () => void;
+  /** Opens a suggested nearby point (analysis_note.suggested_point) as a clicked point. */
+  onTry: (lat: number, lon: number, label: string) => void;
 };
 
+/** Our measured findings live in the repo's validation/evidence folder. */
+const EVIDENCE_BASE = 'https://github.com/ohhigaurav/luna-atlas-2026/blob/main/';
+
 const day = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+/** Where the coordinates come from, always in words (an internal document (not published)). */
+export function originLabel(site: ReferenceSite): string {
+  if (site.site_id.startsWith('point:')) return 'Your point';
+  return site.origin === 'official' ? 'Official challenge site' : 'Reference site, not official';
+}
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose }: Props) {
+export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry }: Props) {
   const [more, setMore] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -80,7 +90,23 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
       <div className="sc-top">
         <button type="button" className="sc-close" onClick={onClose} aria-label="Close (Esc)">×</button>
         <h2>{site.name}</h2>
-        <p className="sc-where">{formatLat(site.latitude_deg)}, {formatLon(site.longitude_deg)}{terrain ? `, ${terrain}` : ''}</p>
+        <p className="sc-where">
+          <span className={`sc-origin${site.origin === 'official' ? ' official' : ''}`}>{originLabel(site)}</span>
+          {formatLat(site.latitude_deg)}, {formatLon(site.longitude_deg)}{terrain ? `, ${terrain}` : ''}
+        </p>
+        {site.analysis_note && (
+          <div className="sc-note">
+            <p>
+              {site.analysis_note.text}
+              {site.analysis_note.evidence && <> <a href={EVIDENCE_BASE + site.analysis_note.evidence} target="_blank" rel="noreferrer">evidence ↗</a></>}
+            </p>
+            {site.analysis_note.suggested_point && (
+              <button type="button" className="la-btn" onClick={() => { const sp = site.analysis_note!.suggested_point!; onTry(sp.latitude_deg, sp.longitude_deg, sp.label); }}>
+                Try {site.analysis_note.suggested_point.label}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="sc-verdict" aria-live="polite">{verdict}</div>

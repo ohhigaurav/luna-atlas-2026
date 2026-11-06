@@ -82,7 +82,7 @@ export function CommandBar({ sites, selectedName, onRun, onClose }: Props) {
                 <small>{c.when.precision === 'instant' ? 'now' : new Date(c.when.ms).toISOString().slice(0, 10)} UTC</small></>}
               {c.kind === 'point' && <><span className="la-cap">Point</span>
                 <span>Landing windows at {Math.abs(c.lat).toFixed(3)}° {c.lat < 0 ? 'S' : 'N'}, {c.lon.toFixed(3)}° E</span><small>240 m terrain</small></>}
-              {c.kind === 'site' && <><span className="la-cap">Site</span><span>{c.site.name}</span>
+              {c.kind === 'site' && <><span className="la-cap">{c.site.origin === 'official' ? 'Official' : 'Site'}</span><span>{c.site.name}</span>
                 <small>{Math.abs(c.site.latitude_deg).toFixed(2)}°{c.site.latitude_deg < 0 ? 'S' : 'N'}</small></>}
               {c.kind === 'action' && <><span className="la-cap">Go</span><span>{c.label}</span></>}
             </li>

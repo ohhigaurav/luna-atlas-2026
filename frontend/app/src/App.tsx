@@ -296,7 +296,11 @@ export default function App() {
   const toggleCompare = useCallback((s: ReferenceSite) => {
     setCmp((c) => (c.some((x) => x.site_id === s.site_id) ? c.filter((x) => x.site_id !== s.site_id) : [...c, s].slice(-6)));
   }, []);
-  const polarSix = useCallback(() => (data?.sites ?? []).filter((s) => s.latitude_deg <= -75).slice(0, 6), [data]);
+  // The south-polar group for compare: official polar sites first when the challenge list is in.
+  const polarSix = useCallback(() => {
+    const polar = (data?.sites ?? []).filter((s) => s.latitude_deg <= -75);
+    return [...polar.filter((s) => s.origin === 'official'), ...polar.filter((s) => s.origin !== 'official')].slice(0, 6);
+  }, [data]);
   // Compare: date first (the bar at the top), then tap sites; pins add to the list instead of flying.
   const startCompare = useCallback(() => {
     setForecast(false); setSelected(null); setSheet(null); setComparing(true);
@@ -307,11 +311,11 @@ export default function App() {
   }, [comparing, toggleCompare, data]);
   const closeForecast = useCallback(() => { setForecast(false); setPlaying(false); globe.current?.flyHome(); }, []);
 
-  const goPoint = (lat: number, lonDeg: number) => {
+  const goPoint = (lat: number, lonDeg: number, label?: string) => {
     const lon = ((lonDeg % 360) + 360) % 360;
     const site: ReferenceSite = {
       site_id: pointId(lat, lon), latitude_deg: lat, longitude_deg: lon,
-      name: `Point ${Math.abs(lat).toFixed(3)}° ${lat < 0 ? 'S' : 'N'}, ${lon.toFixed(3)}° E`,
+      name: label ?? `Point ${Math.abs(lat).toFixed(3)}° ${lat < 0 ? 'S' : 'N'}, ${lon.toFixed(3)}° E`,
     };
     setForecast(false);
     globe.current?.flyToSite(site);
@@ -419,6 +423,11 @@ export default function App() {
               <button type="button" className="la-btn" onClick={() => setHello(false)}>Got it</button>
             </>
           ) : null}
+          <p className="hl-banner">
+            {data.index.official_count > 0
+              ? 'Official challenge sites first; reference points below.'
+              : 'Sites are reference points from published sources, not official challenge coordinates.'}
+          </p>
           <div className="hl-key" aria-label="What the pin colours mean">
             {live && <span><i className="la-sym window" />Can land within 30 days <b>{legendCounts.green}</b></span>}
             <span><i className="la-sym day" />Sunlit now <b>{legendCounts.day}</b></span>
@@ -444,6 +453,7 @@ export default function App() {
           onStand={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
           onCompare={() => toggleCompare(selected)}
           onClose={() => globe.current?.flyHome()}
+          onTry={goPoint}
           details={
             <SitePanel site={selected} live={live} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}
               onSettings={plan.update} onJump={jump} onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
