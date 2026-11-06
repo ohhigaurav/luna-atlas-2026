@@ -11,6 +11,30 @@ For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`
 | **"Check this site"** for a chosen date | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
 | full time series for the surface sky view and time dock | `GET /api/runs/{run_id}` (the check returns `run_url`) |
 
+## `POST /api/sky-geometry`: stars and Earth's face (new 6 Nov)
+
+Two fields were added to `series`; everything else is unchanged.
+
+- **`series.j2000_to_frame`**: one row-major 3×3 matrix per sample, SPICE
+  `pxform("J2000", "MOON_ME", et)`.
+  - For a star at J2000 RA α, Dec δ, take `v = [cos δ cos α, cos δ sin α, sin δ]` and draw it at
+    `M @ v`. This is the same Moon-fixed frame as the Sun and Earth vectors.
+  - Stars are at infinity, so no observer offset applies.
+  - Stellar aberration (up to 20″) is not applied.
+  - In three.js, put the rows into a `Matrix3` with `.set(m[0][0], m[0][1], m[0][2], m[1][0], …)`
+    and apply it to the star-field group. Between samples, slerp or just step: the Moon turns about
+    0.27° per 30 min.
+- **`series.earth.sub_moon_lat_deg` / `sub_moon_lon_east_deg`** (`sub_moon_frame: "IAU_EARTH"`):
+  the point on Earth where the Moon is overhead, so it is the centre of the face Earth shows the
+  Moon.
+  - Rotate the Earth texture so this lat/lon faces the camera on the Moon.
+  - Latitude is planetocentric (map latitude differs by ≤ 0.19°, invisible at globe size).
+  - It moves west about 15° per hour, so interpolate the longitude with wrap at 360.
+
+Checked by `tools/check_sky_orientation.py`: orthonormal matrices, agreement with SPICE vectors, the
+Moon's pole and spin rate, and the sub-Moon point vs JPL Horizons. The limits were fixed before
+the first run. Until that run passes, label Earth's face "illustrative".
+
 ## `POST /api/check`
 
 Request: `site_id` (required); `start_utc` (ISO, must end in `Z`); `days` (1 to 60, default

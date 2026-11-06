@@ -39,6 +39,21 @@ class FakeSpice:
         self.calls.append(("phaseq", target, illmn, obsrvr, abcorr))
         return (2.0 * math.pi * et / SYNODIC_S) % (2.0 * math.pi)
 
+    def pxform(self, frm: str, to: str, et: float) -> list[list[float]]:
+        """Rotation about +Z by one lunar turn per sidereal-ish month (enough to test plumbing)."""
+        self.calls.append(("pxform", frm, to))
+        a = 2.0 * math.pi * et / SYNODIC_S
+        return [[math.cos(a), math.sin(a), 0.0], [-math.sin(a), math.cos(a), 0.0], [0.0, 0.0, 1.0]]
+
+    def subpnt(self, method: str, target: str, et: float, fixref: str, abcorr: str, obsrvr: str) -> tuple[Any, ...]:
+        """Earth turns once per day under the Moon; the Moon sits 20 deg south of Earth's equator."""
+        self.calls.append(("subpnt", method, target, fixref, abcorr, obsrvr))
+        lon = -2.0 * math.pi * et / 86_164.1
+        lat = math.radians(-20.0)
+        r = 6_378.0
+        point = [r * math.cos(lat) * math.cos(lon), r * math.cos(lat) * math.sin(lon), r * math.sin(lat)]
+        return point, et - 1.28, [0.0, 0.0, 0.0]
+
 
 class FakeGeometry:
     frame = "MOON_ME"
@@ -89,6 +104,43 @@ def test_series_uses_run_frame_correction_and_moon_observer() -> None:
     assert {call[1] for call in spk} == {"SUN", "EARTH"}
     assert all(call[2:] == ("MOON_ME", "LT+S", "MOON") for call in spk)
     assert all(call[1:] == ("EARTH", "SUN", "MOON", "LT+S") for call in spice.calls if call[0] == "phaseq")
+    assert all(call[1:] == ("J2000", "MOON_ME") for call in spice.calls if call[0] == "pxform")
+    sub = [call for call in spice.calls if call[0] == "subpnt"]
+    assert len(sub) == 2 and all(call[1:] == ("INTERCEPT/ELLIPSOID", "EARTH", "IAU_EARTH", "LT+S", "MOON") for call in sub)
+
+
+def test_rotation_matrix_is_orthonormal_and_maps_vectors() -> None:
+    quarter = SYNODIC_S / 4.0
+    series = compute_sky_geometry(FakeSpice(), [0.0, quarter], frame="MOON_ME", aberration_correction="LT+S", et_to_utc=str)
+    m0, m1 = series["j2000_to_frame"]
+    assert m0 == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    for m in (m0, m1):
+        for i in range(3):
+            for j in range(3):
+                dot = math.fsum(m[i][k] * m[j][k] for k in range(3))
+                assert dot == pytest.approx(1.0 if i == j else 0.0, abs=1e-8)
+    # v_frame = M @ v_J2000: J2000 +X lands on frame -Y a quarter turn later.
+    v = [math.fsum(m1[i][k] * [1.0, 0.0, 0.0][k] for k in range(3)) for i in range(3)]
+    assert v == pytest.approx([0.0, -1.0, 0.0], abs=1e-8)
+
+
+def test_earth_sub_moon_point() -> None:
+    six_hours = 86_164.1 / 4.0
+    series = compute_sky_geometry(FakeSpice(), [0.0, six_hours], frame="MOON_ME", aberration_correction="LT+S", et_to_utc=str)
+    earth = series["earth"]
+    assert earth["sub_moon_frame"] == "IAU_EARTH"
+    assert earth["sub_moon_lat_deg"] == pytest.approx([-20.0, -20.0], abs=1e-6)
+    # Earth turns east, so the point under the Moon moves west: 0 E, then 270 E (90 W).
+    assert earth["sub_moon_lon_east_deg"] == pytest.approx([0.0, 270.0], abs=1e-6)
+
+
+def test_rejects_non_finite_rotation() -> None:
+    class Broken(FakeSpice):
+        def pxform(self, frm: str, to: str, et: float) -> list[list[float]]:
+            return [[math.nan, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+
+    with pytest.raises(ValueError, match="pxform"):
+        compute_sky_geometry(Broken(), [0.0], frame="MOON_ME", aberration_correction="LT+S", et_to_utc=str)
 
 
 def test_series_values() -> None:

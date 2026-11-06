@@ -15,6 +15,14 @@ Conventions (also echoed in every response):
 * Earth phase angle is SPICE ``phaseq`` (angle Sun-Earth-Moon at Earth, observer MOON). The
   illuminated fraction of Earth's disc seen from the Moon is (1 + cos(phase)) / 2.
 * Angular radii use the equatorial radii below; they size the drawn discs only.
+* ``j2000_to_frame`` is SPICE ``pxform("J2000", frame, et)`` per sample, row-major 3x3:
+  v_frame = M @ v_J2000. It rotates a star catalogue (J2000 RA/Dec unit vectors) into the Moon
+  frame for the sky. Stellar aberration (up to ~20 arcsec) is not applied; stars are drawn only.
+* Earth's sub-Moon point is SPICE ``subpnt("INTERCEPT/ELLIPSOID", "EARTH", et, "IAU_EARTH",
+  abcorr, "MOON")``: the point on Earth's surface on the line to the Moon's centre, with Earth's
+  orientation at light-emission time. It says which side of Earth faces the Moon. IAU_EARTH is the
+  generic PCK's Earth model (no precession/nutation refinements); good for drawing continents,
+  not for geodesy. Latitude planetocentric, longitude east-positive in [0, 360).
 """
 from __future__ import annotations
 
@@ -39,6 +47,11 @@ CONVENTIONS = {
     "earth_phase_angle": "SPICE phaseq: angle Sun-Earth-Moon at Earth",
     "earth_illuminated_fraction": "(1 + cos(phase_angle)) / 2, as seen from the Moon",
     "angular_radius": f"asin(R / distance) with R_sun={SUN_RADIUS_KM} km, R_earth={EARTH_RADIUS_KM} km",
+    "j2000_to_frame": "SPICE pxform('J2000', frame, et), row-major 3x3; v_frame = M @ v_J2000; no stellar aberration",
+    "earth_sub_moon_point": (
+        "SPICE subpnt INTERCEPT/ELLIPSOID on EARTH in IAU_EARTH, observer MOON, run aberration correction; "
+        "planetocentric latitude, east longitude [0, 360); for drawing Earth's face, not geodesy"
+    ),
     "interpolation": (
         "The subsolar point moves about 0.51 deg/h; linear interpolation of unit vectors at a 30 min step "
         "is within 0.01 deg of the sampled direction"
@@ -100,6 +113,32 @@ def _track(spice: Any, target: str, ets: Sequence[float], frame: str, abcorr: st
     return BodyTrack(unit, distance, lat, lon, radius)
 
 
+EARTH_FIXED_FRAME = "IAU_EARTH"
+MATRIX_DECIMALS = 9
+
+
+def _rotation(spice: Any, ets: Sequence[float], frame: str) -> list[list[list[float]]]:
+    out: list[list[list[float]]] = []
+    for et in ets:
+        m = spice.pxform("J2000", frame, et)
+        rows = [[float(m[i][j]) for j in range(3)] for i in range(3)]
+        if not all(math.isfinite(v) for row in rows for v in row):
+            raise ValueError("SPICE pxform returned a non-finite matrix")
+        out.append([[round(v, MATRIX_DECIMALS) for v in row] for row in rows])
+    return out
+
+
+def _earth_sub_moon(spice: Any, ets: Sequence[float], abcorr: str) -> tuple[list[float], list[float]]:
+    lat: list[float] = []
+    lon: list[float] = []
+    for et in ets:
+        spoint, _trgepc, _srfvec = spice.subpnt("INTERCEPT/ELLIPSOID", "EARTH", et, EARTH_FIXED_FRAME, abcorr, "MOON")
+        _u, _d, la, lo = sub_point(spoint)
+        lat.append(round(la, DEG_DECIMALS))
+        lon.append(round(lo, DEG_DECIMALS))
+    return lat, lon
+
+
 def compute_sky_geometry(
     spice: Any,
     ets: Sequence[float],
@@ -122,6 +161,8 @@ def compute_sky_geometry(
                 raise ValueError("SPICE phaseq returned a non-finite phase angle")
             phase_deg.append(round(math.degrees(phase), DEG_DECIMALS))
             fraction.append(round((1.0 + math.cos(phase)) / 2.0, DEG_DECIMALS))
+        rotation = _rotation(spice, ets, frame)
+        sub_moon_lat, sub_moon_lon = _earth_sub_moon(spice, ets, aberration_correction)
         utc = [et_to_utc(et) for et in ets]
     return {
         "utc": utc,
@@ -131,5 +172,9 @@ def compute_sky_geometry(
             **earth.as_payload(),
             "phase_angle_deg": phase_deg,
             "illuminated_fraction": fraction,
+            "sub_moon_lat_deg": sub_moon_lat,
+            "sub_moon_lon_east_deg": sub_moon_lon,
+            "sub_moon_frame": EARTH_FIXED_FRAME,
         },
+        "j2000_to_frame": rotation,
     }

@@ -153,6 +153,9 @@ class BodyTrackModel(BaseModel):
 class EarthTrackModel(BodyTrackModel):
     phase_angle_deg: list[float] = Field(description="Angle Sun-Earth-Moon at Earth (SPICE phaseq)")
     illuminated_fraction: list[float] = Field(description="Lit fraction of Earth's disc seen from the Moon")
+    sub_moon_lat_deg: list[float] = Field(description="Planetocentric latitude on Earth where the Moon is overhead")
+    sub_moon_lon_east_deg: list[float] = Field(description="East longitude on Earth where the Moon is overhead, [0, 360)")
+    sub_moon_frame: Literal["IAU_EARTH"]
 
 
 class SkySeriesModel(BaseModel):
@@ -160,6 +163,9 @@ class SkySeriesModel(BaseModel):
     et_s: list[float]
     sun: BodyTrackModel
     earth: EarthTrackModel
+    j2000_to_frame: list[list[list[float]]] = Field(
+        description="Per sample, row-major 3x3 rotation J2000 -> run frame (v_frame = M @ v_J2000)"
+    )
 
 
 class SkyGeometrySettings(BaseModel):
