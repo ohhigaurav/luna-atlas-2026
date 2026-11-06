@@ -80,7 +80,13 @@ says this in one line.
   "sites": [...official (origin "official", kind "official_challenge_site", group "Official challenge sites")...,
             ...reference (origin "reference")...], "unplaced_official": [], "note": "..."}`
 
-Static bundle: `data/site-index.json`. Until 13 Nov it holds the reference points only. **Switch
+Static bundle: `data/site-index.json`. Until 13 Nov it holds the reference points only.
+
+Some sites carry `analysis_note: {text, evidence, suggested_point?}`: our measured findings, kept
+apart from the citation. Show the text in the site panel under the name, in small type, with an
+"evidence" link. If `suggested_point` is present, add a button "Try {label}" that opens that
+point as a clicked point. Malapert: its published point gets 0% Earth, and the button opens the
+crest, which gets 70%. That is the challenge's "small location changes matter" in one click. **Switch
 the site loader to this now** (fall back to `/api/reference-sites`), so the official sites appear
 on event day without a code change. Labels and banner: an internal document (not published) → Frontend.
 

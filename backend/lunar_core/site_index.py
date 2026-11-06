@@ -8,14 +8,33 @@ official", and so official and reference records can never be confused.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
+SITE_NOTES = Path(__file__).resolve().parents[2] / "data" / "reference" / "site_notes.json"
 OFFICIAL_GROUP = "Official challenge sites"
 OFFICIAL_KIND = "official_challenge_site"
 
 
-def build_site_index(official: Any, reference: Any) -> dict[str, Any]:
-    """``official``: SiteCatalogue; ``reference``: ReferenceSiteCatalogue (pydantic models)."""
+def load_site_notes(path: Path = SITE_NOTES) -> dict[str, dict[str, Any]]:
+    """Our analysis notes per site ID (data/reference/site_notes.json), kept apart from the citations."""
+    if not path.is_file():
+        return {}
+    notes = json.loads(path.read_text(encoding="utf-8")).get("notes", {})
+    for site_id, note in notes.items():
+        if not note.get("text") or not note.get("evidence"):
+            raise ValueError(f"site note for {site_id} needs text and evidence")
+    return notes
+
+
+def build_site_index(official: Any, reference: Any, notes: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+    """``official``: SiteCatalogue; ``reference``: ReferenceSiteCatalogue (pydantic models).
+
+    ``notes`` (from ``load_site_notes``) attach as ``analysis_note`` to the matching site; a note
+    for an unknown site ID is an error, so stale notes cannot linger silently.
+    """
+    notes = notes or {}
     sites: list[dict[str, Any]] = []
     unplaced: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -36,6 +55,11 @@ def build_site_index(official: Any, reference: Any) -> dict[str, Any]:
             raise ValueError(f"site ID {record['site_id']} is in both the official and the reference catalogue")
         record.update({"origin": "reference", "catalogue_kind": "literature_reference_points"})
         sites.append(record)
+    by_id = {s["site_id"]: s for s in sites}
+    for site_id, note in notes.items():
+        if site_id not in by_id:
+            raise ValueError(f"site note for unknown site ID {site_id}")
+        by_id[site_id]["analysis_note"] = note
     return {
         "schema_version": "1.0",
         "official_state": official.catalogue_state,

@@ -223,9 +223,9 @@ def list_sites() -> dict[str, object]:
 @app.get("/api/site-index", tags=["sites"])
 def site_index() -> dict[str, object]:
     """Every site the app shows: official challenge sites first (once imported), then reference points."""
-    from lunar_core.site_index import build_site_index
+    from lunar_core.site_index import build_site_index, load_site_notes
 
-    return build_site_index(load_default_catalogue(), load_reference_catalogue())
+    return build_site_index(load_default_catalogue(), load_reference_catalogue(), load_site_notes())
 
 
 @app.get("/api/reference-sites", tags=["sites"])

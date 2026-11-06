@@ -27,9 +27,45 @@ would read 0% as a bug.
 - The highest of the four points is at the **mirrored** longitude (2.93°E, 280 m higher). That
   hints the page's 357.07°E may be a sign slip for 2.93°E, but four points cannot establish that.
 
-**Next:** `tools/find_summit.py` reads the DEM's highest point within 15 km and compares it with
-the published point. Until it has run:
-- the reference point stays exactly as published (we never edit a citation);
-- the app must not present 0% Earth at "Malapert" without the reason. Suggested note: "This
-  published point sits on the massif's far side from Earth; the crest, about N km away, sees Earth
-  most of the time."
+## Summit from the DEM (`tools/find_summit.py`; raw: `malapert_summit_2026-11-06.log`)
+
+The highest points of the 240 m regional DEM within 15 km of the published point, at least 1 km
+apart:
+
+| point | height | from published 357.07°E | from mirrored 2.93°E |
+|---|---|---|---|
+| 85.9886°S, 2.1013°E | **5,168.8 m** | 10.67 km | 1.76 km |
+| 85.9945°S, 2.7840°E | 5,141.2 m | 12.11 km | **0.34 km** |
+| 85.9640°S, 2.4257°E | 5,117.5 m | 11.42 km | 1.33 km |
+| 86.0252°S, 3.0340°E | 5,103.5 m | 12.63 km | 1.09 km |
+| 85.9738°S, 1.6430°E | 5,098.7 m | 9.73 km | 2.78 km |
+
+Compare, 6 Nov 2026 + 30 d:
+- **Published point** (4,841 m): Sun 58%, **Earth 0%**, both 0%. The terrain toward Earth stands
+  at +13.49°.
+- **DEM summit** (5,169 m): Sun 84%, **Earth 70%**, both 67%. The terrain toward Earth sits at
+  −1.17°.
+
+**Conclusions, with their strength:**
+1. **Established:** the published coordinate lies about 10.7 km west of the massif crest, on its
+   Earth-hidden side. That is why it gets 0% Earth. The model is behaving correctly.
+2. **Strongly suggested, not established:** NASA's page coordinate may carry a longitude sign slip.
+   - Its latitude (85.99°S) matches the crest line exactly.
+   - All five high spots lie at 1.6–3.0°E.
+   - The mirrored longitude (2.93°E) is 0.34 km from the second-highest spot and 1.76 km from the
+     highest.
+   - The published longitude is about 10 km from all of them.
+
+   This does not prove a slip: the page may intentionally show a point on the massif's flank. We do
+   not edit the citation.
+3. **Earth at the summit is 70% this month, not "constant"** (240 m terrain, 2 m antenna, one month).
+   Literature claims of constant Earth visibility at the summit are not reproduced here and not
+   contradicted beyond this month. Earth's height at about 86°S on the near side swings by roughly
+   ±6.7° around about +4°, so a horizon at −1.2° loses Earth for part of the month.
+
+## What the app shows
+
+A note on the Malapert reference point, from `data/reference/site_notes.json` through
+`/api/site-index` (`analysis_note`). The citation itself is untouched:
+"Published point is on the massif's far side from Earth (0% Earth). The DEM crest 10.7 km east
+(85.989°S, 2.101°E, 5,169 m) sees Earth 70% and Sun 84% in Nov 2026. Try it as a clicked point."

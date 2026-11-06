@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "note": "Our analysis notes on reference points, kept apart from the citations (reference_sites.json is never edited to carry them). Each note names its evidence file.",
+  "notes": {
+    "reference-malapert-massif": {
+      "text": "Published point is on the massif's far side from Earth (0% Earth). The DEM crest 10.7 km east (85.989\u00b0 S, 2.101\u00b0 E, 5,169 m) sees Earth 70% and Sun 84% in Nov 2026. Try it as a clicked point.",
+      "evidence": "validation/evidence/malapert_earth_2026-11-06.md",
+      "suggested_point": {
+        "latitude_deg": -85.9886,
+        "longitude_deg": 2.1013,
+        "label": "Malapert crest (240 m DEM highest point)"
+      }
+    },
+    "reference-lola-site-001": {
+      "text": "Sunlight depends strongly on terrain resolution here: 69% on the 5 m site map vs 100% on the 240 m map for Jan 2027 at the same coordinates. Site panel numbers use 5 m.",
+      "evidence": "validation/evidence/resolution_site001_2026-11-06.md"
+    },
+    "reference-lola-site-004": {
+      "text": "The published point sits in a ~200 m pit: 0% Sun on the 5 m map in Jan 2027 while the rim 250 m away gets 86-89%. See the landing ellipse.",
+      "evidence": "validation/evidence/resolution_site001_2026-11-06.md"
+    }
+  }
+}

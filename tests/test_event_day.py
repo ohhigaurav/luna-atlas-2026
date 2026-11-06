@@ -97,3 +97,23 @@ def test_warm_puts_official_sites_first(monkeypatch: pytest.MonkeyPatch) -> None
     done, failed = warm.warm_once(datetime(2027, 1, 1, tzinfo=UTC).strftime("%Y-%m-%dT00:00:00Z"))
     assert asked[0] == "official-a" and failed == 0
     assert done == 1 + len(load_reference_catalogue().sites)
+
+
+def test_site_notes_attach_and_validate(tmp_path: Path) -> None:
+    from lunar_core.site_index import load_site_notes
+
+    notes = load_site_notes()  # the real file: every note names its evidence, every ID exists
+    assert "reference-malapert-massif" in notes
+    empty = SiteCatalogue.model_validate({"schema_version": "1.0", "catalogue_state": "awaiting_official_source",
+                                          "source_url": None, "retrieved_utc": None, "sites": []})
+    idx = build_site_index(empty, load_reference_catalogue(), notes)
+    mal = next(s for s in idx["sites"] if s["site_id"] == "reference-malapert-massif")
+    assert mal["analysis_note"]["suggested_point"]["longitude_deg"] == pytest.approx(2.1013)
+    assert Path(__file__).resolve().parents[1].joinpath(mal["analysis_note"]["evidence"]).is_file()
+    with pytest.raises(ValueError, match="unknown"):
+        build_site_index(empty, load_reference_catalogue(), {"reference-nope": {"text": "x", "evidence": "y"}})
+    bad = tmp_path / "n.json"
+    bad.write_text('{"notes": {"reference-malapert-massif": {"text": "x"}}}')
+    with pytest.raises(ValueError, match="evidence"):
+        load_site_notes(bad)
+    assert load_site_notes(tmp_path / "missing.json") == {}
