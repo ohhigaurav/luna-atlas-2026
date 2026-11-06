@@ -25,6 +25,7 @@ from lunar_core.analysis_service import (
 from lunar_core.api_models import (
     AnalysisRequest,
     CheckRequest,
+    CompareRequest,
     EllipseRequest,
     FinderRequest,
     LandingRequest,
@@ -314,6 +315,21 @@ def check(request: CheckRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Check rejected: {exc}") from exc
+
+
+@app.post("/api/compare", tags=["analysis"])
+def compare(request: CompareRequest) -> dict[str, Any]:
+    """Side by side: Sun/Earth now, time to sunset/sunrise and Earthset/Earthrise, period metrics."""
+    from lunar_core.compare import run_compare
+
+    try:
+        return run_compare(request)
+    except TerrainNotReady as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AnalysisNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Compare rejected: {exc}") from exc
 
 
 @app.post("/api/landing-windows", tags=["analysis"])
