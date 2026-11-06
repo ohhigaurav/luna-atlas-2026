@@ -9,6 +9,7 @@ Output (default frontend/app/public/data/, copied into dist/ by `npm run build`)
 
     manifest.json            index: window, provenance, one entry per site and per baked run
     reference-sites.json     = GET  /api/reference-sites
+    site-index.json          = GET  /api/site-index (official sites first, then reference)
     sky.json                 = POST /api/sky-geometry for the window
     runs/<run_id>.json       = POST /api/analysis (one site per file)
 
@@ -104,7 +105,7 @@ def main() -> int:
         run_analysis,
         run_sky_geometry,
     )
-    from lunar_core.api import list_reference_sites
+    from lunar_core.api import list_reference_sites, site_index
     from lunar_core.api_models import AnalysisRequest, SkyGeometryRequest
 
     out: Path = args.out
@@ -114,8 +115,9 @@ def main() -> int:
     previous = load_previous(manifest_path, settings)
 
     refs = list_reference_sites()
-    files = {"reference_sites": "reference-sites.json", "sky": "sky.json"}
-    hashes = {"reference_sites": write_json_atomic(out / files["reference_sites"], refs)}
+    files = {"reference_sites": "reference-sites.json", "site_index": "site-index.json", "sky": "sky.json"}
+    hashes = {"reference_sites": write_json_atomic(out / files["reference_sites"], refs),
+              "site_index": write_json_atomic(out / files["site_index"], site_index())}
     print(f"sky geometry {args.start} -> {args.end} ...", flush=True)
     sky = run_sky_geometry(SkyGeometryRequest(start_utc=args.start, end_utc=args.end, step_min=args.step_min))
     hashes["sky"] = write_json_atomic(out / files["sky"], sky)

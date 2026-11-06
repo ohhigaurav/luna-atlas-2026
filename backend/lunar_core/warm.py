@@ -34,9 +34,14 @@ def _today_utc() -> str:
 def warm_once(day: str) -> tuple[int, int]:
     from lunar_core.api_models import LandingRequest
     from lunar_core.landing import run_landing
+    from lunar_core.catalogue import load_default_catalogue
     from lunar_core.references import load_reference_catalogue
 
-    sites: list[Any] = sorted(load_reference_catalogue().sites, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG)
+    # Official challenge sites first (from 13 Nov), then reference points; flat-horizon sites
+    # before polar terrain sites within each group.
+    official = [s for s in load_default_catalogue().sites if s.latitude_deg is not None and s.longitude_deg is not None]
+    sites: list[Any] = (sorted(official, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG)
+                        + sorted(load_reference_catalogue().sites, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG))
     done = failed = 0
     for i, site in enumerate(sites, 1):
         started = time.monotonic()

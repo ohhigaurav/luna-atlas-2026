@@ -220,6 +220,14 @@ def list_sites() -> dict[str, object]:
     }
 
 
+@app.get("/api/site-index", tags=["sites"])
+def site_index() -> dict[str, object]:
+    """Every site the app shows: official challenge sites first (once imported), then reference points."""
+    from lunar_core.site_index import build_site_index
+
+    return build_site_index(load_default_catalogue(), load_reference_catalogue())
+
+
 @app.get("/api/reference-sites", tags=["sites"])
 def list_reference_sites() -> dict[str, object]:
     catalogue = load_reference_catalogue()

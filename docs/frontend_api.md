@@ -74,6 +74,16 @@ link, show "ours: 1.83°" so a judge can compare the two numbers. Horizons has n
 so the matching numbers are the sky position above the level horizon, not sunrise times; `note`
 says this in one line.
 
+## `GET /api/site-index`: every site, official first (new 6 Nov; needed from 13 Nov)
+
+`{"official_state": "awaiting_official_source" | "loaded", "official_count": 0, "reference_count": 27,
+  "sites": [...official (origin "official", kind "official_challenge_site", group "Official challenge sites")...,
+            ...reference (origin "reference")...], "unplaced_official": [], "note": "..."}`
+
+Static bundle: `data/site-index.json`. Until 13 Nov it holds the reference points only. **Switch
+the site loader to this now** (fall back to `/api/reference-sites`), so the official sites appear
+on event day without a code change. Labels and banner: an internal document (not published) → Frontend.
+
 ## `POST /api/compare`: sites and dates side by side (new 6 Nov; challenge core)
 
 ```json
