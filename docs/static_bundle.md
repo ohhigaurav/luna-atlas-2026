@@ -80,7 +80,7 @@ the app asks for:
 
 | endpoint | baked for | from |
 |---|---|---|
-| `/api/landing-windows` | every site, the default question (90 d, 10-day mission, Sun ≤ 20°) | bundle start |
+| `/api/landing-windows` | every site, the default question (90 d, 10-day mission, Sun ≤ 20°) | bundle start + 0, 7, 14, 21 d (the compare view's landing row asks from its date) |
 | `/api/check` | every site: 60 d at start and 30 d at start + 60 d (landing ring); 30 d at start for the 3D ground view, panel heights 0, 1, 2, 5, 10 m at polar sites (2 m elsewhere) | bundle start |
 | `GET /api/runs/{id}` | the runs behind those 30-day checks | – |
 | `/api/compare` | every site, **one place at a time**, 30 days | start + 0, 7, 14, 21 d |

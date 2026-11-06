@@ -8,8 +8,8 @@ response unmodified, under the key the frontend builds from its own request
 (``lunar_core.static_answers``; frontend mirror ``src/data/staticAnswers.ts``).
 
 Baked, for every site in the site index (official sites first, once imported):
-  * landing windows: the app's default question from the bundle start (90 d search, 10-day
-    mission, Sun <= 20 deg, R5 auto);
+  * landing windows: the app's default question (90 d search, 10-day mission, Sun <= 20 deg,
+    R5 auto) from the bundle start and from each compare date (the compare view's landing row);
   * check: start + 60 d and start+60 d + 30 d (the landing ring's two calls); plus start + 30 d
     at panel heights 0, 1, 2, 5, 10 m for polar sites (the 3D ground view's mast menu); the saved
     runs behind those 30-day checks are copied, for GET /api/runs/{id};
@@ -57,8 +57,10 @@ def plan(sites: list[dict[str, Any]], start: datetime) -> list[tuple[str, dict[s
     out: list[tuple[str, dict[str, Any]]] = []
     for site in sites:
         sid, polar = site["site_id"], float(site["latitude_deg"]) <= POLAR_LIMIT_DEG
-        out.append(("landing-windows", {"site_id": sid, "search_start_utc": s0, "search_days": 90, "mission_days": 10,
-                                        "max_sun_elevation_deg": 20}))
+        # The landing ring asks from the bundle start; the compare view also asks from its compare date.
+        for d in COMPARE_OFFSETS_D:
+            out.append(("landing-windows", {"site_id": sid, "search_start_utc": iso(start + timedelta(days=d)),
+                                            "search_days": 90, "mission_days": 10, "max_sun_elevation_deg": 20}))
         out.append(("check", {"site_id": sid, "start_utc": s0, "days": 60, "panel_height_m": 2}))
         out.append(("check", {"site_id": sid, "start_utc": s60, "days": 30, "panel_height_m": 2}))
         for h in (MAST_HEIGHTS_M if polar else (2,)):

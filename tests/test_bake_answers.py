@@ -20,7 +20,7 @@ def test_plan_covers_the_app_requests_once() -> None:
     assert len(keys) == len(set(keys))
     by = {e: sum(1 for x, _ in p if x == e) for e in ("landing-windows", "check", "compare", "landing-ellipse")}
     # polar: 2 ring checks + 5 mast heights; Apollo: 2 + 1
-    assert by == {"landing-windows": 3, "check": 2 * 7 + 3, "compare": 3 * 4, "landing-ellipse": 2 * 4}
+    assert by == {"landing-windows": 3 * 4, "check": 2 * 7 + 3, "compare": 3 * 4, "landing-ellipse": 2 * 4}
     # The landing request is exactly what the app's default question sends (usePlan / plan.ts).
     assert ("landing-windows?place=reference-apollo-11&search_start_utc=2027-01-01T00:00:00Z&search_days=90"
             "&mission_days=10&panel_height_m=2&require_earth_at_landing=true&max_sun_elevation_deg=20"
