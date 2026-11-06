@@ -36,7 +36,7 @@ from typing import Any
 from lunar_core import __version__, analysis_service, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-2"  # 2: verify links per opportunity
+CACHE_SCHEMA = "landing-cache-3"  # 2: verify links; 3: measured custom-point caveat
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
