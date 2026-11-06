@@ -80,6 +80,9 @@ DEM_SOURCES: tuple[dict[str, Any], ...] = (
         "product_id": "NASA PGDA Product 90 — regional 240 m/pixel DEM (60°S–90°S)",
         "site_ids": ["*"],
         "metadata_site_ids": ["*"],
+        # "*" means every catalogue point this raster covers: the product spans 60-90 S, so
+        # equatorial reference points (Apollo, SLIM, ...) are not checked against it.
+        "metadata_max_latitude_deg": -60.0,
         "native_resolution_m": 240.0,
         "min_range_m": 0.0,
         "max_range_m": 200_000.0,
@@ -174,6 +177,16 @@ def download_atomic(
         raise
     finally:
         temp.unlink(missing_ok=True)
+
+
+def _sites_to_check(spec: dict[str, Any], check_ids: list[str],
+                    sites_by_id: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Explicit IDs as listed; "*" = every site the raster covers (by its latitude limit)."""
+    if "*" not in check_ids:
+        return [sites_by_id[site_id] for site_id in check_ids]
+    limit = spec.get("metadata_max_latitude_deg")
+    return [site for site in sites_by_id.values()
+            if limit is None or float(site["latitude_deg"]) <= float(limit)]
 
 
 def _metadata(path: Path, sites: list[dict[str, Any]]) -> dict[str, Any]:
@@ -294,10 +307,7 @@ def prepare_dems(project_root: Path, *, include_regional: bool = True, force: bo
                     "source_url": spec["url"],
                 }
                 check_ids = spec.get("metadata_site_ids", spec.get("site_ids", []))
-                if "*" in check_ids:
-                    check_sites = list(sites_by_id.values())
-                else:
-                    check_sites = [sites_by_id[site_id] for site_id in check_ids]
+                check_sites = _sites_to_check(spec, check_ids, sites_by_id)
                 metadata = _metadata(destination, check_sites)
                 reused_assets[asset_id] = existing_asset
                 results.append({"asset_id": asset_id, "downloaded": False, "sha256": info["sha256"],
@@ -315,10 +325,7 @@ def prepare_dems(project_root: Path, *, include_regional: bool = True, force: bo
             )
             print("", flush=True)
             check_ids = spec.get("metadata_site_ids", spec.get("site_ids", []))
-            if "*" in check_ids:
-                check_sites = list(sites_by_id.values())
-            else:
-                check_sites = [sites_by_id[site_id] for site_id in check_ids]
+            check_sites = _sites_to_check(spec, check_ids, sites_by_id)
             metadata = _metadata(stage_path, check_sites)
             staged.append((spec, stage_path, destination, {**info, "metadata": metadata}))
             results.append({"asset_id": asset_id, "downloaded": True, "sha256": info["sha256"],

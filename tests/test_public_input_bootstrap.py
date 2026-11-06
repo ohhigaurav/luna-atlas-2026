@@ -104,10 +104,12 @@ def _write_reference_tif(path: Path, resolution: float, site_id: str, value: flo
     src = f"+proj=longlat +R={BODY_RADIUS_M:.3f} +no_defs +type=crs"
     dst = f"+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +R={BODY_RADIUS_M:.3f} +units=m +no_defs +type=crs"
     if site_id == "*":
-        # A broad synthetic polar tile includes the full set of literature landmarks.
+        # A synthetic polar tile reaching 60 S (+/-1000 km): every reference point the regional
+        # raster must cover (Chandrayaan-3 at 69.4 S is ~630 km out). Equatorial points are not
+        # checked against it (metadata_max_latitude_deg).
         center_x, center_y = 0.0, 0.0
-        width = height = 500
-        resolution = 1_000.0
+        width = height = 1000
+        resolution = 2_000.0
     else:
         site = sites[site_id]
         lon_deg, lat_deg = float(site["longitude_deg"]), float(site["latitude_deg"])
@@ -192,3 +194,13 @@ def test_dem_asset_provenance_timestamp_must_be_utc() -> None:
     assert accepted.size_bytes == 100
     with pytest.raises(ValidationError, match="UTC"):
         DEMAsset.model_validate({**base, "retrieved_utc": "2026-10-26T10:00:00+05:30"})
+
+
+def test_wildcard_raster_checks_only_sites_it_covers() -> None:
+    from tools import prepare_public_inputs as module
+
+    spec = next(item for item in module.DEM_SOURCES if item["site_ids"] == ["*"])
+    sites = {"pole": {"site_id": "pole", "latitude_deg": -89.0}, "edge": {"site_id": "edge", "latitude_deg": -60.0},
+             "apollo": {"site_id": "apollo", "latitude_deg": 0.67}}
+    assert [s["site_id"] for s in module._sites_to_check(spec, ["*"], sites)] == ["pole", "edge"]
+    assert [s["site_id"] for s in module._sites_to_check(spec, ["apollo"], sites)] == ["apollo"]
