@@ -293,6 +293,15 @@ export default function App() {
   }, [fc, live, covered, loadSky, setCursor, reducedMotion, data, probe.name]);
   const closeForecast = useCallback(() => { setForecast(false); setPlaying(false); globe.current?.flyHome(); }, []);
 
+  const goPoint = (lat: number, lonDeg: number) => {
+    const lon = ((lonDeg % 360) + 360) % 360;
+    const site: ReferenceSite = {
+      site_id: pointId(lat, lon), latitude_deg: lat, longitude_deg: lon,
+      name: `Point ${Math.abs(lat).toFixed(3)}° ${lat < 0 ? 'S' : 'N'}, ${lon.toFixed(3)}° E`,
+    };
+    setForecast(false);
+    globe.current?.flyToSite(site);
+  };
   // A click on the Moon (not on a pin): in the forecast it moves the probe; elsewhere it asks the
   // landing question for that exact point (any point, 240 m terrain; docs/frontend_api.md).
   const down = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -305,15 +314,11 @@ export default function App() {
     if (!p) return;
     if (forecast && fc && pixelOf(fc, p.lat, p.lon)) { setProbe({ lat: p.lat, lon: p.lon, name: null }); return; }
     if (forecast) return;
-    const lon = ((p.lon % 360) + 360) % 360;
-    const site: ReferenceSite = {
-      site_id: pointId(p.lat, lon), latitude_deg: p.lat, longitude_deg: lon,
-      name: `Point ${Math.abs(p.lat).toFixed(3)}° ${p.lat < 0 ? 'S' : 'N'}, ${lon.toFixed(3)}° E`,
-    };
-    globe.current?.flyToSite(site);
+    goPoint(p.lat, p.lon);
   }, [forecast, fc]);
   const runCommand = useCallback((c: Command) => {
     if (c.kind === 'site') pick(c.site);
+    else if (c.kind === 'point') goPoint(c.lat, c.lon);
     else if (c.kind === 'date') {
       if (c.when.precision === 'instant') { goNow(); return; }
       if (selected && live) { const t = utcMidnight(c.when.ms); plan.update({ searchStartMs: t, notBeforeMs: t }); }
@@ -426,7 +431,7 @@ export default function App() {
           <span className="la-readout">
             {hover && hoverFc ? (
               <>{formatLat(hover.lat)} {formatLon(hover.lon)}: <b className={hoverFc.lit ? 'sun-c' : undefined}>{hoverFc.lit ? 'sunlit' : 'in shadow'}</b>,{' '}
-                <b className={hoverFc.earth ? 'earth-c' : undefined}>{hoverFc.earth ? 'Earth in view' : 'Earth hidden'}</b>; this month Sun {hoverFc.sunPct.toFixed(0)}%, Earth {hoverFc.earthPct.toFixed(0)}% (forecast)</>
+                <b className={hoverFc.earth ? 'earth-c' : undefined}>{hoverFc.earth ? 'Earth in view' : 'Earth hidden'}</b>; this month Sun {hoverFc.sunPct.toFixed(0)}%, Earth {hoverFc.earthPct.toFixed(0)}% (forecast, 240 m terrain)</>
             ) : hover ? (
               <>{formatLat(hover.lat)} {formatLon(hover.lon)}
                 {hoverSun !== null && <>, Sun <b className={hoverSun > 0 ? 'sun-c' : undefined}>{hoverSun.toFixed(1)}°</b> up on flat ground</>}

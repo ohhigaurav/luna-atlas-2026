@@ -127,7 +127,7 @@ export function ForecastPanel({ fc, cursorMs, frame, layers, probe, onLayers, on
         </section>
 
         <section className="la-sec" aria-label="Point">
-          <span className="la-cap">{probe.name ?? 'Point'} at {formatLat(probe.lat)} {formatLon(probe.lon)} (click the square to move it)</span>
+          <span className="la-cap">{probe.name ?? 'Point'} at {formatLat(probe.lat)} {formatLon(probe.lon)}, 250 m pixel of the 240 m regional map (click the square to move it)</span>
           {px && series ? (
             <>
               <p className="la-fc-probe">
@@ -150,7 +150,8 @@ export function ForecastPanel({ fc, cursorMs, frame, layers, probe, onLayers, on
 
         <section className="la-sec">
           <p className="la-fine" style={{ margin: 0 }}>
-            Forecast, 240 m LOLA terrain. Same shadow method that matched 5 of 6 LRO photos. Earth view agrees with the site panel's own analysis on 99.86% of 1,440 checked pixel-frames (all clear cases).
+            240 m regional view; site panels use 5 m terrain where available, so a site's own numbers can differ from its forecast pixel.
+            {' '}Forecast, 240 m LOLA terrain, observer on the ground. Same shadow method that matched 5 of 6 LRO photos. Earth view agrees with the site panel's own analysis on 99.86% of 1,440 checked pixel-frames (all clear cases).
             {' '}Limits: {fc.limits} Earth: geometric line of sight from a 2 m antenna, not a radio link budget.
           </p>
         </section>

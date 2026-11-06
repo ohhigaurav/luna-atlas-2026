@@ -162,6 +162,8 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-verify a { color: var(--text); text-underline-offset: 3px; font-weight: 500; white-space: nowrap; }
 .la-verify a:hover { color: #fff; }
 
+.la-airless { margin: 0; padding: 8px 20px; border-bottom: 1px solid var(--line); font: italic 400 14px var(--font-serif); color: var(--text-2); }
+
 /* site: the answer */
 .la-side-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b2a27 transparent; }
 .la-sec { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }

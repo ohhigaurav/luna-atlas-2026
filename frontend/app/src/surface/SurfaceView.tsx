@@ -228,6 +228,7 @@ export function SurfaceView({ site, touchdownMs, missionDays, cursorMs, playing,
       {st.status === 'ready' && (
         <>
           <Panorama run={st.run} times={st.times} cursorMs={cursorMs} />
+          <p className="la-airless">No air on the Moon: the horizon is the terrain itself, so a hill a kilometre away can hide the Sun, and the sky stays black in daylight.</p>
           <div className="la-surf-body">
             <div className="la-surf-ctl">
               <span className="la-cap">Keep the lander alive</span>

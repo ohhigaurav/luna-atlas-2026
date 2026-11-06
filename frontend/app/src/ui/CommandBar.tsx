@@ -5,10 +5,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReferenceSite } from '../data/source';
 import { shortName } from '../engine/pins';
 import { parseWhen, type When } from '../state/when';
+import { parseCoords } from '../state/coords';
 
 export type Command =
   | { kind: 'site'; site: ReferenceSite }
   | { kind: 'date'; when: When }
+  | { kind: 'point'; lat: number; lon: number }
   | { kind: 'action'; id: 'proof' | 'home' | 'now' | 'grid' | 'earth' | 'forecast'; label: string };
 
 type Props = {
@@ -43,10 +45,12 @@ export function CommandBar({ sites, selectedName, onRun, onClose }: Props) {
 
   const items = useMemo<Command[]>(() => {
     const t = q.trim().toLowerCase();
-    const when = t ? parseWhen(t, Date.now()) : null;
+    const pt = t ? parseCoords(q) : null;
+    const when = t && !pt ? parseWhen(t, Date.now()) : null;
     const hits = t ? sites.map((s) => ({ s, k: score(t, s) })).filter((x) => x.k > 0).sort((a, b) => b.k - a.k).map((x) => x.s) : sites.slice(0, 0);
     const acts = t ? ACTIONS.filter((a) => a.label.toLowerCase().includes(t)) : ACTIONS;
     return [
+      ...(pt ? [{ kind: 'point', ...pt } as Command] : []),
       ...(when ? [{ kind: 'date', when } as Command] : []),
       ...hits.slice(0, 8).map((site) => ({ kind: 'site', site }) as Command),
       ...acts,
@@ -59,7 +63,7 @@ export function CommandBar({ sites, selectedName, onRun, onClose }: Props) {
   return (
     <div className="la-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="la-cmd" role="dialog" aria-label="Search sites, dates and actions">
-        <input ref={input} value={q} placeholder="Shackleton · 13 jan 2027 · next month · 2027-03 · +10d"
+        <input ref={input} value={q} placeholder="Shackleton, 13 jan 2027, next month, +10d, or 89.45S 223.2E"
           aria-label="Search" aria-controls="la-cmd-list" aria-activedescendant={items[i] ? `la-cmd-${i}` : undefined}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -75,6 +79,8 @@ export function CommandBar({ sites, selectedName, onRun, onClose }: Props) {
               {c.kind === 'date' && <><span className="la-cap">Date</span>
                 <span>{selectedName ? `Search landings at ${shortName(selectedName)} from ${c.when.label}` : `Show the Moon on ${c.when.label}`}</span>
                 <small>{c.when.precision === 'instant' ? 'now' : new Date(c.when.ms).toISOString().slice(0, 10)} UTC</small></>}
+              {c.kind === 'point' && <><span className="la-cap">Point</span>
+                <span>Landing windows at {Math.abs(c.lat).toFixed(3)}° {c.lat < 0 ? 'S' : 'N'}, {c.lon.toFixed(3)}° E</span><small>240 m terrain</small></>}
               {c.kind === 'site' && <><span className="la-cap">Site</span><span>{c.site.name}</span>
                 <small>{Math.abs(c.site.latitude_deg).toFixed(2)}°{c.site.latitude_deg < 0 ? 'S' : 'N'}</small></>}
               {c.kind === 'action' && <><span className="la-cap">Go</span><span>{c.label}</span></>}
