@@ -90,6 +90,22 @@ crest, which gets 70%. That is the challenge's "small location changes matter" i
 the site loader to this now** (fall back to `/api/reference-sites`), so the official sites appear
 on event day without a code change. Labels and banner: an internal document (not published) → Frontend.
 
+## Landing rule R5, minimum Sun height (new 6 Nov)
+
+`/api/landing-windows` takes `min_sun_elevation_deg`: `"auto"` (default), a number, or `null`
+(off).
+- **auto** = 5° where the Sun can climb past 14°. That is Apollo's lower bound (Apollo landed with
+  the Sun 5–14° up). It covers every site within 77.5° of the equator. Near the poles the Sun never
+  gets that high, so R5 is off there.
+- The response's `rules.min_sun_elevation_deg` is the value used (`null` = off), and
+  `rules.min_sun_reference` gives the sources.
+- A miss caused by it shows as `sun_high` in `closest_miss.failed_rules`. Text: "Sun high enough to
+  light the ground".
+- **Effect:** the Apollo 11 site no longer offers "best touchdown with the Sun at −0.22°". Its best
+  touchdown now has the Sun at 5° or higher.
+- The frontend need not send anything; to expose it, add "Min Sun height: auto / 0° / 5° / 10°"
+  to the landing settings.
+
 ## `POST /api/compare`: sites and dates side by side (new 6 Nov; challenge core)
 
 ```json

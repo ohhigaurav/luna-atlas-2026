@@ -18,6 +18,14 @@ Rules for a touchdown instant t:
   R4 low_sun       the Sun's centre is at most ``max_sun_elevation_deg`` above the flat
                    horizontal at t (long shadows for hazard detection; Apollo landed at
                    5-15 deg), if set.
+  R5 sun_high      the Sun's centre is at least ``min_sun_elevation_deg`` above the flat
+                   horizontal at t, so the ground is lit well enough to see hazards rather than at
+                   the first sliver of sunrise. "auto" (default): 5 deg, Apollo's lower bound
+                   (5-14 deg; NASA SP-4214 ch. 6), wherever the Sun can climb past 14 deg
+                   (|lat| <= 77.5 deg: 90 - |lat| + 1.54 deg lunar obliquity >= 14). Off nearer the
+                   poles, where the Sun never gets that high (at the Artemis south-pole regions it
+                   never exceeds ~7 deg and is usually 1-2 deg; NASA NESC, IAASS 2023), so only R1
+                   applies there. ``None`` turns R5 off everywhere.
 Touchdown candidates are the analysis samples (30 min apart), so window edges are good to
 30 min. Sunset times inside the analysis are event-refined (10 s).
 """
@@ -36,7 +44,7 @@ from typing import Any
 from lunar_core import __version__, analysis_service, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-3"  # 2: verify links; 3: measured custom-point caveat
+CACHE_SCHEMA = "landing-cache-4"  # 2: verify links; 3: custom-point caveat; 4: R5 sun_high
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -47,7 +55,21 @@ RULE_TEXT = {
     "daylight": "enough daylight left for the mission",
     "earth_up": "Earth above the horizon at touchdown (direct contact while landing)",
     "low_sun": "Sun low enough for long shadows (hazard detection while landing)",
+    "sun_high": "Sun high enough to light the ground (not the first sliver of sunrise)",
 }
+AUTO_MIN_SUN_DEG = 5.0
+AUTO_MIN_SUN_LAT_LIMIT_DEG = 77.5
+LUNAR_OBLIQUITY_DEG = 1.54
+
+
+def resolve_min_sun(setting: float | str | None, latitude_deg: float) -> float | None:
+    """R5's threshold for a site: a number as given, "auto" by latitude, None = off."""
+    if setting is None:
+        return None
+    if setting == "auto":
+        reachable = 90.0 - abs(latitude_deg) + LUNAR_OBLIQUITY_DEG
+        return AUTO_MIN_SUN_DEG if abs(latitude_deg) <= AUTO_MIN_SUN_LAT_LIMIT_DEG and reachable >= 14.0 else None
+    return float(setting)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,8 +123,8 @@ def _overlap_fraction(windows: Sequence[Window], a: float, b: float) -> float:
 
 def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[Window], *,
              mission_days: float, require_earth: bool, max_sun_el_deg: float | None,
-             search_end_s: float, step_s: float) -> dict[str, Any]:
-    """Apply R1-R4 to every candidate sample up to ``search_end_s``; group passes into windows."""
+             search_end_s: float, step_s: float, min_sun_el_deg: float | None = None) -> dict[str, Any]:
+    """Apply R1-R5 to every candidate sample up to ``search_end_s``; group passes into windows."""
     need_s = mission_days * 86400.0
     rows: list[dict[str, Any]] = []
     for s in samples:
@@ -115,6 +137,7 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
             "daylight": w is not None and left >= need_s,
             "earth_up": s.earth_up or not require_earth,
             "low_sun": max_sun_el_deg is None or s.sun_el_deg <= max_sun_el_deg,
+            "sun_high": min_sun_el_deg is None or s.sun_el_deg >= min_sun_el_deg,
         }
         rows.append({"s": s, "window": w, "left_s": left, "checks": checks,
                      "lower_bound": bool(w and w.end_open)})
@@ -282,10 +305,11 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
     sun = merge_windows([r["sun_windows"] for r in results])
     earth = merge_windows([r["earth_windows"] for r in results])
     search_end_s = samples[0].t_s + request.search_days * 86400.0
+    min_sun = resolve_min_sun(request.min_sun_elevation_deg, float(site["latitude_deg"]))
     result = evaluate(samples, sun, earth, mission_days=request.mission_days,
                       require_earth=request.require_earth_at_landing,
                       max_sun_el_deg=request.max_sun_elevation_deg, search_end_s=search_end_s,
-                      step_s=STEP_MIN * 60.0)
+                      step_s=STEP_MIN * 60.0, min_sun_el_deg=min_sun)
     # "Verify with NASA JPL" for each best touchdown time (and the closest miss): our sky position
     # from the same run next to Horizons' answer for the same point and second.
     rows_by_utc = {row["utc"]: (res, row) for res in results for row in res["series"]}
@@ -314,6 +338,11 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
             "mission_days": request.mission_days,
             "require_earth_at_landing": request.require_earth_at_landing,
             "max_sun_elevation_deg": request.max_sun_elevation_deg,
+            "min_sun_elevation_deg": min_sun,
+            "min_sun_setting": request.min_sun_elevation_deg,
+            "min_sun_reference": ("auto: 5 deg (Apollo's lower bound, 5-14 deg; NASA SP-4214) where the Sun can "
+                                  "climb past 14 deg (|lat| <= 77.5 deg); off near the poles, where the Sun stays "
+                                  "below ~7 deg (NASA NESC, IAASS 2023)"),
             "panel_height_m": request.panel_height_m,
             "text": RULE_TEXT,
             "low_sun_reference": "Apollo landings were made with the Sun 5-15 deg up "
