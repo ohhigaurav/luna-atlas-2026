@@ -33,10 +33,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from lunar_core import __version__, analysis_service, custom_point
+from lunar_core import __version__, analysis_service, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-1"
+CACHE_SCHEMA = "landing-cache-2"  # 2: verify links per opportunity
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -286,6 +286,19 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
                       require_earth=request.require_earth_at_landing,
                       max_sun_el_deg=request.max_sun_elevation_deg, search_end_s=search_end_s,
                       step_s=STEP_MIN * 60.0)
+    # "Verify with NASA JPL" for each best touchdown time (and the closest miss): our sky position
+    # from the same run next to Horizons' answer for the same point and second.
+    rows_by_utc = {row["utc"]: (res, row) for res in results for row in res["series"]}
+
+    def _verify(utc: str | None) -> dict[str, Any] | None:
+        hit = rows_by_utc.get(utc) if utc else None
+        return None if hit is None else verify.verify_block(hit[0], hit[1], sun_height_m=request.panel_height_m,
+                                                            antenna_height_m=2.0)
+
+    for o in result["opportunities"]:
+        o["verify"] = _verify(o["best_touchdown_utc"])
+    if result["closest_miss"] is not None:
+        result["closest_miss"]["verify"] = _verify(result["closest_miss"]["touchdown_utc"])
     caveats = ["Reference site from published sources, not an official challenge coordinate."
                if site.get("origin") == "reference" else None,
                custom_point.CUSTOM_CAVEAT if site.get("origin") == "custom" and mode == "terrain" else None,

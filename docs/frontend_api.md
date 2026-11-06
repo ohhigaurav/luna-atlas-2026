@@ -54,6 +54,25 @@ the first run. Until that run passes, label Earth's face "illustrative".
   (seconds to about a minute for 90 days); a repeat is instant.
 - Suggested UI: click → drop a pin → ask landing windows. Show the caveat chip "240 m terrain".
 
+## "Verify with NASA JPL ↗" (new 6 Nov)
+
+- `/api/check` returns `verify`, for the first sample of the run.
+- `/api/landing-windows` returns `verify` on each opportunity (at `best_touchdown_utc`) and on
+  `closest_miss`.
+
+```json
+"verify": {"utc": "2027-01-03T14:00:00Z", "note": "...",
+  "sun":   {"ours_azimuth_deg": 151.2, "ours_elevation_deg": 1.83, "observer_altitude_m": 1952.0,
+            "horizons_url": "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&..."},
+  "earth": {...}}
+```
+
+Suggested UI: a small "Verify with NASA JPL ↗" link next to the Sun height. It opens
+`horizons_url` in a new tab: JPL's own plain-text table for that point and second. Next to the
+link, show "ours: 1.83°" so a judge can compare the two numbers. Horizons has no lunar hills,
+so the matching numbers are the sky position above the level horizon, not sunrise times; `note`
+says this in one line.
+
 ## `POST /api/check`
 
 Request: `site_id` (required); `start_utc` (ISO, must end in `Z`); `days` (1 to 60, default

@@ -25,7 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from lunar_core import __version__, analysis_service, custom_point
+from lunar_core import __version__, analysis_service, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
 from lunar_core.provenance import sha256_file
 
@@ -230,6 +230,9 @@ def _response(run: dict[str, Any], request: CheckRequest, note: str | None, *, c
         },
         "summary": summarise(run, height_m=request.panel_height_m, horizon_note=note,
                              constraints=MissionConstraints()),
+        "verify": verify.verify_block(run["sites"][0], run["sites"][0]["series"][0],
+                                      sun_height_m=settings["sun_observer_height_m"],
+                                      antenna_height_m=settings["antenna_height_m"]),
         "run_id": run["run_id"],
         "run_url": f"/api/runs/{run['run_id']}",
         "cache_hit": cache_hit,
