@@ -74,6 +74,44 @@ link, show "ours: 1.83°" so a judge can compare the two numbers. Horizons has n
 so the matching numbers are the sky position above the level horizon, not sunrise times; `note`
 says this in one line.
 
+## `GET /api/site-index`: every site, official first (new 6 Nov; needed from 13 Nov)
+
+`{"official_state": "awaiting_official_source" | "loaded", "official_count": 0, "reference_count": 27,
+  "sites": [...official (origin "official", kind "official_challenge_site", group "Official challenge sites")...,
+            ...reference (origin "reference")...], "unplaced_official": [], "note": "..."}`
+
+Static bundle: `data/site-index.json`. Until 13 Nov it holds the reference points only.
+
+Some sites carry `analysis_note: {text, evidence, suggested_point?}`: our measured findings, kept
+apart from the citation. Show the text in the site panel under the name, in small type, with an
+"evidence" link. If `suggested_point` is present, add a button "Try {label}" that opens that
+point as a clicked point. Malapert: its published point gets 0% Earth, and the button opens the
+crest, which gets 70%. That is the challenge's "small location changes matter" in one click. **Switch
+the site loader to this now** (fall back to `/api/reference-sites`), so the official sites appear
+on event day without a code change. Labels and banner: an internal document (not published) → Frontend.
+
+## Landing rule R5, minimum Sun height (new 6 Nov)
+
+`/api/landing-windows` takes `min_sun_elevation_deg`: `"auto"` (default), a number, or `null`
+(off).
+- **auto** = 5° where the Sun can climb past 14°. That is Apollo's lower bound (Apollo landed with
+  the Sun 5–14° up). It covers every site within 77.5° of the equator. Near the poles the Sun never
+  gets that high, so R5 is off there.
+- The response's `rules.min_sun_elevation_deg` is the value used (`null` = off), and
+  `rules.min_sun_reference` gives the sources.
+- A miss caused by it shows as `sun_high` in `closest_miss.failed_rules`. Text: "Sun high enough to
+  light the ground".
+- **Effect:** the Apollo 11 site no longer offers "best touchdown with the Sun at −0.22°". Its best
+  touchdown now has the Sun at 5° or higher.
+- Each opportunity also has `sun_above_horizon_at_best_deg`: the Sun's height above the **local
+  horizon**, as opposed to `sun_elevation_at_best_deg`, its height above the level horizontal.
+  They differ on ridges and summits. At the Malapert crest the Sun is at −2.9° from the level
+  horizontal but above the dipped horizon of a 5 km peak. Show "Sun 1.2° above the horizon" as
+  the main number and the level-horizontal elevation as a detail. `closest_miss` has
+  `sun_above_horizon_deg`.
+- The frontend need not send anything; to expose it, add "Min Sun height: auto / 0° / 5° / 10°"
+  to the landing settings.
+
 ## `POST /api/compare`: sites and dates side by side (new 6 Nov; challenge core)
 
 ```json

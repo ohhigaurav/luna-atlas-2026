@@ -77,3 +77,35 @@ the terrain or the grid axis.
   and Site 004 points by 31 and 65 points."
 - **Forecast, Earth layer and light map label:** "240 m regional view. Where 5 m site terrain
   exists (Sites 001, 004), the site panel's number is the one to use."
+
+## Post hoc diagnostic: grid rotated 45° (`--rotate 45`, 1,366 s)
+
+Raw output: `resolution_check_rot45_2026-11-06.log`. This is a second sample of 48 new points per
+site; the centre repeats.
+
+| site | n | Sun: signed median | median abs gap | 90th pct abs gap | > 10 pts | 240 m higher / lower | Earth: median abs gap | Earth: 90th pct |
+|---|---|---|---|---|---|---|---|---|
+| 001 | 49 | +0.9 | 3.2 | 14.1 | 16% | 28 / 20 | 0.0 | 9.2 |
+| 004 | 49 | +0.9 | 1.2 | 17.5 | 12% | 30 / 8 | 0.4 | 11.6 |
+
+**The summary numbers repeat.** Median gap 1–3 points, 90th percentile 14–19, 12–16% of points
+more than 10 points apart. The caveat's "about 1 point in 7" stands. Over both grids, 240 m reads
+higher at 121 points and lower at 44. That is more balanced at Site 001 in this grid (28 / 20).
+
+**The north–south pattern is not caused by our grid.** Large gaps (> 10 points), counted per run
+and excluding the centre:
+
+| run | site | near the site's meridian (abs E < 200 m) | on that run's grid axes | elsewhere |
+|---|---|---|---|---|
+| 0° | 001 | 3 of 8 | 3 of 16 (overlaps the meridian) | 4 of 32 |
+| 0° | 004 | 4 of 8 | 4 of 16 (overlaps the meridian) | 2 of 32 |
+| 45° | 001 | 3 of 16 | 3 of 16 | 3 of 20 |
+| 45° | 004 | **5 of 16** | **1 of 16** | **0 of 20** |
+
+- With the grid turned, Site 004's large gaps stay on the geographic north–south line through the
+  site, not on the new grid axes. So the pattern belongs to the place, not to how we sampled it.
+- Site 001's large gaps are spread out, mostly on the west side, where the ground drops by about
+  100 m within 900 m.
+- **Still open: real crest or DEM artefact?** Both a real crest and an artefact along LOLA's
+  north–south ground tracks would line up with the meridian, and this test cannot tell them apart.
+  An image check at that scale (LROC NAC) would.

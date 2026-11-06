@@ -249,6 +249,15 @@ class LandingRequest(BaseModel):
     panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
     require_earth_at_landing: bool = True
     max_sun_elevation_deg: float | None = Field(default=20.0, ge=0.0, le=90.0)
+    min_sun_elevation_deg: float | Literal["auto"] | None = Field(
+        default="auto", description='R5: Sun centre at least this high at touchdown; "auto" by latitude, null = off')
+
+    @field_validator("min_sun_elevation_deg")
+    @classmethod
+    def min_sun_in_range(cls, value: float | str | None) -> float | str | None:
+        if isinstance(value, (int, float)) and not -2.0 <= float(value) <= 45.0:
+            raise ValueError("min_sun_elevation_deg must be within [-2, 45]")
+        return value
 
     @field_validator("search_start_utc")
     @classmethod

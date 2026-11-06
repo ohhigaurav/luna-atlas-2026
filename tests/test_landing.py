@@ -138,3 +138,42 @@ def test_cache_warmer_asks_the_apps_question() -> None:
     assert (num("SEARCH_DAYS"), num("DEFAULT_MISSION_DAYS"), num("DEFAULT_MAX_SUN_DEG")) == \
         (warm.SEARCH_DAYS, warm.MISSION_DAYS, warm.MAX_SUN_DEG)
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT00:00:00Z", warm._today_utc())
+
+
+def test_r5_sun_high_rule_and_auto_threshold() -> None:
+    sun, earth = [_w(10, 80)], [_w(0, 100)]
+    low = _samples(100, sun, earth, el=-0.2)  # Sun centre just below the horizontal, limb up
+    assert _eval(low, sun, earth)["opportunity_count"] == 1
+    r = _eval(low, sun, earth, min_sun_el_deg=5.0)
+    assert r["opportunity_count"] == 0 and "sun_high" in r["closest_miss"]["failed_rules"]
+    assert r["candidates_failing"]["sun_high"] == 100
+    assert landing.resolve_min_sun("auto", 0.674) == 5.0          # Apollo 11
+    assert landing.resolve_min_sun("auto", -77.5) == 5.0
+    assert landing.resolve_min_sun("auto", -80.13) is None        # IM-1: Sun can't reach 14 deg
+    assert landing.resolve_min_sun("auto", -89.45) is None
+    assert landing.resolve_min_sun(None, 0.0) is None and landing.resolve_min_sun(2.5, -89.0) == 2.5
+
+
+def test_min_sun_request_validation() -> None:
+    import pytest as _pytest
+    from lunar_core.api_models import LandingRequest
+    from pydantic import ValidationError
+
+    base = {"site_id": "x", "search_start_utc": "2027-01-01T00:00:00Z"}
+    assert LandingRequest(**base).min_sun_elevation_deg == "auto"
+    assert LandingRequest(**base, min_sun_elevation_deg=None).min_sun_elevation_deg is None
+    assert LandingRequest(**base, min_sun_elevation_deg=3).min_sun_elevation_deg == 3
+    for bad in (50, -3, "high"):
+        with _pytest.raises(ValidationError):
+            LandingRequest(**base, min_sun_elevation_deg=bad)
+
+
+def test_sun_clearance_above_local_horizon() -> None:
+    sun, earth = [_w(10, 80)], [_w(0, 100)]
+    ridge = [Sample(h * H, f"h{h}", 10 <= h < 80, -2.9, True, -4.1) for h in range(100)]
+    r = _eval(ridge, sun, earth)
+    o = r["opportunities"][0]
+    assert o["sun_elevation_at_best_deg"] == -2.9
+    assert o["sun_above_horizon_at_best_deg"] == pytest.approx(1.2)
+    flat = _eval(_samples(100, sun, earth), sun, earth)["opportunities"][0]
+    assert flat["sun_above_horizon_at_best_deg"] is None  # no horizon given
