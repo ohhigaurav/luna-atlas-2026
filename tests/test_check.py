@@ -94,7 +94,7 @@ def _run(sun: float, earth: float, dark_s: float, dark_trunc: bool = False) -> d
 
 def test_summary_text_and_limits() -> None:
     s = check.summarise(_run(61.2, 0.0, 60 * 3600), height_m=2, horizon_note=None, constraints=MissionConstraints())
-    assert s["headline"].startswith("Sunlight reaches a panel 2 m above the ground 61% of the time.")
+    assert s["headline"].startswith("Some of the Sun is visible from a panel 2 m above the ground 61% of the time")
     assert any("Earth never rises" in line for line in s["lines"])
     status = {c["key"]: c["status"] for c in s["limits"]["checks"]}
     assert status == {"darkness": "fail", "earth_gap": "pass", "joint_outage": "pass", "sunlit": "pass"}
@@ -128,3 +128,15 @@ def test_http_check(no_terrain: list[str]) -> None:
     assert ok.status_code == 200 and ok.json()["kind"] == "site_check"
     assert client.post("/api/check", json={"site_id": "x", "start_utc": "2027-01-01T00:00:00Z", "days": 99}).status_code == 422
     assert client.post("/api/check", json={"site_id": "nope", "start_utc": "2027-01-01T00:00:00Z"}).status_code == 422
+
+
+def test_disc_fraction_and_mean() -> None:
+    from lunar_core.check import disc_visible_fraction, sun_disc_percent
+
+    assert disc_visible_fraction(0.0, 0.27) == pytest.approx(0.5)
+    assert disc_visible_fraction(0.27, 0.27) == 1.0 and disc_visible_fraction(-0.3, 0.27) == 0.0
+    assert disc_visible_fraction(0.135, 0.27) == pytest.approx(0.8045, abs=1e-3)   # h = 0.5
+    au = 149_597_870_700.0
+    rows = [{"sun_range_m": au, "sun_horizon_deg": 1.0, "sun_elevation_deg": e} for e in (2.0, 1.0, 0.0)]
+    assert sun_disc_percent(rows) == pytest.approx(100 * (1.0 + 0.5 + 0.0) / 3)
+    assert sun_disc_percent([{"sun_range_m": None, "sun_horizon_deg": 0.0, "sun_elevation_deg": 1.0}]) is None

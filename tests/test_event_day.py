@@ -73,7 +73,8 @@ def test_import_command_is_dry_run_unless_write() -> None:
 def test_site_row_and_report() -> None:
     site = {"site_id": "official-a", "name": "Official A", "latitude_deg": -89.45, "longitude_deg": 222.69}
     refs = [{"site_id": "r", "name": "Ref far", "latitude_deg": -85.0, "longitude_deg": 0.0}]
-    landing: dict[str, Any] = {"horizon_mode": "terrain", "opportunity_count": 1, "closest_miss": None,
+    landing: dict[str, Any] = {"horizon_mode": "terrain", "terrain": {"finest_resolution_m": 5.0},
+                               "opportunity_count": 1, "closest_miss": None,
                                "summary": ["Next landing opportunity ..."], "opportunities": [{
                                    "touchdown_from_utc": "2027-01-09T21:00:00Z", "touchdown_until_utc": "2027-01-23T21:00:00Z",
                                    "best_touchdown_utc": "2027-01-09T21:00:00Z", "sun_elevation_at_best_deg": 1.07,
@@ -85,7 +86,7 @@ def test_site_row_and_report() -> None:
     md = event_day.report_markdown([row, bad], [], {"created_utc": "s", "official_count": 2, "unplaced": 0,
                                                     "source_url": "u", "start_utc": "2027-01-01T00:00:00Z"})
     assert "2027-01-09T21:00 → 2027-01-23T21:00" in md and "≥ 32 d 2 h" in md and "⚠" in md
-    assert "error: TerrainNotReady" in md
+    assert "error: TerrainNotReady" in md and "| 5 m |" in md
 
 
 def test_warm_puts_official_sites_first(monkeypatch: pytest.MonkeyPatch) -> None:

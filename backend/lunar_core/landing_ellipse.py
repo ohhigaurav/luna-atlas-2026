@@ -19,7 +19,7 @@ import time
 from datetime import timedelta
 from typing import Any
 
-from lunar_core import __version__, analysis_service, location_scan
+from lunar_core import __version__, analysis_service, cache_keys, location_scan
 from lunar_core.api_models import AnalysisRequest, EllipseRequest
 from lunar_core.location_scan import GridOffset
 
@@ -99,16 +99,13 @@ def risk_summary(points: list[dict[str, Any]], centre_first: bool = True) -> dic
     }
 
 
-def _cache_path(request: EllipseRequest) -> Any:
+def _cache_path(request: EllipseRequest, site: dict[str, Any]) -> Any:
     from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
 
     material = {"schema": CACHE_SCHEMA, "version": __version__, "horizon": HORIZON_ALGORITHM_VERSION,
-                "request": request.model_dump(mode="json")}
-    for path in (analysis_service.KERNEL_MANIFEST, analysis_service.DEM_MANIFEST):
-        try:
-            material[path.name] = path.stat().st_mtime_ns
-        except OSError:
-            material[path.name] = None
+                "request": request.model_dump(mode="json"),
+                **cache_keys.key_material(site=site, manifests=(analysis_service.KERNEL_MANIFEST,
+                                                                analysis_service.DEM_MANIFEST))}
     key = hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:32]
     return analysis_service.RUNS_DIR.parent / "cache" / "ellipses" / f"{key}.json"
 
@@ -119,7 +116,7 @@ def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[s
         raise ValueError(f"unknown site ID: {request.site_id}")
     if float(sites[request.site_id]["latitude_deg"]) > POLAR_LIMIT_DEG:
         raise ValueError("the landing ellipse needs terrain, which we have only at or south of 60 S (D-22)")
-    cache = _cache_path(request)
+    cache = _cache_path(request, sites[request.site_id])
     if cache.is_file():
         try:
             return {**json.loads(cache.read_text(encoding="utf-8")), "cache_hit": True}
@@ -156,6 +153,5 @@ def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[s
         "compute_seconds": round(time.monotonic() - started, 1),
         "cache_hit": False,
     }
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(payload, allow_nan=False), encoding="utf-8")
+    cache_keys.write_atomic(cache, json.dumps(payload, allow_nan=False))
     return payload

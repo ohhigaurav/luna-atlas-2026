@@ -25,7 +25,8 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from lunar_core import __version__, analysis_service, custom_point, verify
+from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
+from lunar_core.sky_geometry import SUN_RADIUS_KM
 from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
 from lunar_core.provenance import sha256_file
 
@@ -61,6 +62,37 @@ def _outage_text(metric: dict[str, Any]) -> str:
     return text
 
 
+def disc_visible_fraction(centre_clearance_deg: float, semidiameter_deg: float) -> float:
+    """Visible fraction of the Sun's disc whose centre stands ``centre_clearance_deg`` above a straight
+    horizon edge: circular segment, f = 1 - (acos h - h sqrt(1 - h^2)) / pi with h = clearance / radius."""
+    if semidiameter_deg <= 0:
+        return 1.0 if centre_clearance_deg > 0 else 0.0
+    h = centre_clearance_deg / semidiameter_deg
+    if h >= 1.0:
+        return 1.0
+    if h <= -1.0:
+        return 0.0
+    return 1.0 - (math.acos(h) - h * math.sqrt(1.0 - h * h)) / math.pi
+
+
+def sun_disc_percent(series: list[dict[str, Any]]) -> float | None:
+    """Mean visible fraction of the Sun's disc over the samples, in percent (independent review finding 4).
+
+    "Sunlit %" counts a sample as lit if any sliver of the Sun clears the horizon, which overstates
+    power when the Sun grazes the horizon for hours, as it does at the poles. This is the quantity
+    Gate E compared with NASA Goddard's maps (mean disc visibility). Samples are the run's coarse
+    steps, equally weighted.
+    """
+    values = []
+    for row in series:
+        rng = row.get("sun_range_m")
+        if rng is None or row.get("sun_horizon_deg") is None:
+            return None
+        semi = math.degrees(math.asin(min(1.0, SUN_RADIUS_KM * 1000.0 / float(rng))))
+        values.append(disc_visible_fraction(float(row["sun_elevation_deg"]) - float(row["sun_horizon_deg"]), semi))
+    return 100.0 * sum(values) / len(values) if values else None
+
+
 def _limit_status(value_h: float, limit_h: float | None, truncated: bool) -> str:
     """pass / fail / unknown. A truncated outage is a lower bound: within the limit is not proof."""
     if limit_h is None:
@@ -79,8 +111,10 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
     sun_pct, earth_pct, both_pct = m["sunlit_percent"], m["dte_clear_percent"], m["both_percent"]
     dark, gap, joint = m["longest_darkness"], m["longest_dte_gap"], m["longest_joint_outage"]
 
+    disc_pct = sun_disc_percent(site.get("series") or [])
     lines: list[str] = [
-        f"Sunlight reaches a panel {height_m:g} m above the ground {_pct(sun_pct)} of the time.",
+        f"Some of the Sun is visible from a panel {height_m:g} m above the ground {_pct(sun_pct)} of the time"
+        + (f"; averaged over the whole disc, {_pct(disc_pct)}." if disc_pct is not None else "."),
         f"Earth is above the horizon {_pct(earth_pct)} of the time; both together {_pct(both_pct)}.",
     ]
     if sun_pct == 0.0:
@@ -117,7 +151,8 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
 
     caveats = ["Reference site from published sources, not an official challenge coordinate."
                if site["site"].get("origin") == "reference" else None,
-               custom_point.CUSTOM_CAVEAT if site["site"].get("origin") == "custom" and terrain != "flat" else None,
+               "A point you picked, not a catalogue site." if site["site"].get("origin") == "custom" else None,
+               custom_point.resolution_caveat(site) if terrain != "flat" else None,
                "Flat horizon: hills and crater walls are not modelled, so polar results can be badly off."
                if terrain == "flat" else None,
                horizon_note,
@@ -126,7 +161,10 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
     return {
         "headline": lines[0] + " " + lines[1],
         "lines": lines,
-        "numbers": {"sunlit_percent": sun_pct, "earth_percent": earth_pct, "both_percent": both_pct},
+        "numbers": {"sunlit_percent": sun_pct, "sun_disc_percent": disc_pct, "earth_percent": earth_pct,
+                    "both_percent": both_pct},
+        "definitions": {"sunlit_percent": "time with any part of the Sun above the horizon (event-refined)",
+                        "sun_disc_percent": "mean visible fraction of the Sun's disc (sampled every coarse step)"},
         "limits": {
             "source": "default mission profile (same as the date finder); change it there",
             "checks": checks,
@@ -143,7 +181,8 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
 
 # --- request handling and cache ---------------------------------------------------------------
 
-def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha: str | None) -> str:
+def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha: str | None,
+               site: dict[str, Any] | None = None) -> str:
     from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
 
     material = {
@@ -151,6 +190,7 @@ def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha
         "kernel_manifest": kernel_sha, "dem_manifest": dem_sha if mode == "terrain" else None,
         "request": request.model_dump(mode="json"), "mode": mode,
         "step": COARSE_STEP_MIN, "tolerance": EVENT_TOLERANCE_S, "antenna": ANTENNA_HEIGHT_M,
+        "code": cache_keys.code_fingerprint(), "site": cache_keys.site_fingerprint(site or {}),
     }
     return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:32]
 
@@ -188,7 +228,7 @@ def run_check(request: CheckRequest) -> dict[str, Any]:
     note: str | None = None
     failed_indexes: list[Path] = []  # terrain keys that fell back; they will point at the flat run
     for mode in ([preferred, "flat"] if preferred == "terrain" else ["flat"]):
-        key = _cache_key(request, mode, dem_sha, kernel_sha)
+        key = _cache_key(request, mode, dem_sha, kernel_sha, site)
         index = _cache_dir() / f"{key}.json"
         if index.is_file():
             try:
@@ -208,7 +248,7 @@ def run_check(request: CheckRequest) -> dict[str, Any]:
         index.parent.mkdir(parents=True, exist_ok=True)
         entry = json.dumps({"run_id": run["run_id"], "horizon_note": note})
         for path in (index, *failed_indexes):  # so a repeat request does not retry terrain
-            path.write_text(entry, encoding="utf-8")
+            cache_keys.write_atomic(path, entry)
         return _response(run, request, note, cache_hit=False, seconds=time.monotonic() - started)
     raise analysis_service.AnalysisNotReady("no horizon model could be built for this site")
 
@@ -220,13 +260,16 @@ def _response(run: dict[str, Any], request: CheckRequest, note: str | None, *, c
         "schema_version": "1.0",
         "kind": "site_check",
         "site": run["sites"][0]["site"],
+        "terrain": custom_point.terrain_summary(run["sites"][0]) if settings["horizon_mode"] == "terrain" else None,
         "request": request.model_dump(mode="json"),
         "chosen_settings": {
             "horizon_mode": settings["horizon_mode"], "coarse_step_min": settings["coarse_step_min"],
             "event_tolerance_s": settings["event_tolerance_s"],
             "sun_observer_height_m": settings["sun_observer_height_m"],
             "antenna_height_m": settings["antenna_height_m"],
-            "why": "terrain at or south of 60 S where DEMs exist, otherwise flat; 10 s event precision",
+            "why": ("terrain is tried at or south of 60 S; it needs the regional map under 200 km of rays in "
+                    "every direction, which holds south of about 66.6 S, so between 60 and ~66.6 S answers usually "
+                    "fall back to a flat horizon (with a note); 10 s event precision"),
         },
         "summary": summarise(run, height_m=request.panel_height_m, horizon_note=note,
                              constraints=MissionConstraints()),

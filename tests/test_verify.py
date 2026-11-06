@@ -54,7 +54,7 @@ def test_check_and_landing_carry_verify_links() -> None:
     assert c["verify"]["utc"] == "2027-01-01T00:00:00Z"
     assert c["verify"]["sun"]["horizons_url"].startswith(verify.HORIZONS_API)
     r = landing.run_landing(LandingRequest(site_id=TEST_SITE["site_id"], search_start_utc="2027-01-01T00:00:00Z",
-                                           search_days=2, mission_days=0.25))
+                                           search_days=2, mission_days=0.25, min_sun_elevation_deg=None))
     assert r["opportunities"]
     for o in r["opportunities"]:
         assert o["verify"]["utc"] == o["best_touchdown_utc"]

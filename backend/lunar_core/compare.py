@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from lunar_core import analysis_service, check
+from lunar_core import analysis_service, check, custom_point
 from lunar_core.api_models import CheckRequest, CompareRequest, PlaceRef
 
 SECONDS_PER_HOUR = 3600.0
@@ -47,15 +47,7 @@ def next_event(windows: list[dict[str, Any]], t0: float, period_end: float, *,
             "lower_bound": True, "none_in_period": True}
 
 
-def terrain_summary(site_result: dict[str, Any]) -> dict[str, Any]:
-    """Which DEMs set this horizon: finest resolution actually sampled, and the ground height used."""
-    t = site_result.get("terrain") or {}
-    used = [a for a in t.get("assets", []) if a.get("samples_used_total", 0) > 0]
-    return {
-        "finest_resolution_m": min((float(a["native_resolution_m"]) for a in used), default=None),
-        "dem_assets": [a["asset_id"] for a in used],
-        "ground_elevation_m": t.get("site_ground_elevation_m"),
-    }
+terrain_summary = custom_point.terrain_summary  # moved there so check and landing share it
 
 
 def _check_request(place: PlaceRef, request: CompareRequest) -> CheckRequest:
@@ -86,6 +78,7 @@ def _row(result: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
         "earth_next": earth_next,
         "period": {
             "sunlit_percent": float(m["sunlit_percent"]),
+            "sun_disc_percent": check.sun_disc_percent(site.get("series") or []),
             "earth_percent": float(m["dte_clear_percent"]),
             "both_percent": float(m["both_percent"]),
             "longest_darkness_h": float(m["longest_darkness"]["duration_s"]) / SECONDS_PER_HOUR,
