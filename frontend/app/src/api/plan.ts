@@ -68,7 +68,7 @@ export class ApiError extends Error {
   }
 }
 
-async function post<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
+export async function post<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
   if (!r.ok) {
     const j = (await r.json().catch(() => ({}))) as { detail?: unknown };

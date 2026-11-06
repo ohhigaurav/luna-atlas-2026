@@ -12,6 +12,8 @@ const sky = {
   series: {
     utc: Array.from({ length: n }, (_, k) => new Date(T0 + k * 3600e3).toISOString()),
     sun: { unit: Array.from({ length: n }, (_, k) => [Math.cos(lon(k)), Math.sin(lon(k)), 0]), angular_radius_deg: Array(n).fill(0.2666) },
+    // Earth fixed over 0 E, 0 N but nodding 6 deg north and south over 27.3 days (libration-like).
+    earth: { unit: Array.from({ length: n }, (_, k) => { const b = 6 * Math.sin((2 * Math.PI * k) / (24 * 27.3)) * Math.PI / 180; return [Math.cos(b), 0, Math.sin(b)]; }) },
   },
 } as unknown as SkyGeometry;
 const times = sampleTimesMs(sky);
@@ -29,6 +31,13 @@ describe('siteNow (flat horizon, from sky geometry only)', () => {
     expect(s.day).toBe(false);
     expect(s.nextChangeMs! > T0).toBe(true);
     expect(siteNow(sky, times, 89.99, 0, T0).nextChangeMs).toBe(null);
+  });
+  it('tracks Earth too: always up at the near-side centre, set and rise near the pole', () => {
+    expect(siteNow(sky, times, 0, 0, T0)).toMatchObject({ earthUp: true, earthNextMs: null });
+    const p = siteNow(sky, times, 89, 0, T0);           // Earth starts on the horizon, climbing
+    expect(p.earthUp).toBe(true);
+    // Earth sets when its latitude passes -1 deg: 6 sin(x) = -1 -> x = pi + asin(1/6)
+    expect((p.earthNextMs! - T0) / 86400e3).toBeCloseTo((27.3 * (Math.PI + Math.asin(1 / 6))) / (2 * Math.PI), 1);
   });
   it('spanText rounds sensibly', () => {
     expect(spanText(30 * 60e3)).toBe('30 min');

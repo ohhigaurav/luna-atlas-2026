@@ -11,7 +11,7 @@ export type Command =
   | { kind: 'site'; site: ReferenceSite }
   | { kind: 'date'; when: When }
   | { kind: 'point'; lat: number; lon: number }
-  | { kind: 'action'; id: 'proof' | 'home' | 'now' | 'grid' | 'earth' | 'forecast'; label: string };
+  | { kind: 'action'; id: 'proof' | 'home' | 'now' | 'grid' | 'earth' | 'forecast' | 'compare'; label: string };
 
 type Props = {
   sites: ReferenceSite[];
@@ -22,6 +22,7 @@ type Props = {
 
 const ACTIONS: Extract<Command, { kind: 'action' }>[] = [
   { kind: 'action', id: 'forecast', label: 'Moon weather forecast: south pole, January 2027' },
+  { kind: 'action', id: 'compare', label: 'Compare sites side by side (south-pole sites if none chosen)' },
   { kind: 'action', id: 'proof', label: 'Evidence: our shadows vs LRO photos, real missions, JPL Horizons' },
   { kind: 'action', id: 'now', label: 'Back to now' },
   { kind: 'action', id: 'home', label: 'Whole Moon' },

@@ -11,6 +11,11 @@ export type SiteNow = {
   nextChangeMs: number | null;
   /** End of the sky window: "no change before this" when nextChangeMs is null. */
   horizonMs: number;
+  /** Earth's centre above a flat horizon (challenge O3c: time to Earthset / Earthrise). */
+  earthUp: boolean;
+  earthElDeg: number;
+  /** Next Earthrise (if hidden) or Earthset (if up) in the window; null = not in it. */
+  earthNextMs: number | null;
 };
 
 const D2R = Math.PI / 180;
@@ -20,37 +25,38 @@ export function siteNormal(latDeg: number, lonDeg: number): Vec3 {
   return [Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)];
 }
 
+const elev = (n: Vec3, s: number[]) => Math.asin(Math.max(-1, Math.min(1, n[0] * s[0] + n[1] * s[1] + n[2] * s[2]))) / D2R;
+
 /** Upper-limb margin over a flat horizon, in degrees, at sample i. */
 function margin(sky: SkyGeometry, n: Vec3, i: number): number {
-  const s = sky.series.sun.unit[i];
-  const el = Math.asin(Math.max(-1, Math.min(1, n[0] * s[0] + n[1] * s[1] + n[2] * s[2]))) / D2R;
-  return el + sky.series.sun.angular_radius_deg[i];
+  return elev(n, sky.series.sun.unit[i]) + sky.series.sun.angular_radius_deg[i];
+}
+
+/** Value at tMs between samples i and j, and the next sign change of f after tMs (linear root). */
+function track(f: (k: number) => number, timesMs: Float64Array, i: number, tMs: number): { v: number; next: number | null } {
+  const N = timesMs.length, j = Math.min(i + 1, N - 1), span = timesMs[j] - timesMs[i];
+  const w = span > 0 ? Math.min(1, Math.max(0, (tMs - timesMs[i]) / span)) : 0;
+  const v = f(i) + (f(j) - f(i)) * w, up = v > 0;
+  let prevT = tMs, prevV = v;
+  for (let k = i + 1; k < N; k++) {
+    const vk = f(k);
+    if ((vk > 0) !== up) return { v, next: prevT + (prevV / (prevV - vk)) * (timesMs[k] - prevT) };
+    prevT = timesMs[k]; prevV = vk;
+  }
+  return { v, next: null };
 }
 
 export function siteNow(sky: SkyGeometry, timesMs: Float64Array, latDeg: number, lonDeg: number, tMs: number): SiteNow {
   const n = siteNormal(latDeg, lonDeg), N = timesMs.length;
   let i = 0;
   while (i < N - 1 && timesMs[i + 1] <= tMs) i++;
-  // Interpolate the margin at tMs between samples i and i+1.
-  const j = Math.min(i + 1, N - 1);
-  const span = timesMs[j] - timesMs[i];
-  const f = span > 0 ? Math.min(1, Math.max(0, (tMs - timesMs[i]) / span)) : 0;
-  const m0 = margin(sky, n, i), m1 = margin(sky, n, j);
-  const m = m0 + (m1 - m0) * f;
+  const sun = track((k) => margin(sky, n, k), timesMs, i, tMs);
+  const earth = track((k) => elev(n, sky.series.earth.unit[k]), timesMs, i, tMs);
   const r = sky.series.sun.angular_radius_deg[i];
-  const day = m > 0;
-  let next: number | null = null;
-  let prevT = tMs, prevM = m;
-  for (let k = i + 1; k < N; k++) {
-    const mk = margin(sky, n, k);
-    if ((mk > 0) !== day) {
-      const a = prevM / (prevM - mk); // linear root between the two samples
-      next = prevT + a * (timesMs[k] - prevT);
-      break;
-    }
-    prevT = timesMs[k]; prevM = mk;
-  }
-  return { day, sunElDeg: m - r, nextChangeMs: next, horizonMs: timesMs[N - 1] };
+  return {
+    day: sun.v > 0, sunElDeg: sun.v - r, nextChangeMs: sun.next, horizonMs: timesMs[N - 1],
+    earthUp: earth.v > 0, earthElDeg: earth.v, earthNextMs: earth.next,
+  };
 }
 
 /** "4 d 3 h", "17 h", "38 min" for a span of milliseconds. */

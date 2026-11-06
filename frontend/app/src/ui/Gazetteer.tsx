@@ -17,6 +17,7 @@ type Props = {
   onSearch: () => void;
   onProof: () => void;
   onForecast: (() => void) | null;
+  onComparePolar: (() => void) | null;
 };
 
 const GROUPS: { key: string; title: string; test: (s: ReferenceSite) => boolean }[] = [
@@ -35,7 +36,7 @@ export function Symbol({ kind }: { kind: 'window' | 'day' | 'night' }) {
   return <i className={`la-sym ${kind}`} aria-hidden="true" />;
 }
 
-export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSearch, onProof, onForecast }: Props) {
+export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSearch, onProof, onForecast, onComparePolar }: Props) {
   const placed = new Set<string>();
   const groups = GROUPS.map((g) => {
     const members = sites.filter((s) => !placed.has(s.site_id) && g.test(s));
@@ -81,7 +82,9 @@ export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSe
       <div className="la-list">
         {groups.map((g) => (
           <div key={g.key} role="group" aria-label={g.title}>
-            <h3 className="la-group">{g.title}</h3>
+            <h3 className="la-group">{g.title}
+              {g.key === 'pole' && onComparePolar && <button type="button" className="la-grouplink" onClick={onComparePolar}>Compare these</button>}
+            </h3>
             {g.members.map((s) => {
               const st = states[s.site_id], o = outlook[s.site_id];
               const change = st?.nextChangeMs != null ? spanText(st.nextChangeMs - cursorMs) : null;
@@ -93,7 +96,7 @@ export function Gazetteer({ sites, live, states, outlook, cursorMs, onPick, onSe
                   <span className={`st ${o?.kind ?? ''}`}>{live && o ? outlookText(o) : ''}</span>
                   <span className="co">{coord(s.latitude_deg, s.longitude_deg)}</span>
                   <span className="dn">
-                    {st ? `${st.day ? 'day' : 'night'}${change ? `, ${st.day ? 'sunset' : 'sunrise'} in ${change}` : ''}` : ''}
+                    {st ? `${st.day ? 'sunset' : 'sunrise'} ${change ?? `${spanText(st.horizonMs - cursorMs)}+`}, Earth${st.earthUp ? 'set' : 'rise'} ${st.earthNextMs != null ? spanText(st.earthNextMs - cursorMs) : `${spanText(st.horizonMs - cursorMs)}+`}` : ''}
                   </span>
                 </button>
               );

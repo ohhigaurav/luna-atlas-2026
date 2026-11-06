@@ -75,3 +75,13 @@ export function fixes(miss: MissAnswer, missionDays: number, maxSunDeg: number |
   if (miss.failed.includes('low_sun') && (maxSunDeg ?? 90) < 30) out.push({ label: 'Allow Sun up to 30°', maxSunDeg: 30 });
   return out;
 }
+
+/** Next Earthset (if Earth is up at t) or Earthrise (if not) from Earth-in-view bands. */
+export function earthAfter(bands: { start_utc: string; end_utc: string }[], t: number): { event: 'Earthset' | 'Earthrise'; ms: number } | null {
+  for (const b of bands) {
+    const a = Date.parse(b.start_utc), e = Date.parse(b.end_utc);
+    if (a <= t && t < e) return { event: 'Earthset', ms: e };
+    if (a > t) return { event: 'Earthrise', ms: a };
+  }
+  return null;
+}

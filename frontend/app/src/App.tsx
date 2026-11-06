@@ -28,6 +28,7 @@ import { PlayIcon } from './ui/Icons';
 import { ProofView } from './proof/ProofView';
 import type { MissionCase } from './proof/evidence';
 import { SurfaceView } from './surface/SurfaceView';
+import { CompareView } from './compare/CompareView';
 
 const SPEEDS = [3600, 6 * 3600, 86400] as const; // simulated seconds per real second
 const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21600: '6 h/s', 86400: '1 d/s' };
@@ -46,7 +47,7 @@ function utcParts(ms: number) {
 }
 const localTime = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
 
-type Sheet = { kind: 'proof' } | { kind: 'surface'; touchdownMs: number } | null;
+type Sheet = { kind: 'proof' } | { kind: 'surface'; touchdownMs: number } | { kind: 'compare' } | null;
 
 export default function App() {
   const [data, setData] = useState<DataSource | null>(null);
@@ -69,6 +70,7 @@ export default function App() {
   const [forecast, setForecast] = useState(false);
   const [fc, setFc] = useState<ForecastData | null>(null);
   const [layers, setLayers] = useState<Layers>({ earth: false, both: false });
+  const [cmp, setCmp] = useState<ReferenceSite[]>([]);   // compare tray, up to 6 places
   const [probe, setProbe] = useState<Probe>({ lat: -89.45, lon: 222.69, name: null });
   const cursorRef = useRef(0);
   const globe = useRef<GlobeHandle>(null);
@@ -291,6 +293,15 @@ export default function App() {
       if (!reducedMotion) setTimeout(() => setPlaying(true), 2600);
     });
   }, [fc, live, covered, loadSky, setCursor, reducedMotion, data, probe.name]);
+  const toggleCompare = useCallback((s: ReferenceSite) => {
+    setCmp((c) => (c.some((x) => x.site_id === s.site_id) ? c.filter((x) => x.site_id !== s.site_id) : [...c, s].slice(-6)));
+  }, []);
+  const polarSix = useCallback(() => (data?.sites ?? []).filter((s) => s.latitude_deg <= -75).slice(0, 6), [data]);
+  const openCompare = useCallback((list?: ReferenceSite[]) => {
+    if (list) setCmp(list);
+    setForecast(false); setPlaying(false);
+    setSheet({ kind: 'compare' });
+  }, []);
   const closeForecast = useCallback(() => { setForecast(false); setPlaying(false); globe.current?.flyHome(); }, []);
 
   const goPoint = (lat: number, lonDeg: number) => {
@@ -329,7 +340,8 @@ export default function App() {
     else if (c.id === 'earth') globe.current?.viewFromEarth();
     else if (c.id === 'grid') setGrid((g) => !g);
     else if (c.id === 'forecast') openForecast();
-  }, [pick, goNow, selected, live, plan, jump, openForecast]);
+    else if (c.id === 'compare') openCompare(cmp.length >= 2 ? undefined : polarSix());
+  }, [pick, goNow, selected, live, plan, jump, openForecast, openCompare, cmp.length, polarSix]);
 
   const showMission = useCallback((c: MissionCase) => {
     const s = c.siteId ? byId(c.siteId) : null;
@@ -410,10 +422,13 @@ export default function App() {
             onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
             onClose={() => globe.current?.flyHome()}
             onProof={() => setSheet({ kind: 'proof' })}
+            inCompare={cmp.some((x) => x.site_id === selected.site_id)}
+            onCompare={() => toggleCompare(selected)}
           />
         ) : (
           <Gazetteer sites={data.sites} live={live} states={states} outlook={outlook} cursorMs={cursorMs}
-            onPick={pick} onSearch={() => setCmd(true)} onProof={() => setSheet({ kind: 'proof' })} onForecast={openForecast} />
+            onPick={pick} onSearch={() => setCmd(true)} onProof={() => setSheet({ kind: 'proof' })} onForecast={openForecast}
+            onComparePolar={live ? () => openCompare(polarSix()) : null} />
         )}
         {!selected && !forecast && <footer className="la-sources">
           Moon: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Earth: NASA Blue Marble, rotation not modelled. Star field illustrative.
@@ -467,6 +482,24 @@ export default function App() {
         </section>
       )}
 
+      {cmp.length > 0 && sheet?.kind !== 'compare' && !forecast && (
+        <div className="la-tray" role="region" aria-label="Compare tray">
+          <span className="la-cap">Compare</span>
+          {cmp.map((c) => (
+            <span key={c.site_id} className="la-chip">{shortName(c.name)}
+              <button type="button" aria-label={`Remove ${c.name}`} onClick={() => toggleCompare(c)}>×</button></span>
+          ))}
+          <button type="button" className="la-btn primary" disabled={cmp.length < 2 || !live} onClick={() => openCompare()}
+            title={cmp.length < 2 ? 'Add at least two places' : undefined}>
+            {cmp.length < 2 ? 'Add one more place' : `Compare ${cmp.length}`}
+          </button>
+          <button type="button" className="la-mlink" onClick={() => setCmp([])}>Clear</button>
+        </div>
+      )}
+      {sheet?.kind === 'compare' && (
+        <CompareView places={cmp} live={live} clockMs={cursorMs} onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
+          onOpen={(s) => { setSheet(null); pick(s); }} onClose={() => setSheet(null)} />
+      )}
       {sheet?.kind === 'proof' && <ProofView live={live} onClose={() => setSheet(null)} onShow={showMission} />}
       {sheet?.kind === 'surface' && selected && (
         <SurfaceView site={selected} touchdownMs={sheet.touchdownMs} missionDays={plan.settings.missionDays} cursorMs={cursorMs}

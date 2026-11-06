@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LandingResult } from '../src/api/plan';
-import { fixes, formatDuration, formatIn, nextLanding, type MissAnswer } from '../src/plan/answer';
+import { fixes, formatDuration, formatIn, nextLanding, type MissAnswer, earthAfter } from '../src/plan/answer';
 
 const T0 = Date.parse('2027-01-01T00:00:00Z');
 const at = (d: number) => new Date(T0 + d * 86400e3).toISOString().replace('.000Z', 'Z');
@@ -64,5 +64,14 @@ describe('formats', () => {
   it('fixes offer a mission that fits and a higher Sun limit', () => {
     const m: MissAnswer = { kind: 'miss', touchdownMs: T0, daylightH: 9.2 * 24, neededH: 240, failed: ['daylight', 'low_sun'] };
     expect(fixes(m, 10, 20).map((f) => f.label)).toEqual(['10 d → 9 d mission', 'Allow Sun up to 30°']);
+  });
+});
+
+describe('earthAfter (Earthset countdown after touchdown)', () => {
+  const b = [{ start_utc: '2027-01-10T00:00:00Z', end_utc: '2027-01-24T00:00:00Z' }, { start_utc: '2027-02-08T00:00:00Z', end_utc: '2027-02-20T00:00:00Z' }];
+  it('gives Earthset when Earth is up at touchdown, Earthrise when it is not', () => {
+    expect(earthAfter(b, Date.parse('2027-01-15T00:00:00Z'))).toEqual({ event: 'Earthset', ms: Date.parse('2027-01-24T00:00:00Z') });
+    expect(earthAfter(b, Date.parse('2027-01-30T00:00:00Z'))).toEqual({ event: 'Earthrise', ms: Date.parse('2027-02-08T00:00:00Z') });
+    expect(earthAfter(b, Date.parse('2027-03-01T00:00:00Z'))).toBeNull();
   });
 });

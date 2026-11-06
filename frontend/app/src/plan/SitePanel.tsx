@@ -7,7 +7,7 @@ import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
 import { CalIcon, ClockIcon, EarthIcon, SunIcon } from '../ui/Icons';
-import { fixes, formatDuration, formatIn, type Answer } from './answer';
+import { earthAfter, fixes, formatDuration, formatIn, type Answer } from './answer';
 import { Calendar } from './Calendar';
 import { SEARCH_DAYS, utcMidnight, type PlanData, type PlanSettings } from './usePlan';
 
@@ -26,6 +26,8 @@ type Props = {
   onSurface: (touchdownMs: number) => void;
   onClose: () => void;
   onProof: () => void;
+  inCompare: boolean;
+  onCompare: () => void;
 };
 
 const bigDate = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -93,7 +95,7 @@ function VerifyLine({ v }: { v: Verify }) {
   );
 }
 
-export function SitePanel({ site, live, now, cursorMs, settings, data, answer, onSettings, onJump, onSurface, onClose, onProof }: Props) {
+export function SitePanel({ site, live, now, cursorMs, settings, data, answer, onSettings, onJump, onSurface, onClose, onProof, inCompare, onCompare }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [cal, setCal] = useState(false);
   useEffect(() => {
@@ -105,6 +107,8 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
 
   const tag = positionTag(site);
   const custom = site.site_id.startsWith('point:');
+  // Earthset or Earthrise after the best touchdown, from the terrain check's Earth bands.
+  const earthEv = data.status === 'ready' && data.bands && answer?.kind === 'window' ? earthAfter(data.bands.earth, answer.bestMs) : null;
   const polar = site.latitude_deg <= -75;
   const quick: { label: string; act: () => void }[] = [
     { label: 'Today', act: () => { const t = utcMidnight(Date.now()); onSettings({ searchStartMs: t, notBeforeMs: t }); } },
@@ -121,7 +125,12 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
     <section className="la-carto-body site" aria-label={site.name}>
       <div className="la-side-scroll">
         <section className="la-sec">
-          <button type="button" className="la-back" onClick={onClose} aria-label="All sites, whole Moon (Esc)">‹ All sites</button>
+          <div className="la-headrow">
+            <button type="button" className="la-back" onClick={onClose} aria-label="All sites, whole Moon (Esc)">‹ All sites</button>
+            <button type="button" className={`la-addcmp${inCompare ? ' on' : ''}`} aria-pressed={inCompare} onClick={onCompare}>
+              {inCompare ? '✓ In compare' : '+ Compare'}
+            </button>
+          </div>
           <div className="la-site-head">
             <h2>{site.name}</h2>
             <span className="co">{formatLat(site.latitude_deg)}  {formatLon(site.longitude_deg)}{site.group ? ` · ${site.group}` : ''}</span>
@@ -142,10 +151,12 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
             </div>
           </div>
           {now && (
-            <p className="la-nowline" title="Sun over flat ground at the clock's time; hills are not included in this line.">
+            <p className="la-nowline" title="Sun and Earth over flat ground at the clock's time; hills are not included in this line. The landing answer below uses terrain.">
               <i className={`la-sw ${now.day ? 'day' : 'night'}`} aria-hidden="true" />
               <span><b className={now.day ? 'sun-c' : undefined}>{now.day ? 'Day' : 'Night'}</b> at the clock's time, Sun <b>{now.sunElDeg.toFixed(1)}°</b>
-                {now.nextChangeMs !== null && <>, {now.day ? 'sets' : 'rises'} in <b>{spanText(now.nextChangeMs - cursorMs)}</b></>}
+                {now.nextChangeMs !== null ? <>, {now.day ? 'sunset' : 'sunrise'} in <b>{spanText(now.nextChangeMs - cursorMs)}</b></> : <>, no {now.day ? 'sunset' : 'sunrise'} for {spanText(now.horizonMs - cursorMs)}+</>}.
+                {' '}Earth <b className={now.earthUp ? 'earth-c' : undefined}>{now.earthElDeg.toFixed(1)}°</b>
+                {now.earthNextMs !== null ? <>, {now.earthUp ? 'Earthset' : 'Earthrise'} in <b>{spanText(now.earthNextMs - cursorMs)}</b></> : <>, {now.earthUp ? 'no Earthset' : 'no Earthrise'} for {spanText(now.horizonMs - cursorMs)}+</>}
                 <span className="la-dim"> (flat ground)</span></span>
             </p>
           )}
@@ -182,9 +193,11 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                       <span className="la-cap sun-c"><SunIcon size={12} />Daylight</span>
                       <b>{formatDuration(answer.daylightH, answer.daylightIsLowerBound)}</b>
                     </button>
-                    <button type="button" className="la-tile" title="Share of the mission with Earth above the horizon" onClick={() => onJump(answer.bestMs)}>
+                    <button type="button" className="la-tile" title="Share of the mission with Earth above the horizon; and when Earth next sets or rises after touchdown (terrain). Click to see it."
+                      onClick={() => onJump(earthEv ? earthEv.ms : answer.bestMs)}>
                       <span className="la-cap earth-c"><EarthIcon size={12} />Earth</span>
                       <b>{Math.round(answer.earthPct)}%</b>
+                      <small>{earthEv ? `${earthEv.event} +${spanText(earthEv.ms - answer.bestMs)}` : data.bands ? 'no change in 60 d' : '…'}</small>
                     </button>
                     <button type="button" className="la-tile" title="From now to touchdown" onClick={() => onJump(answer.bestMs)}>
                       <span className="la-cap"><ClockIcon size={12} />Until</span>
