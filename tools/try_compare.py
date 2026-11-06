@@ -39,7 +39,10 @@ def main() -> int:
     print(f"Compare at {r['at_utc']} over {r['days']} days (panel {r['panel_height_m']} m, antenna {r['antenna_height_m']} m)\n")
     for row in r["rows"]:
         s, n, sn, en, p = row["site"], row["now"], row["sun_next"], row["earth_next"], row["period"]
-        print(f"== {s['name']} [{row['horizon_mode']}] ==")
+        t = row["terrain"]
+        res = f"{t['finest_resolution_m']:g} m terrain" if t["finest_resolution_m"] else row["horizon_mode"]
+        ground = f", ground {t['ground_elevation_m']:.1f} m" if t["ground_elevation_m"] is not None else ""
+        print(f"== {s['name']} [{res}{ground}] ==")
         print(f"  now:   Sun {'UP' if n['sun']['up'] else 'down'} {n['sun']['elevation_deg']:+.2f}° "
               f"(horizon {n['sun']['horizon_deg']:+.2f}°) | Earth {'UP' if n['earth']['up'] else 'down'} "
               f"{n['earth']['elevation_deg']:+.2f}° (horizon {n['earth']['horizon_deg']:+.2f}°)")

@@ -84,3 +84,13 @@ def test_compare_site_and_point_end_to_end() -> None:
     with pytest.raises(ValueError, match="twice"):
         compare.run_compare(CompareRequest(places=[{"site_id": TEST_SITE["site_id"]}] * 2,
                                            at_utc="2027-01-01T00:00:00Z", days=1))
+
+
+def test_terrain_summary() -> None:
+    site = {"terrain": {"site_ground_elevation_m": 1950.2, "assets": [
+        {"asset_id": "tile", "native_resolution_m": 5.0, "samples_used_total": 120},
+        {"asset_id": "regional", "native_resolution_m": 240.0, "samples_used_total": 9000},
+        {"asset_id": "unused", "native_resolution_m": 1.0, "samples_used_total": 0}]}}
+    assert compare.terrain_summary(site) == {"finest_resolution_m": 5.0, "dem_assets": ["tile", "regional"],
+                                             "ground_elevation_m": 1950.2}
+    assert compare.terrain_summary({"terrain": {"site_ground_elevation_m": 0.0}})["finest_resolution_m"] is None
