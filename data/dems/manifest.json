@@ -25,7 +25,14 @@
       "vertical_datum_verified": true,
       "vertical_datum_verification_note": "Heights treated as metres above the 1737.4 km reference sphere, the same radius as the SPICE PCK and the horizon observer model (r_obs = R + DEM ground height + observer height). Inferred, not stated by the publisher: sampled heights -250 to 1956 m lie within the lunar range for that datum. Median difference to pgda90-60s-240m-regional 0.28 m over 1600 points (p05 -6.1 m, p95 6.0 m). Evidence validation/evidence/dem_review_2026-10-28.json (sha256 79d7a2f01b1692a57c97f3e4bec6638472c6ee513ef80fbcfd9bda134fb1f2a1), reviewed by the team on 2026-10-28.",
       "elevation_units": "m",
-      "nodata_policy": "unknown"
+      "nodata_policy": "unknown",
+      "footprint_stereo_m": [
+        -19000.0,
+        -20000.0,
+        -3000.0,
+        -4000.0
+      ],
+      "select_by_footprint": true
     },
     {
       "asset_id": "pgda78-site04-surface",
@@ -48,7 +55,14 @@
       "vertical_datum_verified": true,
       "vertical_datum_verification_note": "Heights treated as metres above the 1737.4 km reference sphere, the same radius as the SPICE PCK and the horizon observer model (r_obs = R + DEM ground height + observer height). Inferred, not stated by the publisher: sampled heights -2756 to 1737 m lie within the lunar range for that datum. Median difference to pgda90-60s-240m-regional -0.44 m over 1600 points (p05 -5.3 m, p95 6.6 m). Evidence validation/evidence/dem_review_2026-10-28.json (sha256 79d7a2f01b1692a57c97f3e4bec6638472c6ee513ef80fbcfd9bda134fb1f2a1), reviewed by the team on 2026-10-28.",
       "elevation_units": "m",
-      "nodata_policy": "unknown"
+      "nodata_policy": "unknown",
+      "footprint_stereo_m": [
+        -9000.0,
+        -15000.0,
+        7000.0,
+        1000.0
+      ],
+      "select_by_footprint": true
     },
     {
       "asset_id": "pgda90-60s-240m-regional",
