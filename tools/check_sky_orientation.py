@@ -9,6 +9,11 @@ A. Star rotation ``j2000_to_frame`` (no network), 2027 at a 6 h step:
       J2000) vs the response's MOON_ME unit vectors, angle <= 1e-4 deg (payload rounding is ~1e-5 deg)
    A3 the Moon's north pole in J2000 (row 3 of M): RA within 1 deg of 270.0, Dec within 1 deg of 66.5
       (IAU 2015: alpha0 = 269.9949, delta0 = 66.5392, plus terms well under 1 deg)
+      ** This limit was wrong and failed on the first run (2026-11-06): the IAU pole has an
+      18.6-year term of 3.88 deg in RA and 1.54 deg in Dec. That run's FAIL stays on record
+      (validation/evidence/sky_orientation_2026-11-06.md). From v2, A3 compares with the full IAU
+      2015 formula: every sample within 0.05 deg of it on the sky. That limit was set after
+      seeing the first run, so a v2 PASS is a consistency check, not a pre-registered result. **
    A4 mean spin rate of the frame's +X axis about that pole: 360 / 27.321661 deg/day within 0.5%
 
 B. Earth's sub-Moon point vs JPL Horizons (network), the same 13 epochs:
@@ -43,7 +48,7 @@ EPOCH_STEP_DAYS = 30
 SIDEREAL_DAYS = 27.321661
 EARTH_A_KM, EARTH_B_KM = 6378.1366, 6356.7519
 LIMITS = {
-    "A1_orthonormal": 1e-8, "A2_vector_deg": 1e-4, "A3_pole_deg": 1.0, "A4_rate_fraction": 0.005,
+    "A1_orthonormal": 1e-8, "A2_vector_deg": 1e-4, "A3_pole_deg": 0.05, "A4_rate_fraction": 0.005,
     "B_lon_deg": 0.1, "B_lat_deg": 0.1,
 }
 
@@ -78,6 +83,26 @@ def pole_ra_dec(m: list[list[float]]) -> tuple[float, float]:
     """Frame +Z in J2000 is row 3 of M (v_frame = M v_J2000)."""
     x, y, z = m[2]
     return math.degrees(math.atan2(y, x)) % 360.0, math.degrees(math.asin(max(-1.0, min(1.0, z))))
+
+
+def iau_moon_pole(d: float) -> tuple[float, float]:
+    """IAU 2015 (WGCCRE) Moon north pole RA, Dec in degrees; d = TDB days from J2000 (UTC is close enough)."""
+    t = d / 36525.0
+    e = {1: 125.045 - 0.0529921 * d, 2: 250.089 - 0.1059842 * d, 3: 260.008 + 13.0120009 * d,
+         4: 176.625 + 13.3407154 * d, 6: 311.589 + 26.4057084 * d, 7: 134.963 + 13.0649930 * d,
+         10: 15.134 - 0.1589763 * d, 13: 25.053 + 12.9590088 * d}
+    sn = {k: math.sin(math.radians(v)) for k, v in e.items()}
+    cs = {k: math.cos(math.radians(v)) for k, v in e.items()}
+    ra = (269.9949 + 0.0031 * t - 3.8787 * sn[1] - 0.1204 * sn[2] + 0.0700 * sn[3] - 0.0172 * sn[4]
+          + 0.0072 * sn[6] - 0.0052 * sn[10] + 0.0043 * sn[13])
+    dec = (66.5392 + 0.0130 * t + 1.5419 * cs[1] + 0.0239 * cs[2] - 0.0278 * cs[3] + 0.0068 * cs[4]
+           - 0.0029 * cs[6] + 0.0009 * cs[7] + 0.0008 * cs[10] - 0.0009 * cs[13])
+    return ra % 360.0, dec
+
+
+def radec_unit(ra_deg: float, dec_deg: float) -> list[float]:
+    ra, dec = math.radians(ra_deg), math.radians(dec_deg)
+    return [math.cos(dec) * math.cos(ra), math.cos(dec) * math.sin(ra), math.sin(dec)]
 
 
 def spin_rate_deg_per_day(mats: list[list[list[float]]], et_s: list[float]) -> float:
@@ -161,11 +186,13 @@ def main() -> int:
     results["A2_vector_deg"] = {"value": worst, "pass": worst <= LIMITS["A2_vector_deg"]}
 
     ras, decs = zip(*(pole_ra_dec(m) for m in mats), strict=True)
-    ra_err = max(abs(wrap_deg(r - 270.0)) for r in ras)
-    dec_err = max(abs(d - 66.5) for d in decs)
-    results["A3_pole_deg"] = {"value": {"max_ra_err": ra_err, "max_dec_err": dec_err,
+    j2000_et = 0.0  # SPICE ET 0 = J2000 TDB
+    pole_sep = max(angle_deg(m[2], radec_unit(*iau_moon_pole((et - j2000_et) / 86_400.0)))
+                   for m, et in zip(mats, et_s, strict=True))
+    results["A3_pole_deg"] = {"value": {"max_sep_from_iau_2015_deg": pole_sep,
                                         "ra_range": [min(ras), max(ras)], "dec_range": [min(decs), max(decs)]},
-                              "pass": ra_err <= LIMITS["A3_pole_deg"] and dec_err <= LIMITS["A3_pole_deg"]}
+                              "criterion": "v2 (set after the first run): <= 0.05 deg from the full IAU 2015 pole",
+                              "pass": pole_sep <= LIMITS["A3_pole_deg"]}
 
     rate = spin_rate_deg_per_day(mats, et_s)
     expected = 360.0 / SIDEREAL_DAYS
@@ -191,8 +218,8 @@ def main() -> int:
     print(f"Sky orientation check — frame {sky['frame']}, {len(et_s)} samples over 2027, {len(picks)} test epochs")
     print(f"  A1 orthonormal       max err {a1:.1e}   {'PASS' if results['A1_orthonormal']['pass'] else 'FAIL'}")
     print(f"  A2 M @ J2000 vectors max {worst:.2e} deg   {'PASS' if results['A2_vector_deg']['pass'] else 'FAIL'}")
-    print(f"  A3 Moon pole         RA {min(ras):.3f}..{max(ras):.3f}  Dec {min(decs):.3f}..{max(decs):.3f}   "
-          f"{'PASS' if results['A3_pole_deg']['pass'] else 'FAIL'}")
+    print(f"  A3 Moon pole (v2)    RA {min(ras):.3f}..{max(ras):.3f}  Dec {min(decs):.3f}..{max(decs):.3f}  "
+          f"max {pole_sep:.4f} deg from IAU 2015   {'PASS' if results['A3_pole_deg']['pass'] else 'FAIL'}")
     print(f"  A4 spin rate         {rate:.5f} deg/day (expected {expected:.5f})   "
           f"{'PASS' if results['A4_rate_deg_per_day']['pass'] else 'FAIL'}")
     print("  B  Earth sub-Moon point vs Horizons (deg)")
@@ -201,7 +228,7 @@ def main() -> int:
               f"ours {r['ours_detic'][0]:9.4f} {r['ours_detic'][1]:8.4f}  "
               f"dlon {r['d_lon_cos_lat']:+.4f} dlat {r['d_lat']:+.4f}  {'PASS' if r['pass'] else 'FAIL'}")
     passed = all(v["pass"] for v in results.values())
-    print(f"\nVERDICT (criteria fixed before the run): {'PASS' if passed else 'FAIL'}")
+    print(f"\nVERDICT: {'PASS' if passed else 'FAIL'} (A3 v2 limit set after the first run; see the docstring)")
 
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out = ROOT / "data" / "derived" / f"sky_orientation_check_{stamp}.json"

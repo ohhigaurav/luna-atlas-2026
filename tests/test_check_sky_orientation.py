@@ -64,3 +64,13 @@ def test_horizons_params() -> None:
     p = cso.horizons_params([2461406.5, 2461436.5])
     assert p["COMMAND"] == "'399'" and p["CENTER"] == "'500@301'" and p["QUANTITIES"] == "'14'"
     assert p["TLIST"].split("\n") == ["2461406.500000000", "2461436.500000000"]
+
+
+def test_iau_moon_pole() -> None:
+    ra, dec = cso.iau_moon_pole(0.0)  # J2000: E1 = 125.045 deg
+    assert ra == pytest.approx(269.9949 - 3.8787 * math.sin(math.radians(125.045)), abs=0.2)
+    assert dec == pytest.approx(66.5392 + 1.5419 * math.cos(math.radians(125.045)), abs=0.1)
+    # 2027 (d ~ 9862): the 18.6-year term moves the pole to RA ~272.4-273.4, Dec ~67.4-67.8.
+    ra27, dec27 = cso.iau_moon_pole(9861.5)
+    assert 272.0 < ra27 < 273.6 and 67.3 < dec27 < 67.9
+    assert cso.angle_deg(cso.radec_unit(ra27, dec27), cso.radec_unit(ra27, dec27)) == 0.0
