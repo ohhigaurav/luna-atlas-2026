@@ -13,6 +13,8 @@ export type LandingOpportunity = {
   sunset_utc: string | null;
   sun_elevation_at_best_deg: number;
   earth_in_view_during_mission_pct: number;
+  /** Sun above the local (terrain) horizon at best touchdown: the main number (6 Nov). */
+  sun_above_horizon_at_best_deg?: number;
   verify?: Verify;
 };
 

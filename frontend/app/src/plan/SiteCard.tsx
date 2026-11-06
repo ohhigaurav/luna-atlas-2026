@@ -52,14 +52,14 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
     verdict = (
       <>
         <p className="sc-v good"><i>✓</i> You can land on this date</p>
-        <p className="sc-sub">The window stays open until {day(answer.untilMs)}. Land by then and the Sun stays up for {settings.missionDays} days, with Earth in view at touchdown.</p>
+        <p className="sc-sub">{answer.opportunity.sun_above_horizon_at_best_deg !== undefined && <>Sun <b>{answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}°</b> above the horizon at the best moment. </>}The window stays open until {day(answer.untilMs)}. Land by then and the Sun stays up for {settings.missionDays} days, with Earth in view at touchdown.</p>
       </>
     );
   } else if (answer?.kind === 'window') {
     verdict = (
       <>
         <p className="sc-v warn">Not a good date to land here</p>
-        <p className="sc-sub">Next chance: <b>{day(answer.fromMs)}</b>, in {spanText(answer.fromMs - cursorMs)}.</p>
+        <p className="sc-sub">Next chance: <b>{day(answer.fromMs)}</b>, in {spanText(answer.fromMs - cursorMs)}{answer.opportunity.sun_above_horizon_at_best_deg !== undefined ? `, Sun ${answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}° above the horizon` : ''}.</p>
         <button type="button" className="la-btn primary" onClick={() => onJump(answer.bestMs)}>Go to {day(answer.bestMs)}</button>
       </>
     );

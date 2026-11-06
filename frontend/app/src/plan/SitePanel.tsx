@@ -190,7 +190,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                   <button type="button" className="la-big" onClick={() => onJump(answer.bestMs)} title={data.landing.summary[0]}>
                     <span>{bigDate(answer.bestMs)}</span> <small>{timeOf(answer.bestMs)}</small>
                   </button>
-                  <span className="la-range">touchdown {utcShort(answer.opportunity.touchdown_from_utc)} → {utcShort(answer.opportunity.touchdown_until_utc)} UTC · Sun {answer.opportunity.sun_elevation_at_best_deg.toFixed(1)}° at best</span>
+                  <span className="la-range">touchdown {utcShort(answer.opportunity.touchdown_from_utc)} → {utcShort(answer.opportunity.touchdown_until_utc)} UTC · Sun {answer.opportunity.sun_above_horizon_at_best_deg !== undefined ? `${answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}° above the horizon (${answer.opportunity.sun_elevation_at_best_deg.toFixed(1)}° above level)` : `${answer.opportunity.sun_elevation_at_best_deg.toFixed(1)}°`} at best</span>
                   {answer.opportunity.verify && <VerifyLine v={answer.opportunity.verify} />}
                   <div className="la-tiles">
                     <button type="button" className="la-tile" title="Daylight left after touchdown. Click to see sunset."
