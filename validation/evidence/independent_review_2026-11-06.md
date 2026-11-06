@@ -22,7 +22,7 @@ itself held up.
 | 7 | Terrain effectively starts at about 66.6°S, not 60°S (200 km rays leave the raster) | minor | confirmed (arithmetic) | **partly fixed:** honest text in 0.7.37; ray capping not done |
 | 8 | Event-day distance sanity check covered polar sites only | minor | confirmed | **fixed** 0.7.37 |
 | 9 | Expert API can request a horizon of about 73 million cells under the global lock | minor (local) / major (exposed) | confirmed by reading | **fixed** 0.7.37: 5 M sample budget |
-| 10 | 0.5° azimuth bins: narrow ridges missed; "5 m" overstates the lateral detail used | minor | plausible, unmeasured | **open:** sensitivity run planned |
+| 10 | 0.5° azimuth bins: narrow ridges missed; "5 m" overstates the lateral detail used | minor | plausible, unmeasured | **tool ready** `tools/azimuth_sensitivity.py` (decision rule fixed before its run: switch to 0.25° if any change exceeds 2 points) |
 | 11 | Forecast Sun mask at 0 m, site panel at 2 m (2 m doubles Site 001's sunlight per WAC evidence) | minor | confirmed | **label handed to frontend** (PRD); a 2 m re-bake is optional (about 3.5 h) |
 
 ## Our assessment of the findings
