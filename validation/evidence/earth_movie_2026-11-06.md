@@ -30,6 +30,7 @@ movie's grid (320² at 250 m, ±40 km). It took about 70 min.
   this month.
 - **Sun and Earth together** (Sun frames taken at the Earth frame times): at best 49.2% of the
   month; 59.6% of the area never has both.
+- **Correction 2026-11-06:** the next line is the 240 m pixel. Site 001 with its 5 m tile gets Sun 69% and Earth 36% from 10 Jan (`resolution_site001_2026-11-06.md`).
 - **Site 001 / brightest-Sun pixel** (89.45°S, 223.2°E): Sun 100% of the Earth frame times,
   Earth 46.7%. Earth is visible from 01-10 00:00 to 01-23 18:00 without a break.
 - **Agrees with the custom-point landing run** for the same point (`sky_orientation_2026-11-06.md`):
