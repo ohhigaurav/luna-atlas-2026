@@ -25,7 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from lunar_core import __version__, analysis_service, custom_point, verify
+from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
 from lunar_core.provenance import sha256_file
 
@@ -143,7 +143,8 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
 
 # --- request handling and cache ---------------------------------------------------------------
 
-def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha: str | None) -> str:
+def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha: str | None,
+               site: dict[str, Any] | None = None) -> str:
     from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
 
     material = {
@@ -151,6 +152,7 @@ def _cache_key(request: CheckRequest, mode: str, dem_sha: str | None, kernel_sha
         "kernel_manifest": kernel_sha, "dem_manifest": dem_sha if mode == "terrain" else None,
         "request": request.model_dump(mode="json"), "mode": mode,
         "step": COARSE_STEP_MIN, "tolerance": EVENT_TOLERANCE_S, "antenna": ANTENNA_HEIGHT_M,
+        "code": cache_keys.code_fingerprint(), "site": cache_keys.site_fingerprint(site or {}),
     }
     return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:32]
 
@@ -188,7 +190,7 @@ def run_check(request: CheckRequest) -> dict[str, Any]:
     note: str | None = None
     failed_indexes: list[Path] = []  # terrain keys that fell back; they will point at the flat run
     for mode in ([preferred, "flat"] if preferred == "terrain" else ["flat"]):
-        key = _cache_key(request, mode, dem_sha, kernel_sha)
+        key = _cache_key(request, mode, dem_sha, kernel_sha, site)
         index = _cache_dir() / f"{key}.json"
         if index.is_file():
             try:
@@ -208,7 +210,7 @@ def run_check(request: CheckRequest) -> dict[str, Any]:
         index.parent.mkdir(parents=True, exist_ok=True)
         entry = json.dumps({"run_id": run["run_id"], "horizon_note": note})
         for path in (index, *failed_indexes):  # so a repeat request does not retry terrain
-            path.write_text(entry, encoding="utf-8")
+            cache_keys.write_atomic(path, entry)
         return _response(run, request, note, cache_hit=False, seconds=time.monotonic() - started)
     raise analysis_service.AnalysisNotReady("no horizon model could be built for this site")
 
@@ -226,7 +228,9 @@ def _response(run: dict[str, Any], request: CheckRequest, note: str | None, *, c
             "event_tolerance_s": settings["event_tolerance_s"],
             "sun_observer_height_m": settings["sun_observer_height_m"],
             "antenna_height_m": settings["antenna_height_m"],
-            "why": "terrain at or south of 60 S where DEMs exist, otherwise flat; 10 s event precision",
+            "why": ("terrain is tried at or south of 60 S; it needs the regional map under 200 km of rays in "
+                    "every direction, which holds south of about 66.6 S, so between 60 and ~66.6 S answers usually "
+                    "fall back to a flat horizon (with a note); 10 s event precision"),
         },
         "summary": summarise(run, height_m=request.panel_height_m, horizon_note=note,
                              constraints=MissionConstraints()),

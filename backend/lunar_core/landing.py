@@ -18,14 +18,18 @@ Rules for a touchdown instant t:
   R4 low_sun       the Sun's centre is at most ``max_sun_elevation_deg`` above the flat
                    horizontal at t (long shadows for hazard detection; Apollo landed at
                    5-15 deg), if set.
-  R5 sun_high      the Sun's centre is at least ``min_sun_elevation_deg`` above the flat
-                   horizontal at t, so the ground is lit well enough to see hazards rather than at
-                   the first sliver of sunrise. "auto" (default): 5 deg, Apollo's lower bound
-                   (5-14 deg; NASA SP-4214 ch. 6), wherever the Sun can climb past 14 deg
-                   (|lat| <= 77.5 deg: 90 - |lat| + 1.54 deg lunar obliquity >= 14). Off nearer the
-                   poles, where the Sun never gets that high (at the Artemis south-pole regions it
-                   never exceeds ~7 deg and is usually 1-2 deg; NASA NESC, IAASS 2023), so only R1
-                   applies there. ``None`` turns R5 off everywhere.
+  R5 sun_high      the Sun's centre stands at least ``min_sun_elevation_deg`` above the LOCAL
+                   horizon at t (terrain, or the level horizon where flat), so the ground is lit
+                   well enough to see hazards instead of at the first sliver of sunrise. "auto"
+                   (default) = min(5 deg, half the highest Sun the latitude allows,
+                   0.5 * (90 - |lat| + 1.54 deg lunar obliquity)): 5 deg is Apollo's lower bound
+                   (5-14 deg; NASA SP-4214 ch. 6) and applies wherever the Sun climbs past 10 deg
+                   (|lat| <= ~81.5 deg); nearer the pole the threshold shrinks with the Sun's reach
+                   (84.8 S: 3.4 deg, 89.5 S: 1.0 deg), where the Sun never exceeds ~7 deg and is
+                   usually 1-2 deg (NASA NESC, IAASS 2023). Measured above the local horizon, so a
+                   ridge-top Sun at -2.9 deg from the level horizontal still counts if it clears the
+                   dipped horizon. ``None`` turns R5 off. A threshold at or above
+                   ``max_sun_elevation_deg`` is refused (no time could pass both).
 Touchdown candidates are the analysis samples (30 min apart), so window edges are good to
 30 min. Sunset times inside the analysis are event-refined (10 s).
 """
@@ -41,10 +45,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from lunar_core import __version__, analysis_service, custom_point, verify
+from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-5"  # 2: verify; 3: custom caveat; 4: R5 sun_high; 5: Sun clearance
+CACHE_SCHEMA = "landing-cache-6"  # 4: R5; 5: clearance; 6: R5 v2 (local horizon, latitude-scaled)
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
@@ -58,17 +62,17 @@ RULE_TEXT = {
     "sun_high": "Sun high enough to light the ground (not the first sliver of sunrise)",
 }
 AUTO_MIN_SUN_DEG = 5.0
-AUTO_MIN_SUN_LAT_LIMIT_DEG = 77.5
+AUTO_MIN_SUN_FRACTION = 0.5
 LUNAR_OBLIQUITY_DEG = 1.54
 
 
 def resolve_min_sun(setting: float | str | None, latitude_deg: float) -> float | None:
-    """R5's threshold for a site: a number as given, "auto" by latitude, None = off."""
+    """R5's threshold (deg above the local horizon): a number as given, "auto" by latitude, None = off."""
     if setting is None:
         return None
     if setting == "auto":
-        reachable = 90.0 - abs(latitude_deg) + LUNAR_OBLIQUITY_DEG
-        return AUTO_MIN_SUN_DEG if abs(latitude_deg) <= AUTO_MIN_SUN_LAT_LIMIT_DEG and reachable >= 14.0 else None
+        reach = max(0.0, 90.0 - abs(latitude_deg) + LUNAR_OBLIQUITY_DEG)
+        return min(AUTO_MIN_SUN_DEG, AUTO_MIN_SUN_FRACTION * reach)
     return float(setting)
 
 
@@ -148,7 +152,9 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
             "daylight": w is not None and left >= need_s,
             "earth_up": s.earth_up or not require_earth,
             "low_sun": max_sun_el_deg is None or s.sun_el_deg <= max_sun_el_deg,
-            "sun_high": min_sun_el_deg is None or s.sun_el_deg >= min_sun_el_deg,
+            "sun_high": min_sun_el_deg is None or (
+                s.sun_el_deg - (s.sun_horizon_deg or 0.0) if s.sun_horizon_deg is not None else s.sun_el_deg
+            ) >= min_sun_el_deg,
         }
         rows.append({"s": s, "window": w, "left_s": left, "checks": checks,
                      "lower_bound": bool(w and w.end_open)})
@@ -246,26 +252,33 @@ _KEY_LOCKS: dict[str, threading.Lock] = {}
 _KEY_LOCKS_GUARD = threading.Lock()
 
 
-def _cache_path(request: LandingRequest) -> Any:
-    """Result cache: same request, software, horizon algorithm and kernel/DEM manifests."""
+def _cache_path(request: LandingRequest, site: dict[str, Any]) -> Any:
+    """Result cache: same request, resolved site record, backend code, horizon algorithm and manifests."""
     from lunar_core.terrain import HORIZON_ALGORITHM_VERSION
 
     material: dict[str, Any] = {"schema": CACHE_SCHEMA, "version": __version__, "horizon": HORIZON_ALGORITHM_VERSION,
-                                "request": request.model_dump(mode="json"), "step": STEP_MIN, "chunk": CHUNK_DAYS}
-    for path in (analysis_service.KERNEL_MANIFEST, analysis_service.DEM_MANIFEST):
-        try:
-            material[path.name] = path.stat().st_mtime_ns
-        except OSError:
-            material[path.name] = None
+                                "request": request.model_dump(mode="json"), "step": STEP_MIN, "chunk": CHUNK_DAYS,
+                                **cache_keys.key_material(site=site, manifests=(analysis_service.KERNEL_MANIFEST,
+                                                                                analysis_service.DEM_MANIFEST))}
     key = hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:32]
     return analysis_service.RUNS_DIR.parent / "cache" / "landing" / f"{key}.json"
+
+
+def check_sun_band(request: LandingRequest, site: dict[str, Any]) -> float | None:
+    """R5's threshold for this site; refuse a band no touchdown time could satisfy."""
+    min_sun = resolve_min_sun(request.min_sun_elevation_deg, float(site["latitude_deg"]))
+    if min_sun is not None and request.max_sun_elevation_deg is not None and min_sun >= request.max_sun_elevation_deg:
+        raise ValueError(f"minimum Sun height {min_sun:.2f} deg is not below the maximum "
+                         f"{request.max_sun_elevation_deg:.2f} deg: no touchdown time could pass both")
+    return min_sun
 
 
 def run_landing(request: LandingRequest) -> dict[str, Any]:
     """Cached: the app asks the same question for every site on opening (pin status, PRD F24)."""
     site = custom_point.resolve(request.site_id, request.latitude_deg, request.longitude_deg,
                                 analysis_service._load_sites())
-    cache = _cache_path(request)
+    check_sun_band(request, site)  # fail fast, before any computation
+    cache = _cache_path(request, site)
     # The background warmer and the browser can ask the same question at once: the second waits
     # for the first and reads its answer instead of computing it again.
     with _KEY_LOCKS_GUARD:
@@ -277,8 +290,7 @@ def run_landing(request: LandingRequest) -> dict[str, Any]:
             except (OSError, json.JSONDecodeError):
                 cache.unlink(missing_ok=True)
         result = _compute_landing(request, site)
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(json.dumps(result), encoding="utf-8")
+        cache_keys.write_atomic(cache, json.dumps(result))
         return {**result, "cache_hit": False}
 
 
@@ -319,7 +331,7 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
     sun = merge_windows([r["sun_windows"] for r in results])
     earth = merge_windows([r["earth_windows"] for r in results])
     search_end_s = samples[0].t_s + request.search_days * 86400.0
-    min_sun = resolve_min_sun(request.min_sun_elevation_deg, float(site["latitude_deg"]))
+    min_sun = check_sun_band(request, site)
     result = evaluate(samples, sun, earth, mission_days=request.mission_days,
                       require_earth=request.require_earth_at_landing,
                       max_sun_el_deg=request.max_sun_elevation_deg, search_end_s=search_end_s,
@@ -354,9 +366,10 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
             "max_sun_elevation_deg": request.max_sun_elevation_deg,
             "min_sun_elevation_deg": min_sun,
             "min_sun_setting": request.min_sun_elevation_deg,
-            "min_sun_reference": ("auto: 5 deg (Apollo's lower bound, 5-14 deg; NASA SP-4214) where the Sun can "
-                                  "climb past 14 deg (|lat| <= 77.5 deg); off near the poles, where the Sun stays "
-                                  "below ~7 deg (NASA NESC, IAASS 2023)"),
+            "min_sun_measured_from": "local horizon (terrain where modelled)",
+            "min_sun_reference": ("auto: min(5 deg, half the highest Sun the latitude allows). 5 deg is Apollo's "
+                                  "lower bound (5-14 deg; NASA SP-4214); near the pole the Sun stays below ~7 deg "
+                                  "(NASA NESC, IAASS 2023), so the threshold shrinks with it"),
             "panel_height_m": request.panel_height_m,
             "text": RULE_TEXT,
             "low_sun_reference": "Apollo landings were made with the Sun 5-15 deg up "

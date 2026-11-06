@@ -7,6 +7,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+# One horizon build holds azimuths x radial samples in memory under the global run lock; the
+# defaults need ~1.7 million. Beyond this a single request could exhaust memory (review, 6 Nov).
+MAX_HORIZON_SAMPLES = 5_000_000
+
+
 class CommonScenario(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -34,6 +39,13 @@ class CommonScenario(BaseModel):
     def terrain_ranges_valid(self) -> CommonScenario:
         if self.terrain_near_range_m >= self.terrain_max_range_m:
             raise ValueError("terrain_near_range_m must be less than terrain_max_range_m")
+        if self.horizon_mode == "terrain":
+            cells = (360.0 / self.terrain_azimuth_step_deg) * (
+                self.terrain_near_range_m / self.terrain_near_step_m
+                + (self.terrain_max_range_m - self.terrain_near_range_m) / self.terrain_far_step_m)
+            if cells > MAX_HORIZON_SAMPLES:
+                raise ValueError(f"terrain sampling would need {cells:,.0f} samples (limit {MAX_HORIZON_SAMPLES:,}); "
+                                 "use a coarser azimuth or radial step")
         return self
 
 
@@ -206,7 +218,16 @@ def _site_or_point(model: Any) -> Any:
         raise ValueError("give either site_id or latitude_deg and longitude_deg, not both or neither")
     if has_point and (model.latitude_deg is None or model.longitude_deg is None):
         raise ValueError("a point needs both latitude_deg and longitude_deg")
+    if has_point and abs(model.latitude_deg) > POLE_EXCLUSION_LAT_DEG:
+        raise ValueError(f"the exact pole has no north or east, so terrain directions are undefined there; "
+                         f"pick a point at least {90 - POLE_EXCLUSION_LAT_DEG:g} deg (~15 m) away, e.g. "
+                         f"{-POLE_EXCLUSION_LAT_DEG if model.latitude_deg < 0 else POLE_EXCLUSION_LAT_DEG:g}")
     return model
+
+
+# Within this of a pole the local north/east frame used for terrain rays degenerates
+# (all rays collapse onto two meridians at exactly +/-90; independent review, 6 Nov).
+POLE_EXCLUSION_LAT_DEG = 89.9995
 
 
 class CheckRequest(BaseModel):

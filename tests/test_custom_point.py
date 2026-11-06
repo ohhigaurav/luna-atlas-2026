@@ -41,7 +41,8 @@ def test_request_takes_a_site_or_a_point(model: Any, extra: dict[str, Any]) -> N
     assert model(latitude_deg=-89.4, longitude_deg=-40.0, **extra).site_id is None
     for bad in ({}, {"site_id": "x", "latitude_deg": -89.0, "longitude_deg": 1.0},
                 {"latitude_deg": -89.0}, {"latitude_deg": -91.0, "longitude_deg": 0.0},
-                {"latitude_deg": -89.0, "longitude_deg": 360.0}):
+                {"latitude_deg": -89.0, "longitude_deg": 360.0}, {"latitude_deg": -90.0, "longitude_deg": 0.0},
+                {"latitude_deg": -89.9999, "longitude_deg": 10.0}):
         with pytest.raises(ValidationError):
             model(**bad, **extra)
 
@@ -91,7 +92,8 @@ def test_check_at_a_point_matches_the_catalogue_site_at_the_same_place(seen_site
 @pytest.mark.usefixtures("synthetic_service_environment")
 def test_landing_windows_at_a_point(seen_sites: list[tuple[str, str]]) -> None:
     lat, lon = float(TEST_SITE["latitude_deg"]), float(TEST_SITE["longitude_deg"])
-    common = {"search_start_utc": "2027-01-01T00:00:00Z", "search_days": 2, "mission_days": 0.25}
+    common = {"search_start_utc": "2027-01-01T00:00:00Z", "search_days": 2, "mission_days": 0.25,
+              "min_sun_elevation_deg": None}  # synthetic Sun stays low; R5 is tested in test_landing
     by_site = landing.run_landing(LandingRequest(site_id=TEST_SITE["site_id"], **common))
     by_point = landing.run_landing(LandingRequest(latitude_deg=lat, longitude_deg=lon, **common))
     assert by_point["site"]["site_id"] == "custom-point" and by_point["site"]["origin"] == "custom"
@@ -100,3 +102,12 @@ def test_landing_windows_at_a_point(seen_sites: list[tuple[str, str]]) -> None:
     # Flat fallback: the custom-point caveat (about 240 m terrain) is not shown, the fallback note is.
     assert not any("A point you picked" in c for c in by_point["caveats"])
     assert any("Terrain was not available" in c for c in by_point["caveats"])
+
+
+def test_pole_is_refused_for_terrain() -> None:
+    from lunar_core.analysis_service import TerrainNotReady, _build_site_horizon
+
+    site = {**custom_point.custom_site(-89.9995, 0.0), "latitude_deg": -90.0}
+    with pytest.raises(TerrainNotReady, match="pole"):
+        _build_site_horizon(site, None, AnalysisRequest(site_ids=["custom-point"], start_utc="2027-01-01T00:00:00Z",
+                                                        end_utc="2027-01-02T00:00:00Z", horizon_mode="terrain"))

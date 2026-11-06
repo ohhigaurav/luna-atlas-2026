@@ -119,7 +119,7 @@ def report_markdown(rows: list[dict[str, Any]], compare: list[dict[str, Any]], m
     for r in rows:
         nw = r.get("next_window")
         ref = r["nearest_reference"]
-        flag = " ⚠" if ref and ref["km"] > SANITY_KM and r["polar"] else ""
+        flag = " ⚠" if ref and ref["km"] > SANITY_KM else ""
         window = ("**" + nw["from_utc"][:16] + " → " + nw["until_utc"][:16] + "**") if nw else (
             "error: " + r["error"] if r.get("error") else "none in 90 d")
         lines.append(
@@ -128,9 +128,10 @@ def report_markdown(rows: list[dict[str, Any]], compare: list[dict[str, Any]], m
             + (_fmt_h(nw["daylight_h"], nw["daylight_lower_bound"]) if nw else "–") + " | "
             + (f"{nw['earth_pct']:.0f}%" if nw else "–") + " | "
             + (f"{ref['name']} ({ref['km']:.2f}){flag}" if ref else "–") + " |")
-    if any(r["nearest_reference"] and r["nearest_reference"]["km"] > SANITY_KM and r["polar"] for r in rows):
-        lines += ["", f"⚠ = a polar official site more than {SANITY_KM:g} km from every reference point. Fine if it is "
-                  "a new place; if it should match a known mission or landmark, check the longitude convention first."]
+    if any(r["nearest_reference"] and r["nearest_reference"]["km"] > SANITY_KM for r in rows):
+        lines += ["", f"⚠ = an official site more than {SANITY_KM:g} km from every reference point. Fine if it is "
+                  "a new place; if it should match a known mission or landmark, check the longitude convention first "
+                  "(a flipped sign moves a site by 2 x longitude; Malapert's NASA page may carry exactly that slip)."]
     for block in compare:
         lines += ["", f"## Polar sites side by side at {block['at_utc'][:16]} UTC (30 days)", "",
                   "| site | terrain | Sun now | next Sun event | Earth now | next Earth event | sunlit | Earth | both |",
@@ -197,8 +198,10 @@ def main() -> int:
         row = site_row(site, landing, error, refs)
         rows.append(row)
         nw = row.get("next_window")
+        ref = row["nearest_reference"]
+        warn = f"  ⚠ {ref['km']:.1f} km from nearest reference ({ref['name']})" if ref and ref["km"] > SANITY_KM else ""
         print(f"  {i}/{len(placed)} {site['name']}: " + (error or (f"next {nw['from_utc'][:16]} → {nw['until_utc'][:16]} "
-              f"({row.get('horizon_mode')})" if nw else f"no window in 90 d ({row.get('horizon_mode')})")), flush=True)
+              f"({row.get('horizon_mode')})" if nw else f"no window in 90 d ({row.get('horizon_mode')})")) + warn, flush=True)
 
     polar = [r for r in rows if r["polar"] and not r.get("error")]
     compare_blocks = []

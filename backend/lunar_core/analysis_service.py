@@ -238,7 +238,11 @@ def _build_site_horizon(
         }
         return 0.0, None, None, metadata, "flat"
 
+    from lunar_core.api_models import POLE_EXCLUSION_LAT_DEG
     from lunar_core.terrain import DEMManifestError, build_cached_horizon_from_dem_assets
+    if abs(float(site["latitude_deg"])) > POLE_EXCLUSION_LAT_DEG:
+        raise TerrainNotReady(f"{site['site_id']} is within ~15 m of the pole, where terrain ray directions are "
+                              "undefined; terrain horizon refused")
     try:
         sun_horizon, ground_elevation, metadata = build_cached_horizon_from_dem_assets(
             site_id=site["site_id"],

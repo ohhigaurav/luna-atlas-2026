@@ -1,3 +1,3 @@
 """Lunar South Pole Mission Planner: auditable geometry, terrain and mission-window analysis."""
 
-__version__ = "0.7.1.dev0"
+__version__ = "0.7.37.dev0"

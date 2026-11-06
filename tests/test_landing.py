@@ -112,7 +112,8 @@ def test_full_pipeline_on_synthetic_geometry(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(analysis_service, "_build_site_horizon", no_terrain)
     req = LandingRequest(site_id=TEST_SITE["site_id"], search_start_utc="2027-01-01T00:00:00Z",
-                         search_days=2, mission_days=0.25)
+                         search_days=2, mission_days=0.25,
+                         min_sun_elevation_deg=None)  # synthetic Sun stays low; R5 is tested separately
     r = landing.run_landing(req)
     assert r["horizon_mode"] == "flat" and any("Terrain was not available" in c for c in r["caveats"])
     assert r["opportunity_count"] >= 3
@@ -148,9 +149,10 @@ def test_r5_sun_high_rule_and_auto_threshold() -> None:
     assert r["opportunity_count"] == 0 and "sun_high" in r["closest_miss"]["failed_rules"]
     assert r["candidates_failing"]["sun_high"] == 100
     assert landing.resolve_min_sun("auto", 0.674) == 5.0          # Apollo 11
-    assert landing.resolve_min_sun("auto", -77.5) == 5.0
-    assert landing.resolve_min_sun("auto", -80.13) is None        # IM-1: Sun can't reach 14 deg
-    assert landing.resolve_min_sun("auto", -89.45) is None
+    assert landing.resolve_min_sun("auto", -80.13) == 5.0         # IM-1: Sun reaches ~11.4 deg
+    assert landing.resolve_min_sun("auto", -84.79) == pytest.approx(0.5 * (90 - 84.79 + 1.54))  # IM-2: 3.4
+    assert landing.resolve_min_sun("auto", -89.45) == pytest.approx(1.045)
+    assert landing.resolve_min_sun("auto", -90.0) == pytest.approx(0.77)
     assert landing.resolve_min_sun(None, 0.0) is None and landing.resolve_min_sun(2.5, -89.0) == 2.5
 
 
@@ -177,3 +179,32 @@ def test_sun_clearance_above_local_horizon() -> None:
     assert o["sun_above_horizon_at_best_deg"] == pytest.approx(1.2)
     flat = _eval(_samples(100, sun, earth), sun, earth)["opportunities"][0]
     assert flat["sun_above_horizon_at_best_deg"] is None  # no horizon given
+
+
+def test_r5_uses_local_horizon_clearance() -> None:
+    sun, earth = [_w(10, 80)], [_w(0, 100)]
+    # Ridge top: Sun -2.9 deg from the level horizontal but 1.2 deg above the dipped horizon.
+    ridge = [Sample(h * H, f"h{h}", 10 <= h < 80, -2.9, True, -4.1) for h in range(100)]
+    assert _eval(ridge, sun, earth, min_sun_el_deg=1.0)["opportunity_count"] == 1
+    assert _eval(ridge, sun, earth, min_sun_el_deg=1.5)["opportunity_count"] == 0
+    # Crater floor: Sun 3 deg up but only 0.5 deg above a 2.5 deg wall.
+    floor = [Sample(h * H, f"h{h}", 10 <= h < 80, 3.0, True, 2.5) for h in range(100)]
+    assert _eval(floor, sun, earth, min_sun_el_deg=1.0)["opportunity_count"] == 0
+
+
+def test_contradictory_sun_band_is_refused() -> None:
+    req = LandingRequest(site_id="x", search_start_utc="2027-01-01T00:00:00Z", max_sun_elevation_deg=3.0)
+    with pytest.raises(ValueError, match="not below the maximum"):
+        landing.check_sun_band(req, {"latitude_deg": 0.0})        # auto 5 deg >= max 3 deg
+    assert landing.check_sun_band(req, {"latitude_deg": -89.45}) == pytest.approx(1.045)
+
+
+def test_horizon_sample_budget() -> None:
+    from lunar_core.api_models import AnalysisRequest
+
+    base = {"site_ids": ["x"], "start_utc": "2027-01-01T00:00:00Z", "end_utc": "2027-01-02T00:00:00Z",
+            "horizon_mode": "terrain"}
+    AnalysisRequest(**base)  # defaults: ~1.7 M samples
+    with pytest.raises(ValidationError, match="samples"):
+        AnalysisRequest(**base, terrain_near_step_m=1.0, terrain_near_range_m=50_000.0, terrain_azimuth_step_deg=0.25)
+    AnalysisRequest(**{**base, "horizon_mode": "flat"}, terrain_near_step_m=1.0, terrain_near_range_m=50_000.0)
