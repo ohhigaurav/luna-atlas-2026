@@ -1,8 +1,9 @@
 // Compare view (challenge O1c, C5, C12; PRD compare tray): 2-6 places side by side at one moment
 // and over the next days, from POST /api/compare. One row per metric, the leader's cell marked
 // (no combined score), each column's own horizon with the Sun and Earth at that moment.
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { comparePlaces, nextText, type CompareResult, type CompareRow } from '../api/compare';
+import { useEffect, useState } from 'react';
+import { nextText, type CompareRow } from '../api/compare';
+import { useCompare } from './useCompare';
 import { fetchRun, type SavedRun } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
@@ -17,14 +18,11 @@ type Props = {
   onClose: () => void;
 };
 
-const HOUR = 3600e3, DAY = 86400e3;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const hours = (h: number, lower: boolean) => {
   const d = Math.floor(h / 24), hh = Math.round(h - d * 24);
   return `${lower ? '≥ ' : ''}${d ? `${d} d ${hh} h` : `${Math.round(h)} h`}`;
 };
-const toInput = (ms: number) => new Date(ms).toISOString().slice(0, 16);
-const fromInput = (v: string) => Date.parse(`${v}:00Z`);
 
 type Metric = { label: string; hint?: string; leader?: string; cell: (r: CompareRow, days: number) => { main: string; sub?: string; tone?: string } };
 
@@ -78,26 +76,9 @@ function MiniSky({ row }: { row: CompareRow }) {
 }
 
 export function CompareView({ places, live, clockMs, onRemove, onOpen, onClose }: Props) {
-  const [atMs, setAtMs] = useState(() => Math.round(clockMs / HOUR) * HOUR);
   const [days, setDays] = useState(30);
-  const [st, setSt] = useState<{ s: 'idle' } | { s: 'loading'; since: number } | { s: 'ready'; r: CompareResult } | { s: 'error'; m: string }>({ s: 'idle' });
+  const st = useCompare(places.map((p) => p.site_id), clockMs, days, live, 0);
   const [, tick] = useState(0);
-  const ids = useMemo(() => places.map((p) => p.site_id), [places]);
-  const key = JSON.stringify([ids, atMs, days]);
-  const last = useRef<CompareResult | null>(null);
-
-  useEffect(() => {
-    if (!live || ids.length < 1) return;
-    const ac = new AbortController();
-    const t = setTimeout(() => {
-      setSt({ s: 'loading', since: performance.now() });
-      comparePlaces(ids, atMs, days, ac.signal).then(
-        (r) => { last.current = r; setSt({ s: 'ready', r }); },
-        (e: Error) => { if (e.name !== 'AbortError') setSt({ s: 'error', m: e.message }); },
-      );
-    }, 500);
-    return () => { clearTimeout(t); ac.abort(); };
-  }, [key, live]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (st.s !== 'loading') return;
     const t = setInterval(() => tick((k) => k + 1), 1000);
@@ -105,25 +86,14 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onClose }
   }, [st.s]);
 
   const r = st.s === 'ready' ? st.r : null;
-  const shown = r ?? last.current;
+  const shown = r ?? (st.s === 'loading' ? st.last : null);
   const byKey = (row: CompareRow) => places.find((p) => p.site_id === row.site.site_id || (p.latitude_deg.toFixed(3) === row.site.latitude_deg.toFixed(3) && p.longitude_deg.toFixed(3) === row.site.longitude_deg.toFixed(3)));
 
   return (
     <section className="la-sheet compare" aria-label="Compare places">
       <div className="la-sheet-head">
         <h2>Compare {places.length} {places.length === 1 ? 'place' : 'places'}</h2>
-        <label className="la-cmpdate">
-          <span className="la-cap">At</span>
-          <input type="datetime-local" value={toInput(atMs)} step={3600}
-            onChange={(e) => { const v = fromInput(e.target.value); if (Number.isFinite(v)) setAtMs(v); }} />
-          <span className="la-cap">UTC</span>
-        </label>
-        <div className="la-quick" role="group" aria-label="Move the comparison time">
-          <button type="button" onClick={() => setAtMs(Math.round(clockMs / HOUR) * HOUR)}>Clock's time</button>
-          <button type="button" onClick={() => setAtMs((t) => t + DAY)}>+1 day</button>
-          <button type="button" onClick={() => setAtMs((t) => t + 7 * DAY)}>+7 days</button>
-          <button type="button" onClick={() => setAtMs((t) => t + Math.round(14.765 * 24) * HOUR)}>+½ lunar day</button>
-        </div>
+        <span className="la-cap">For the date in the bar at the top</span>
         <label className="la-cmpdate">
           <span className="la-cap">Next</span>
           <select value={days} onChange={(e) => setDays(Number(e.target.value))}>

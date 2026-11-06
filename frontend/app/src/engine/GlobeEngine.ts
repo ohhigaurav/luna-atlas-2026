@@ -128,7 +128,7 @@ export class GlobeEngine {
     cv.addEventListener('wheel', this.onInput, { passive: true });
     window.addEventListener('keydown', this.onKey);
 
-    this.pins = new PinLayer(container, opts.sites, (s) => this.flyToSite(s), (dir) => this.flyToPoint(dir, 1.1, 20));
+    this.pins = new PinLayer(container, opts.sites, (s) => (this.pickOnly ? this.pickOnly(s) : this.flyToSite(s)), (dir) => this.flyToPoint(dir, 1.1, 20));
 
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(container);
@@ -290,6 +290,8 @@ export class GlobeEngine {
   /** Live state per site (e.g. 'day' / 'night'), shown on its marker. */
   setPinStates(states: Record<string, string>): void { this.pins.setStates(states); }
   setPinNotes(notes: Record<string, string>): void { this.pins.setNotes(notes); }
+  /** While set, a pin click calls this instead of flying to the site (compare mode picks sites). */
+  pickOnly: ((s: PinSite) => void) | null = null;
 
   // ---------------------------------------------------------------- Moon weather forecast (F29)
   private fcTex: THREE.DataTexture[] = [];

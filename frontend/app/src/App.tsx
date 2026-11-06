@@ -13,9 +13,10 @@ import { isoZ } from './api/plan';
 import type { PinSite } from './engine/pins';
 import { formatLat, formatLon } from './state/format';
 import { litFraction, moonPhase } from './state/phase';
-import { siteNormal, siteNow, type SiteNow } from './state/siteState';
-import { Gazetteer } from './ui/Gazetteer';
-import { Neatline, FRAME_IN } from './ui/Neatline';
+import { siteNow, type SiteNow } from './state/siteState';
+import { DateBar } from './ui/DateBar';
+import { SiteCard } from './plan/SiteCard';
+import { CompareShelf } from './compare/CompareShelf';
 import { useOutlook } from './plan/useOutlook';
 import { OutlookProgress } from './ui/OutlookProgress';
 import { ForecastPanel, type Layers, type Probe } from './forecast/ForecastPanel';
@@ -24,28 +25,15 @@ import { pointId } from './api/plan';
 import { shortName } from './engine/pins';
 import { outlookText } from './state/outlook';
 import { CommandBar, type Command } from './ui/CommandBar';
-import { PlayIcon } from './ui/Icons';
 import { ProofView } from './proof/ProofView';
 import type { MissionCase } from './proof/evidence';
-import { SurfaceView } from './surface/SurfaceView';
+import { Surface3D } from './surface/Surface3D';
 import { CompareView } from './compare/CompareView';
 
 const SPEEDS = [3600, 6 * 3600, 86400] as const; // simulated seconds per real second
 const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21600: '6 h/s', 86400: '1 d/s' };
-const STEP_MS = 30 * 60e3;
 const HOUR = 3600e3, DAY = 86400e3;
-const D2R = Math.PI / 180;
-const CARTOUCHE = FRAME_IN + 14 + 372; // left edge of the free chart area (px)
 
-const two = (n: number) => String(n).padStart(2, '0');
-function utcParts(ms: number) {
-  const d = new Date(ms);
-  return {
-    date: `${d.getUTCFullYear()}-${two(d.getUTCMonth() + 1)}-${two(d.getUTCDate())}`,
-    time: `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`,
-  };
-}
-const localTime = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
 
 type Sheet = { kind: 'proof' } | { kind: 'surface'; touchdownMs: number } | { kind: 'compare' } | null;
 
@@ -65,12 +53,13 @@ export default function App() {
   const [grid, setGrid] = useState(false);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
   const [narrow, setNarrow] = useState(() => window.innerWidth <= 900);
-  const [vw, setVw] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
   // Moon weather forecast (F29)
   const [forecast, setForecast] = useState(false);
   const [fc, setFc] = useState<ForecastData | null>(null);
   const [layers, setLayers] = useState<Layers>({ earth: false, both: false });
-  const [cmp, setCmp] = useState<ReferenceSite[]>([]);   // compare tray, up to 6 places
+  const [cmp, setCmp] = useState<ReferenceSite[]>([]);   // compare list, up to 6 places
+  const [comparing, setComparing] = useState(false);       // compare mode: pins add to the list
+  const [hello, setHello] = useState(true);
   const [probe, setProbe] = useState<Probe>({ lat: -89.45, lon: 222.69, name: null });
   const cursorRef = useRef(0);
   const globe = useRef<GlobeHandle>(null);
@@ -84,7 +73,7 @@ export default function App() {
       },
       (e: unknown) => setFatal(e instanceof Error ? e.message : String(e)),
     );
-    const r = () => { setNarrow(window.innerWidth <= 900); setVw({ w: window.innerWidth, h: window.innerHeight }); };
+    const r = () => { setNarrow(window.innerWidth <= 900); };
     window.addEventListener('resize', r);
     return () => window.removeEventListener('resize', r);
   }, []);
@@ -143,22 +132,38 @@ export default function App() {
 
   const onSelect = useCallback((s: PinSite | null) => { setSelected(s as ReferenceSite | null); setForecast(false); if (!s) setSheet(null); }, []);
   const plan = usePlan(selected?.site_id ?? null, live, Date.now());
+  // Date first: with a site open, the landing question starts from the date in the date bar.
+  const cursorHour = Math.floor(cursorMs / HOUR);
+  useEffect(() => {
+    if (!selected || playing) return;
+    const t = setTimeout(() => {
+      // Inside the 90 days already searched only the "earliest launch" moves (no new search);
+      // outside them, search again from that day.
+      const c = cursorRef.current, s = plan.settings;
+      const inside = c >= s.searchStartMs && c <= s.searchStartMs + (SEARCH_DAYS - 10) * DAY;
+      if (!inside) plan.update({ searchStartMs: utcMidnight(c), notBeforeMs: c });
+      else if (Math.abs(s.notBeforeMs - c) > HOUR) plan.update({ notBeforeMs: c });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [selected, cursorHour, playing]); // eslint-disable-line react-hooks/exhaustive-deps
   const screenOf = useCallback((s: PinSite) => globe.current?.screenOf(s) ?? null, []);
 
   // The ring covers SEARCH_DAYS from its start: load sky geometry for that window so any jump is lit.
   const planStart = plan.settings.searchStartMs;
   useEffect(() => {
     if (!selected || !live) return;
+    if (covered(planStart) && covered(planStart + SEARCH_DAYS * DAY)) return;
     loadSky(planStart - DAY, planStart + (SEARCH_DAYS + 1) * DAY);
-  }, [selected, live, planStart, loadSky]);
+  }, [selected, live, planStart, loadSky]); // eslint-disable-line react-hooks/exhaustive-deps
   const onIntroDone = useCallback(() => setIntroDone(true), []);
   const byId = useCallback((id: string) => data?.sites.find((s) => s.site_id === id) ?? null, [data]);
 
   // Frame the globe in the space the panels leave free.
   useEffect(() => {
+    // Keep the Moon clear of the card (left) or the drawer (right) when one is open.
     if (narrow) globe.current?.setInsets(0, 0);
-    else globe.current?.setInsets(CARTOUCHE, FRAME_IN);
-  }, [narrow, data]);
+    else globe.current?.setInsets(selected || (!forecast && !comparing) ? 440 : 0, forecast ? 440 : 0);
+  }, [narrow, data, selected, forecast, comparing]);
   useEffect(() => { globe.current?.setGrid(grid); }, [grid, data]);
 
   // Ctrl/⌘ K opens the command bar from anywhere.
@@ -252,11 +257,6 @@ export default function App() {
     cancelAnimationFrame(hoverRaf.current);
     hoverRaf.current = requestAnimationFrame(() => setHover(globe.current?.pick(x, y) ?? null));
   }, []);
-  const hoverSun = useMemo(() => {
-    if (!hover || !sky || !times) return null;
-    const n = siteNormal(hover.lat, hover.lon), s = skyAt(sky, times, cursorMs).sunDir;
-    return Math.asin(Math.max(-1, Math.min(1, n[0] * s[0] + n[1] * s[1] + n[2] * s[2]))) / D2R;
-  }, [hover, sky, times, cursorMs]);
 
   const hoverFc = useMemo(() => {
     if (!hover || !fc || !fcFrame) return null;
@@ -283,7 +283,7 @@ export default function App() {
     const inside = (data?.sites ?? []).filter((x) => pixelOf(f, x.latitude_deg, x.longitude_deg));
     const first = inside.find((x) => x.site_id === 'reference-lola-site-001') ?? inside[0];
     if (first && probe.name === null) setProbe({ lat: first.latitude_deg, lon: first.longitude_deg, name: shortName(first.name) });
-    setSheet(null); setSelected(null); setForecast(true);
+    setSheet(null); setSelected(null); setComparing(false); setForecast(true);
     setFollowNow(false); setPlaying(false); setSpeed(SPEEDS[1]);
     const start = cursorRef.current >= t0 && cursorRef.current <= t1 ? cursorRef.current : t0;
     const ready = live && !covered(t0) ? loadSky(t0 - DAY, t1 + 2 * DAY) : Promise.resolve();
@@ -297,11 +297,14 @@ export default function App() {
     setCmp((c) => (c.some((x) => x.site_id === s.site_id) ? c.filter((x) => x.site_id !== s.site_id) : [...c, s].slice(-6)));
   }, []);
   const polarSix = useCallback(() => (data?.sites ?? []).filter((s) => s.latitude_deg <= -75).slice(0, 6), [data]);
-  const openCompare = useCallback((list?: ReferenceSite[]) => {
-    if (list) setCmp(list);
-    setForecast(false); setPlaying(false);
-    setSheet({ kind: 'compare' });
+  // Compare: date first (the bar at the top), then tap sites; pins add to the list instead of flying.
+  const startCompare = useCallback(() => {
+    setForecast(false); setSelected(null); setSheet(null); setComparing(true);
+    globe.current?.flyHome();
   }, []);
+  useEffect(() => {
+    globe.current?.setPickOnly(comparing ? (s: PinSite) => toggleCompare(s as ReferenceSite) : null);
+  }, [comparing, toggleCompare, data]);
   const closeForecast = useCallback(() => { setForecast(false); setPlaying(false); globe.current?.flyHome(); }, []);
 
   const goPoint = (lat: number, lonDeg: number) => {
@@ -340,8 +343,8 @@ export default function App() {
     else if (c.id === 'earth') globe.current?.viewFromEarth();
     else if (c.id === 'grid') setGrid((g) => !g);
     else if (c.id === 'forecast') openForecast();
-    else if (c.id === 'compare') openCompare(cmp.length >= 2 ? undefined : polarSix());
-  }, [pick, goNow, selected, live, plan, jump, openForecast, openCompare, cmp.length, polarSix]);
+    else if (c.id === 'compare') startCompare();
+  }, [pick, goNow, selected, live, plan, jump, openForecast, startCompare]);
 
   const showMission = useCallback((c: MissionCase) => {
     const s = c.siteId ? byId(c.siteId) : null;
@@ -364,11 +367,16 @@ export default function App() {
     );
   }
 
-  const now = utcParts(cursorMs);
   const sel = selected ? states[selected.site_id] ?? null : null;
 
+  const legendCounts = {
+    green: Object.values(outlook).filter((o) => o.kind === 'window').length,
+    day: data.sites.filter((x) => states[x.site_id]?.day).length,
+  };
+  const checked = Object.values(outlook).filter((o) => o.kind !== 'pending').length;
+
   return (
-    <div className={`la-app${selected ? ' site-open' : ''}${sheet ? ` sheet-open sheet-${sheet.kind}` : ''}`}>
+    <div className={`la-app${selected ? ' site-open' : ''}${sheet ? ` sheet-open sheet-${sheet.kind}` : ''}${comparing ? ' comparing' : ''}${forecast ? ' fc-open' : ''}`}>
       <div className="la-stage" onPointerMove={onMove} onPointerLeave={() => setHover(null)} onPointerDown={onDown} onPointerUp={onUp}>
         <GlobeView
           sites={data.sites}
@@ -382,127 +390,107 @@ export default function App() {
         />
       </div>
 
-      {!narrow && <Neatline globe={globe} centerX={(CARTOUCHE + vw.w - FRAME_IN) / 2} centerY={vw.h / 2} quiet={!!sheet} />}
-
-      <header className="la-margin top">
-        {live && (
-          <OutlookProgress checked={Object.values(outlook).filter((o) => o.kind !== 'pending').length}
-            total={Object.keys(outlook).length} etaMs={progress.etaMs} at={progress.at} />
+      <header className="la-topbar">
+        <button type="button" className="tb-brand" onClick={() => { setForecast(false); setComparing(false); globe.current?.flyHome(); }}>
+          Luna Atlas<small>{live ? 'live from JPL SPICE' : `precomputed, as of ${data.sky.settings.start_utc.slice(0, 10)}`}</small>
+        </button>
+        {introDone && (
+          <DateBar ms={cursorMs} live={live} following={followNow} playing={playing} speedLabel={SPEED_LABEL[speed]}
+            range={loop ?? [span.start, span.end]}
+            onSet={(ms) => { setFollowNow(false); setPlaying(false); setCursor(ms); if (live && !covered(ms)) loadSky(ms - 2 * DAY, ms + 30 * DAY); }}
+            onPlay={() => { setFollowNow(false); setPlaying((p) => !p); }}
+            onSpeed={() => setSpeed((x) => SPEEDS[(SPEEDS.indexOf(x) + 1) % SPEEDS.length])}
+            onNow={goNow} />
         )}
-        {phase && (
-          <button type="button" className="la-mlink" onClick={() => globe.current?.viewFromEarth()} title="Turn the Moon to face Earth: the phase in your sky at this time">
-            {Math.round(phase.fraction * 100)}% lit from Earth, {phase.name.toLowerCase()}
-          </button>
-        )}
-        <span className="la-clock" title={`Local ${localTime(cursorMs)}`}>
-          <i className={`la-live${followNow ? '' : ' off'}`} aria-hidden="true" />{now.date} {now.time} UTC
-        </span>
-        <button type="button" className={`la-mlink${grid ? ' on' : ''}`} aria-pressed={grid} onClick={() => setGrid((g) => !g)}>Grid</button>
+        <nav className="tb-nav" aria-label="Tools">
+          <button type="button" className={comparing ? 'on' : undefined} aria-pressed={comparing} onClick={() => (comparing ? setComparing(false) : startCompare())}>Compare sites</button>
+          <button type="button" className={forecast ? 'on' : undefined} aria-pressed={forecast} onClick={() => (forecast ? closeForecast() : openForecast())}>Moon weather</button>
+          <button type="button" onClick={() => setSheet({ kind: 'proof' })}>Evidence</button>
+          <button type="button" className="tb-search" aria-label="Search (Ctrl K)" onClick={() => setCmd(true)}>Search<kbd>Ctrl K</kbd></button>
+        </nav>
       </header>
 
-      <aside className="la-cartouche">
-        <div className="la-carto-brand">
-          <span className="la-mark">Luna Atlas</span>
-          <span>{live ? 'live, Sun and Earth from JPL SPICE' : `precomputed, as of ${data.sky.settings.start_utc.slice(0, 10)}`}</span>
-        </div>
-        {forecast && fc ? (
+      {introDone && !selected && !forecast && !comparing && !sheet && (
+        <aside className="la-hello">
+          {hello ? (
+            <>
+              <h1>When can you land on the Moon?</h1>
+              <p>Pick a date at the top, then tap a site. Luna Atlas tells you if the Sun stays up for the mission and Earth is in view for the radio link.</p>
+              <button type="button" className="la-btn" onClick={() => setHello(false)}>Got it</button>
+            </>
+          ) : null}
+          <div className="hl-key" aria-label="What the pin colours mean">
+            {live && <span><i className="la-sym window" />Can land within 30 days <b>{legendCounts.green}</b></span>}
+            <span><i className="la-sym day" />Sunlit now <b>{legendCounts.day}</b></span>
+            <span><i className="la-sym night" />Night now <b>{data.sites.length - legendCounts.day}</b></span>
+          </div>
+          {live && checked < data.sites.length && (
+            <OutlookProgress checked={checked} total={data.sites.length} etaMs={progress.etaMs} at={progress.at} />
+          )}
+          {phase && (
+            <button type="button" className="la-mlink hl-phase" onClick={() => globe.current?.viewFromEarth()}>
+              From Earth the Moon is {Math.round(phase.fraction * 100)}% lit ({phase.name.toLowerCase()}). Show me
+            </button>
+          )}
+        </aside>
+      )}
+
+      {selected && !forecast && !sheet && (
+        <SiteCard
+          site={selected} live={live} cursorMs={cursorMs} now={sel}
+          settings={plan.settings} data={plan.data} answer={plan.answer}
+          inCompare={cmp.some((x) => x.site_id === selected.site_id)}
+          onSettings={plan.update} onJump={jump}
+          onStand={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
+          onCompare={() => toggleCompare(selected)}
+          onClose={() => globe.current?.flyHome()}
+          details={
+            <SitePanel site={selected} live={live} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}
+              onSettings={plan.update} onJump={jump} onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
+              onClose={() => globe.current?.flyHome()} onProof={() => setSheet({ kind: 'proof' })}
+              inCompare={cmp.some((x) => x.site_id === selected.site_id)} onCompare={() => toggleCompare(selected)} details />
+          }
+        />
+      )}
+
+      {forecast && fc && (
+        <aside className="la-drawer">
           <ForecastPanel fc={fc} cursorMs={cursorMs} frame={fcFrame ? { k: fcFrame.k, j: fcFrame.j, litShare } : null}
             layers={layers} probe={probe} onLayers={setLayers} onJump={(ms) => { setPlaying(false); setCursor(ms); }} onClose={closeForecast} />
-        ) : selected ? (
-          <SitePanel
-            site={selected}
-            live={live}
-            now={sel}
-            cursorMs={cursorMs}
-            settings={plan.settings}
-            data={plan.data}
-            answer={plan.answer}
-            onSettings={plan.update}
-            onJump={jump}
-            onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
-            onClose={() => globe.current?.flyHome()}
-            onProof={() => setSheet({ kind: 'proof' })}
-            inCompare={cmp.some((x) => x.site_id === selected.site_id)}
-            onCompare={() => toggleCompare(selected)}
-          />
-        ) : (
-          <Gazetteer sites={data.sites} live={live} states={states} outlook={outlook} cursorMs={cursorMs}
-            onPick={pick} onSearch={() => setCmd(true)} onProof={() => setSheet({ kind: 'proof' })} onForecast={openForecast}
-            onComparePolar={live ? () => openCompare(polarSix()) : null} />
-        )}
-        {!selected && !forecast && <footer className="la-sources">
-          Moon: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Earth: NASA Blue Marble, rotation not modelled. Star field illustrative.
-          Sites are reference points from published sources, not official challenge coordinates.
-        </footer>}
-      </aside>
+        </aside>
+      )}
 
-      {selected && live && !sheet && (
+      {selected && live && !sheet && !forecast && (
         <LandingRing site={selected} screenOf={screenOf} settings={plan.settings} data={plan.data}
           answer={plan.answer} onSettings={plan.update} onJump={jump} />
       )}
 
-      {introDone && !sheet && (
-        <footer className="la-margin bottom">
-          <span className="la-readout">
-            {hover && hoverFc ? (
-              <>{formatLat(hover.lat)} {formatLon(hover.lon)}: <b className={hoverFc.lit ? 'sun-c' : undefined}>{hoverFc.lit ? 'sunlit' : 'in shadow'}</b>,{' '}
-                <b className={hoverFc.earth ? 'earth-c' : undefined}>{hoverFc.earth ? 'Earth in view' : 'Earth hidden'}</b>; this month Sun {hoverFc.sunPct.toFixed(0)}%, Earth {hoverFc.earthPct.toFixed(0)}% (forecast, 240 m terrain)</>
-            ) : hover ? (
-              <>{formatLat(hover.lat)} {formatLon(hover.lon)}
-                {hoverSun !== null && <>, Sun <b className={hoverSun > 0 ? 'sun-c' : undefined}>{hoverSun.toFixed(1)}°</b> up on flat ground</>}
-                {!forecast && <span className="la-dim">; click to ask when you can land here</span>}</>
-            ) : 'Drag to turn, scroll to zoom, click a site or anywhere on the Moon'}
-          </span>
-        </footer>
+      {introDone && hover && !sheet && (hoverFc || forecast) && (
+        <div className="la-hover">
+          {formatLat(hover.lat)} {formatLon(hover.lon)}
+          {hoverFc && <>: <b className={hoverFc.lit ? 'sun-c' : undefined}>{hoverFc.lit ? 'sunlit' : 'in shadow'}</b>, <b className={hoverFc.earth ? 'earth-c' : undefined}>{hoverFc.earth ? 'Earth in view' : 'Earth hidden'}</b> (forecast, 240 m)</>}
+        </div>
       )}
 
       {!introDone && !reducedMotion && (
         <button type="button" className="la-btn la-skip" onClick={() => globe.current?.skipIntro()}>Skip intro</button>
       )}
 
-      {introDone && (
-        <section className="la-time" aria-label="Time">
-          <button type="button" className="la-play" aria-label={playing ? 'Pause' : 'Play'}
-            onClick={() => { setFollowNow(false); setPlaying((p) => !p); }}>
-            <PlayIcon playing={playing} size={14} />
-          </button>
-          <button type="button" className="la-speed" aria-label="Playback speed"
-            onClick={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])}>{SPEED_LABEL[speed]}</button>
-          <div className="la-scrub">
-            <input type="range" aria-label="Time" min={loop ? loop[0] : span.start} max={loop ? loop[1] : span.end} step={STEP_MS}
-              value={Math.min(loop ? loop[1] : span.end, Math.max(loop ? loop[0] : span.start, cursorMs))}
-              onChange={(e) => { setFollowNow(false); setPlaying(false); setCursor(Number(e.target.value)); }} />
-          </div>
-          <div className="la-when"><span>{now.date} {now.time} UTC</span><small>{localTime(cursorMs)}</small></div>
-          {live && (
-            <button type="button" className={`la-nowbtn${followNow ? ' on' : ''}`} onClick={goNow} aria-pressed={followNow}>
-              <i className={`la-live${followNow ? '' : ' off'}`} aria-hidden="true" />Now
-            </button>
-          )}
-        </section>
-      )}
-
-      {cmp.length > 0 && sheet?.kind !== 'compare' && !forecast && (
-        <div className="la-tray" role="region" aria-label="Compare tray">
-          <span className="la-cap">Compare</span>
-          {cmp.map((c) => (
-            <span key={c.site_id} className="la-chip">{shortName(c.name)}
-              <button type="button" aria-label={`Remove ${c.name}`} onClick={() => toggleCompare(c)}>×</button></span>
-          ))}
-          <button type="button" className="la-btn primary" disabled={cmp.length < 2 || !live} onClick={() => openCompare()}
-            title={cmp.length < 2 ? 'Add at least two places' : undefined}>
-            {cmp.length < 2 ? 'Add one more place' : `Compare ${cmp.length}`}
-          </button>
-          <button type="button" className="la-mlink" onClick={() => setCmp([])}>Clear</button>
-        </div>
+      {comparing && !sheet && (
+        <CompareShelf places={cmp} live={live} cursorMs={cursorMs}
+          suggest={live ? () => setCmp(polarSix()) : null}
+          onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
+          onOpen={(s) => { setComparing(false); pick(s); }}
+          onTable={() => setSheet({ kind: 'compare' })}
+          onClear={() => { setComparing(false); }} />
       )}
       {sheet?.kind === 'compare' && (
         <CompareView places={cmp} live={live} clockMs={cursorMs} onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
-          onOpen={(s) => { setSheet(null); pick(s); }} onClose={() => setSheet(null)} />
+          onOpen={(s) => { setSheet(null); setComparing(false); pick(s); }} onClose={() => setSheet(null)} />
       )}
       {sheet?.kind === 'proof' && <ProofView live={live} onClose={() => setSheet(null)} onShow={showMission} />}
       {sheet?.kind === 'surface' && selected && (
-        <SurfaceView site={selected} touchdownMs={sheet.touchdownMs} missionDays={plan.settings.missionDays} cursorMs={cursorMs}
+        <Surface3D site={selected} touchdownMs={sheet.touchdownMs} missionDays={plan.settings.missionDays} cursorMs={cursorMs}
           playing={playing}
           onPlay={(from) => {
             if (from === null) { setPlaying(false); return; }

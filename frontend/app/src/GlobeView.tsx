@@ -17,6 +17,7 @@ export type GlobeHandle = {
   project: (latDeg: number, lonDeg: number) => { x: number; y: number; facing: boolean } | null;
   setForecast: GlobeEngine['setForecast'];
   flyToSouthPole: () => void;
+  setPickOnly: (f: ((s: PinSite) => void) | null) => void;
 };
 
 type Props = {
@@ -78,7 +79,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<GlobeEngine | null>(null);
   // Calls that arrive before the engine exists (textures still loading) are replayed on creation.
-  const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string>; notes?: Record<string, string> }>({});
+  const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string>; notes?: Record<string, string>; pickOnly?: ((s: PinSite) => void) | null }>({});
   const cb = useRef({ onSelect, onIntroDone, onError });
   cb.current = { onSelect, onIntroDone, onError };
   // The sky can be replaced (a plan loads geometry for its own dates) without restarting the globe.
@@ -99,6 +100,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     project: (la, lo) => engine.current?.project(la, lo) ?? null,
     setForecast: (f) => engine.current?.setForecast(f),
     flyToSouthPole: () => engine.current?.flyToSouthPole(),
+    setPickOnly: (f) => { pending.current.pickOnly = f; if (engine.current) engine.current.pickOnly = f; },
   }), []);
 
   useEffect(() => {
@@ -133,6 +135,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
       if (q.grid !== undefined) engine.current.setGrid(q.grid);
       if (q.states) engine.current.setPinStates(q.states);
       if (q.notes) engine.current.setPinNotes(q.notes);
+      if (q.pickOnly !== undefined) engine.current.pickOnly = q.pickOnly;
     });
     return () => { cancelled = true; engine.current?.dispose(); engine.current = null; };
   }, [sites, cursorRef, reducedMotion]);

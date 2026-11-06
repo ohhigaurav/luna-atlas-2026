@@ -38,20 +38,21 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 |---|---|---|
 | Globe: LROC colour, LOLA relief and cast shadows, Earth, Sun glare, opening shot, flights | `src/engine/` (plain three.js, mounted by `GlobeView.tsx`) | `POST /api/sky-geometry` |
 | Site pins (buttons, clustered at the pole) | `src/engine/pins.ts` | `GET /api/reference-sites` |
-| Chart frame: graduated neatline with coordinate ticks read off the globe, scale bar, north arrow | `src/ui/Neatline.tsx` | the camera (ray-cast) |
-| Title block (left): legend, gazetteer with each site's landing outlook and day/night now | `src/ui/Gazetteer.tsx`, `src/state/outlook.ts`, `src/state/siteState.ts` | `POST /api/landing-windows` (all sites, one at a time, cached), sky-geometry |
+| Date bar (top): the moment every answer is for; day steps, picker, play, Now, scrub | `src/ui/DateBar.tsx` | shared clock |
+| Site card: plain verdict for the date, Sun and Earth now with sunset/Earthset, actions; Details = expert controls | `src/plan/SiteCard.tsx`, `src/plan/SitePanel.tsx` (details) | `/api/landing-windows`, `/api/compare` |
+| Home: welcome and pin legend with counts | `App.tsx`, `src/state/outlook.ts`, `src/state/siteState.ts` | `/api/landing-windows` (all sites, cached), sky-geometry |
 | Green pins: a landing window within 30 days; amber: Sun up now; hollow: night | `src/engine/pins.ts`, `src/plan/useOutlook.ts` | same |
 | Marginalia: UTC clock (live dot while it follows the wall clock), "% lit from Earth", grid | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |
 | Site view (in the title block): next landing date, daylight / Earth / countdown, fixes when nothing fits, mission length, launch date, quick dates, 90-day strip | `src/plan/SitePanel.tsx`, `src/plan/answer.ts` | `POST /api/landing-windows` + `POST /api/check` bands |
 | Landing ring: 90 days around the pin, launch knob, mission-length handle | `src/plan/LandingRing.tsx` | same |
 | Calendar heat map: each UTC day green (window), amber (Sun up), grey (dark) | `src/plan/Calendar.tsx`, `src/plan/calendarDays.ts` | same |
 | Ctrl K: sites, typed dates (`13 jan 2027`, `next month`, `2027-03`, `+10d`), actions | `src/ui/CommandBar.tsx`, `src/state/when.ts` | none |
-| Surface: the real horizon with the Sun and Earth now and over 30 days; "Keep the lander alive" battery game (illustrative power model, labelled) | `src/surface/` | `POST /api/check` → `GET /api/runs/{id}` series |
+| Stand here in 3D: first-person view, the run's real horizon as the skyline, Sun and a Sun-lit Earth on the shared clock, ridge shadows, compass, battery card (illustrative power model, labelled) | `src/surface/Ground3D.ts`, `Surface3D.tsx`, `run.ts`, `power.ts` | `POST /api/check` → `GET /api/runs/{id}` |
 | Evidence: LRO photo vs our shadows wipe slider (6 frames, the failing one included), real-mission table, JPL Horizons | `src/proof/` | `public/proof/` (from `python tools/export_proof.py`), figures copied from `validation/evidence/` |
 | Moon weather forecast (F29): the south pole's sunlight every 2 h and Earth's line of sight every 6 h for January 2027, draped on the 3D pole in sync with the clock; layers (Earth, lit and Earth), probe point with month ribbon, hover readout | `src/forecast/`, `fc*` uniforms in `src/scene/lunarMaterial.ts` | `public/data/shadow_movie/` (`lit.u8`, `earth.u8`, `movie.json`, `earth.json`) from `tools/bake_shadow_movie.py`, `tools/bake_earth_movie.py` |
 | Click anywhere: landing windows for any point (240 m terrain near the pole, flat elsewhere, labelled) | `App.tsx` (`pointId`), `src/api/plan.ts` | `/api/landing-windows`, `/api/check` with `latitude_deg`, `longitude_deg` |
 | "Verify with NASA JPL ↗": our Sun/Earth position at best touchdown next to JPL Horizons' table for it | `src/plan/SitePanel.tsx` | `verify` on each opportunity |
-| Compare view: up to 6 places side by side, mini horizons, leader per row, Earthset/sunset countdowns | `src/compare/`, `src/api/compare.ts` | `POST /api/compare` |
+| Compare: date from the bar, tap pins to add, big cards with plain badges; "All numbers" table with mini horizons | `src/compare/` (`CompareShelf`, `CompareView`, `useCompare`), `src/api/compare.ts` | `POST /api/compare` |
 | Landing ellipse (polar sites): ~45 analyses inside the ellipse, best/worst, dark-trap share | `src/plan/EllipsePanel.tsx` | `POST /api/landing-ellipse` |
 | Time rail, pointer readout (lat/lon and Sun height under the cursor) | `App.tsx` | shared clock |
 

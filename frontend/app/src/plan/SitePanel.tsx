@@ -29,6 +29,8 @@ type Props = {
   onProof: () => void;
   inCompare: boolean;
   onCompare: () => void;
+  /** Only the expert parts (launch date, mission length, calendar, ellipse, caveats): the site card shows the rest. */
+  details?: boolean;
 };
 
 const bigDate = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -96,7 +98,7 @@ function VerifyLine({ v }: { v: Verify }) {
   );
 }
 
-export function SitePanel({ site, live, now, cursorMs, settings, data, answer, onSettings, onJump, onSurface, onClose, onProof, inCompare, onCompare }: Props) {
+export function SitePanel({ site, live, now, cursorMs, settings, data, answer, onSettings, onJump, onSurface, onClose, onProof, inCompare, onCompare, details = false }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [cal, setCal] = useState(false);
   useEffect(() => {
@@ -125,6 +127,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
   return (
     <section className="la-carto-body site" aria-label={site.name}>
       <div className="la-side-scroll">
+        {!details && (
         <section className="la-sec">
           <div className="la-headrow">
             <button type="button" className="la-back" onClick={onClose} aria-label="All sites, whole Moon (Esc)">‹ All sites</button>
@@ -162,11 +165,13 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
             </p>
           )}
         </section>
+        )}
 
         {!live ? (
           <section className="la-sec"><p className="la-note">Landing dates need the live backend: run <code>./scripts/run_local.sh</code>.</p></section>
         ) : (
           <>
+            {!details && (
             <section className="la-sec" aria-live="polite">
               {data.status === 'loading' && (
                 <div className="la-loading" role="status">
@@ -239,6 +244,8 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
               )}
               {data.status === 'ready' && answer?.kind === 'none' && <p className="la-note">{data.landing.summary.join(' ')}</p>}
             </section>
+            )}
+            {details && answer?.kind === 'window' && answer.opportunity.verify && <section className="la-sec"><VerifyLine v={answer.opportunity.verify} /></section>}
 
             <section className="la-sec">
               <div className="la-ctl">

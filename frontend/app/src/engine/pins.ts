@@ -38,9 +38,9 @@ const CSS = `
 .la-pin.sel .la-mk{transform:scale(1.5);outline:1.5px solid #ece7dc;outline-offset:4px}
 .la-pin:focus-visible .la-mk,.la-cluster:focus-visible .la-count{outline:2px solid #fff;outline-offset:5px}
 .la-label{position:absolute;left:24px;top:50%;transform:translateY(-52%);white-space:nowrap;text-align:left;
-  font:italic 400 15px/1.15 'Source Serif 4 Caption','Source Serif 4',Georgia,serif;color:#ece7dc;
+  font:600 15px/1.15 'Instrument Sans',system-ui,sans-serif;color:#ece7dc;
   text-shadow:0 0 3px #000,0 0 6px #000,0 1px 2px #000;opacity:0;transition:opacity .15s ease;pointer-events:none}
-.la-label small{display:block;margin-top:1px;font:500 11.5px/1.2 'IBM Plex Sans Condensed',system-ui,sans-serif;font-style:normal;
+.la-label small{display:block;margin-top:1px;font:500 11.5px/1.2 'Instrument Sans',system-ui,sans-serif;font-style:normal;
   letter-spacing:.02em;color:#b9b4aa;font-variant-numeric:tabular-nums}
 .la-pin.day .la-label small{color:#f2c46f}
 .la-pin.window .la-label small{color:#7fe0aa}
@@ -48,9 +48,9 @@ const CSS = `
 .la-pin.quiet:not(:hover):not(:focus-visible) .la-label{opacity:0}
 .la-pin:hover,.la-pin:focus-visible{z-index:2}
 .la-count{position:relative;min-width:24px;height:24px;padding:0 6px;box-sizing:border-box;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font:600 12.5px/1 'IBM Plex Sans Condensed',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#ece7dc;background:rgba(0,0,0,.78);
+  font:600 12.5px/1 'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#ece7dc;background:rgba(0,0,0,.78);
   border:1.5px solid #ece7dc}
-.la-count i{position:absolute;top:-7px;right:-11px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;font:600 11px/16px 'IBM Plex Sans Condensed',system-ui,sans-serif;
+.la-count i{position:absolute;top:-7px;right:-11px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;font:600 11px/16px 'Instrument Sans',system-ui,sans-serif;
   font-style:normal;color:#00170b;background:#5ed394;box-shadow:0 0 10px rgba(94,211,148,.7)}
 `;
 
