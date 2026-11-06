@@ -19,11 +19,17 @@ signed median (is 240 m optimistic?), and the share of points whose sunlit % dif
 than 10 points. Use: the custom-point caveat and the forecast label quote these numbers, and
 nothing else from this run.
 
-    .venv/bin/python tools/resolution_check.py
+    .venv/bin/python tools/resolution_check.py [--rotate DEG]
+
+``--rotate`` turns the offset grid by DEG about each site centre. It was added after the first
+run as a diagnostic for the north-south pattern in that run
+(validation/evidence/resolution_site001_2026-11-06.md). It does not change the first run's numbers.
 """
 from __future__ import annotations
 
+import argparse
 import json
+import math
 import statistics
 import sys
 import time
@@ -68,7 +74,22 @@ def summarise_pairs(pairs: list[dict[str, float]]) -> dict[str, float | int]:
     }
 
 
+def rotate_offsets(offsets: list[Any], degrees: float) -> list[Any]:
+    """Rotate east/north offsets counter-clockwise (east toward north) by ``degrees``."""
+    from lunar_core.location_scan import GridOffset
+
+    if degrees == 0.0:
+        return list(offsets)
+    a = math.radians(degrees)
+    c, s = math.cos(a), math.sin(a)
+    return [GridOffset(round(o.east_m * c - o.north_m * s, 6), round(o.east_m * s + o.north_m * c, 6)) for o in offsets]
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--rotate", type=float, default=0.0, help="rotate the grid by DEG (post hoc diagnostic)")
+    args = parser.parse_args()
+
     from lunar_core import analysis_service as svc
     from lunar_core import custom_point
     from lunar_core.api_models import AnalysisRequest
@@ -76,8 +97,8 @@ def main() -> int:
 
     request = AnalysisRequest(site_ids=[SITES[0]], start_utc=WINDOW[0], end_utc=WINDOW[1], coarse_step_min=STEP_MIN,
                               horizon_mode="terrain", sun_observer_height_m=HEIGHT_M, antenna_height_m=HEIGHT_M)
-    offsets = scan_offsets(RADIUS_M, SPACING_M)
-    report: dict[str, Any] = {"window": WINDOW, "step_min": STEP_MIN, "height_m": HEIGHT_M,
+    offsets = rotate_offsets(scan_offsets(RADIUS_M, SPACING_M), args.rotate)
+    report: dict[str, Any] = {"rotate_deg": args.rotate, "window": WINDOW, "step_min": STEP_MIN, "height_m": HEIGHT_M,
                               "radius_m": RADIUS_M, "spacing_m": SPACING_M, "sites": {}}
     started = time.monotonic()
     with svc._RUN_LOCK:
@@ -118,7 +139,7 @@ def main() -> int:
               f"{s['sun_abs_p90']:8.1f} {s['sun_share_over_10']:8.0%} {s['sun_regional_higher']:>9d}/{s['sun_regional_lower']:<8d} "
               f"{s['earth_abs_median']:13.1f} {s['earth_abs_p90']:6.1f}")
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out = ROOT / "data" / "derived" / f"resolution_check_{stamp}.json"
+    out = ROOT / "data" / "derived" / f"resolution_check_{stamp}{'_rot' + format(args.rotate, 'g') if args.rotate else ''}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"\nreport: {out.relative_to(ROOT)} ({time.monotonic() - started:.0f} s)")

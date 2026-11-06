@@ -36,3 +36,44 @@ cannot see 20–30 m bumps. The WAC many-point test found the brightest pixels m
   - claims about Site 001 must quote the 5 m result.
 - `tools/resolution_check.py` measures the size of this effect over 2 × ~49 points (definition
   fixed before its run). The custom-point caveat and the forecast label will quote its numbers.
+
+## Measurement: `tools/resolution_check.py` (definition fixed before the run)
+
+The team ran it at `b30847c`; it took 1,103 s. Raw output: `resolution_check_2026-11-06.log`.
+- **Grid:** 49 points per site, radius 1 km, spacing 250 m, all inside the 5 m tiles.
+- **Window:** 2027-01-01 to 01-31, 60 min step, 2 m height.
+- Each point analysed twice: 5 m tile vs 240 m regional.
+
+| site | n | Sun: signed median (240 m − 5 m) | median abs gap | 90th pct abs gap | points > 10 pts apart | 240 m higher / lower | Earth: median abs gap | Earth: 90th pct |
+|---|---|---|---|---|---|---|---|---|
+| 001 | 49 | +1.2 | 2.0 | 16.2 | 16% (8) | 30 / 9 | 0.0 | 4.3 |
+| 004 | 49 | +1.0 | 1.5 | 19.3 | 14% (7) | 33 / 7 | 0.4 | 10.5 |
+
+**Reading it:**
+- **Typical points agree:** within about 2 points of sunlight and 0–0.4 points of Earth.
+- **About 1 point in 7 differs by more than 10 points of sunlight.**
+- **The largest gaps sit at the published site points themselves:**
+  - Site 004: 5 m 0%, 240 m 65% (the pit is invisible at 240 m);
+  - Site 001: 69% vs 100%.
+- **The 240 m map reads higher more often than lower** (63 of 79 non-tied points), but not always:
+  - on Site 004's pit rim the 240 m map reads *lower* (5 m 86–89%, 240 m 62–63%);
+  - west of Site 001 it reads higher by 15–29 points.
+
+**Unexplained pattern, recorded and not acted on:** 9 of the 15 large gaps lie on the north–south
+line through each site centre (offset E = 0):
+- Site 001: median gap 3.3 on that line, 1.9 elsewhere;
+- Site 004: median gap 12.6 on that line, 1.2 elsewhere.
+
+Both maps show that line as special (higher sunlight), which fits a crest through the site.
+Another possible cause is an artefact aligned with LOLA's north–south ground tracks, which
+converge at the pole and from which the 5 m tiles are about 90% interpolated. Neither cause is
+established. A grid rotated 45° (`--rotate 45`, post hoc) would show whether the pattern follows
+the terrain or the grid axis.
+
+## What the app says (from these numbers only)
+
+- **Clicked-point caveat:** "240 m terrain: usually within a few points of the 5 m site maps, but
+  about 1 point in 7 differs by more than 10 points of sunlight, and at the published Site 001
+  and Site 004 points by 31 and 65 points."
+- **Forecast, Earth layer and light map label:** "240 m regional view. Where 5 m site terrain
+  exists (Sites 001, 004), the site panel's number is the one to use."
