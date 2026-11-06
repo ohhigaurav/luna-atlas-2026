@@ -9,6 +9,7 @@ import { spanText, type SiteNow } from '../state/siteState';
 import { CalIcon, ClockIcon, EarthIcon, SunIcon } from '../ui/Icons';
 import { earthAfter, fixes, formatDuration, formatIn, type Answer } from './answer';
 import { Calendar } from './Calendar';
+import { EllipsePanel } from './EllipsePanel';
 import { SEARCH_DAYS, utcMidnight, type PlanData, type PlanSettings } from './usePlan';
 
 const DAY = 86400e3, SYNODIC_MS = 29.530589 * DAY;
@@ -259,6 +260,11 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                 Drag the knob on the ring around the site, or click the Land row, to set the earliest launch. Wheel on the ring: ±1 day (Shift: ±1 lunar day).
               </span>
             </section>
+
+            {site.latitude_deg <= -60 && !custom && (
+              <EllipsePanel siteId={site.site_id}
+                startMs={answer?.kind === 'window' ? Math.floor(answer.bestMs / 3600e3) * 3600e3 : settings.searchStartMs} />
+            )}
 
             {data.status === 'ready' && (
               <section className="la-sec">

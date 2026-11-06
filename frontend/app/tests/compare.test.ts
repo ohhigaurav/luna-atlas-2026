@@ -13,3 +13,13 @@ describe('compare helpers', () => {
     expect(placeRef('reference-lola-site-001')).toEqual({ site_id: 'reference-lola-site-001' });
   });
 });
+
+import { sunColour } from '../src/plan/EllipsePanel';
+describe('ellipse colour scale', () => {
+  it('runs red (dark trap) to amber to green, clamped', () => {
+    expect(sunColour(0)).toBe('rgb(239,107,91)');
+    expect(sunColour(50)).toBe('rgb(242,184,75)');
+    expect(sunColour(100)).toBe('rgb(94,211,148)');
+    expect(sunColour(140)).toBe('rgb(94,211,148)');
+  });
+});

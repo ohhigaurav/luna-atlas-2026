@@ -225,6 +225,25 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-minisky .hid { opacity: 0.35; }
 .la-tile small { font: 500 11.5px var(--font-cond); color: var(--text-3); }
 
+/* landing ellipse (F28, C8) */
+.la-ellipse .la-seg button { padding: 4px 4px; font: 500 13px var(--font-cond); }
+.la-elrot { display: flex; flex-direction: column; gap: 2px; }
+.la-elrot input { accent-color: var(--text); }
+.la-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.la-elplot { width: 100%; height: auto; display: block; background: #050505; border: 1px solid var(--line); }
+.la-elplot .el-outline { fill: none; stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 4 3; }
+.la-elplot .el-cell { stroke: #000; stroke-width: 0.5; }
+.la-elplot .el-cell.na { fill: #2a2925; }
+.la-elplot .el-target { stroke: #fff; stroke-width: 1.6; fill: none; }
+.la-elplot .el-mark circle { fill: none; stroke-width: 1.8; }
+.la-elplot .el-mark.best circle { stroke: #fff; }
+.la-elplot .el-mark.worst circle { stroke: #fff; stroke-dasharray: 2 2; }
+.la-elplot .el-txt { font: 600 11.5px var(--font-cond); fill: var(--text); paint-order: stroke; stroke: #000; stroke-width: 3px; }
+.la-elplot .el-scale { fill: none; stroke: var(--text-2); stroke-width: 1; }
+.la-elplot .el-scale text, .la-elplot .el-n { fill: var(--text-2); stroke: none; font: 500 11px var(--font-cond); }
+.la-elkey { display: flex; align-items: center; gap: 6px; font: 500 11.5px var(--font-cond); color: var(--text-2); }
+.la-elkey i { width: 90px; height: 7px; background: linear-gradient(90deg, #ef6b5b, #f2b84b, #5ed394); }
+
 /* site: the answer */
 .la-side-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b2a27 transparent; }
 .la-sec { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }

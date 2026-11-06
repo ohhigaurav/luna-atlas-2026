@@ -51,6 +51,8 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 | Moon weather forecast (F29): the south pole's sunlight every 2 h and Earth's line of sight every 6 h for January 2027, draped on the 3D pole in sync with the clock; layers (Earth, lit and Earth), probe point with month ribbon, hover readout | `src/forecast/`, `fc*` uniforms in `src/scene/lunarMaterial.ts` | `public/data/shadow_movie/` (`lit.u8`, `earth.u8`, `movie.json`, `earth.json`) from `tools/bake_shadow_movie.py`, `tools/bake_earth_movie.py` |
 | Click anywhere: landing windows for any point (240 m terrain near the pole, flat elsewhere, labelled) | `App.tsx` (`pointId`), `src/api/plan.ts` | `/api/landing-windows`, `/api/check` with `latitude_deg`, `longitude_deg` |
 | "Verify with NASA JPL ↗": our Sun/Earth position at best touchdown next to JPL Horizons' table for it | `src/plan/SitePanel.tsx` | `verify` on each opportunity |
+| Compare view: up to 6 places side by side, mini horizons, leader per row, Earthset/sunset countdowns | `src/compare/`, `src/api/compare.ts` | `POST /api/compare` |
+| Landing ellipse (polar sites): ~45 analyses inside the ellipse, best/worst, dark-trap share | `src/plan/EllipsePanel.tsx` | `POST /api/landing-ellipse` |
 | Time rail, pointer readout (lat/lon and Sun height under the cursor) | `App.tsx` | shared clock |
 
 **Live or static.** If the backend answers `GET /api/reference-sites`, the app is live ("the Moon
