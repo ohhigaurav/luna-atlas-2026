@@ -23,7 +23,7 @@ Output, next to the Sun files:
 
     .venv/bin/python tools/bake_earth_movie.py [--movie frontend/app/public/data/shadow_movie] [--every 3]
 
-Resumable: finished frames are kept in earth_partial/.
+Resumable: finished frames are kept in earth_partial_every<N>/ (per --every).
 """
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def main() -> int:
     times = [sun_times[i] for i in idx]
     step_min = int(round((sun_times[1] - sun_times[0]).total_seconds() / 60)) * args.every if len(sun_times) > 1 else 60
 
-    part = args.movie / "earth_partial"
+    part = args.movie / f"earth_partial_every{args.every}"  # resume only with the same frame spacing
     part.mkdir(parents=True, exist_ok=True)
     print(f"{len(times)} Earth frames (every {args.every} Sun frames), {n}x{n} px; loading DEM ...", flush=True)
     dem = load_regional_dem(half + 150_000.0 + 2 * px)
