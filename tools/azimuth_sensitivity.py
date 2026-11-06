@@ -45,9 +45,12 @@ def main() -> int:
                                                terrain_azimuth_step_deg=step))
             s = run["sites"][0]
             out[str(step)] = {"sunlit": s["metrics"]["sunlit_percent"], "disc": sun_disc_percent(s["series"]),
-                              "earth": s["metrics"]["dte_clear_percent"]}
+                              "earth": s["metrics"]["dte_clear_percent"],
+                              "bins": len(s.get("horizon_profile") or []),
+                              "azimuth_step_recorded": (s.get("terrain") or {}).get("azimuth_step_deg")}
             print(f"  {site_id[-3:]} step {step:4.2f} deg: sun {out[str(step)]['sunlit']:6.2f}%  "
-                  f"disc {out[str(step)]['disc']:6.2f}%  earth {out[str(step)]['earth']:6.2f}%", flush=True)
+                  f"disc {out[str(step)]['disc']:6.2f}%  earth {out[str(step)]['earth']:6.2f}%  "
+                  f"({out[str(step)]['bins']} horizon bins, step recorded {out[str(step)]['azimuth_step_recorded']})", flush=True)
         out["diff"] = {k: out["0.25"][k] - out["0.5"][k] for k in ("sunlit", "disc", "earth")}
         rows.append(out)
     worst = max(abs(v) for r in rows for v in r["diff"].values())
