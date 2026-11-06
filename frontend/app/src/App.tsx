@@ -496,7 +496,7 @@ export default function App() {
       )}
       {sheet?.kind === 'compare' && (
         <CompareView places={cmp} live={live} clockMs={cursorMs} onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
-          onOpen={(s) => { setSheet(null); setComparing(false); pick(s); }} onClose={() => setSheet(null)} />
+          onOpen={(s) => { setSheet(null); setComparing(false); pick(s); }} onJump={jump} onClose={() => setSheet(null)} />
       )}
       {sheet?.kind === 'proof' && <ProofView live={live} onClose={() => setSheet(null)} onShow={showMission} />}
       {sheet?.kind === 'surface' && selected && (

@@ -2,11 +2,15 @@
 // and over the next days, from POST /api/compare. One row per metric, the leader's cell marked
 // (no combined score), each column's own horizon with the Sun and Earth at that moment.
 import { useEffect, useState } from 'react';
-import { nextText, type CompareRow } from '../api/compare';
+import { nextText, type BodyNow, type CompareRow } from '../api/compare';
 import { useCompare } from './useCompare';
 import { fetchRun, type SavedRun } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
+import { spanText } from '../state/siteState';
+import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS, SEARCH_DAYS } from '../plan/usePlan';
+import type { NextLanding } from './nextLanding';
+import { useNextLanding } from './useNextLanding';
 import { CloseIcon } from '../ui/Icons';
 
 type Props = {
@@ -15,8 +19,19 @@ type Props = {
   clockMs: number;
   onRemove: (id: string) => void;
   onOpen: (s: ReferenceSite) => void;
+  /** Moves the date bar (and so this table) to another moment. */
+  onJump: (ms: number) => void;
   onClose: () => void;
 };
+
+const dayText = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** Height of a body above the local horizon at that azimuth (terrain where available), signed. */
+const signed = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}°`;
+function aboveHorizon(b: BodyNow): { h: number; main: string; sub: string } {
+  const h = b.elevation_deg - b.horizon_deg;
+  return { h, main: signed(h), sub: `${signed(b.elevation_deg)} over level ground, az ${b.azimuth_deg.toFixed(0)}°` };
+}
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const hours = (h: number, lower: boolean) => {
@@ -27,12 +42,12 @@ const hours = (h: number, lower: boolean) => {
 type Metric = { label: string; hint?: string; leader?: string; cell: (r: CompareRow, days: number) => { main: string; sub?: string; tone?: string } };
 
 const METRICS: Metric[] = [
-  { label: 'Sun now', hint: 'height above the local horizon (terrain), panel 2 m', leader: 'highest_sun_now',
-    cell: (r) => ({ main: `${r.now.sun.elevation_deg.toFixed(1)}°`, sub: `${r.now.sun.up ? 'up' : 'below the horizon'}, az ${r.now.sun.azimuth_deg.toFixed(0)}°`, tone: r.now.sun.up ? 'sun' : 'dim' }) },
+  { label: 'Sun now', hint: 'centre above (+) or behind (−) the hills at its azimuth, panel 2 m', leader: 'highest_sun_now',
+    cell: (r) => { const a = aboveHorizon(r.now.sun); return { main: `${r.now.sun.up ? (a.h < 0 ? 'Partly up' : 'Up') : 'Down'} ${a.main}`, sub: a.sub, tone: r.now.sun.up ? 'sun' : 'dim' }; } },
   { label: 'Sunset or sunrise', leader: 'longest_until_sunset',
     cell: (r, d) => ({ main: cap(nextText(r.sun_next, d)), tone: r.sun_next.up ? 'sun' : 'dim' }) },
-  { label: 'Earth now', hint: 'centre above the horizon from a 2 m antenna: line of sight, not a radio link',
-    cell: (r) => ({ main: `${r.now.earth.elevation_deg.toFixed(1)}°`, sub: `${r.now.earth.up ? 'in view' : 'hidden'}, az ${r.now.earth.azimuth_deg.toFixed(0)}°`, tone: r.now.earth.up ? 'earth' : 'dim' }) },
+  { label: 'Earth now', hint: 'centre above (+) or behind (−) the hills, 2 m antenna: line of sight, not a radio link',
+    cell: (r) => { const a = aboveHorizon(r.now.earth); return { main: `${r.now.earth.up ? 'In view' : 'Hidden'} ${a.main}`, sub: a.sub, tone: r.now.earth.up ? 'earth' : 'dim' }; } },
   { label: 'Earthset or Earthrise', leader: 'longest_until_earthset',
     cell: (r, d) => ({ main: cap(nextText(r.earth_next, d)), tone: r.earth_next.up ? 'earth' : 'dim' }) },
   { label: 'Sunlit', hint: 'share of the period', leader: 'most_sunlight', cell: (r) => ({ main: `${r.period.sunlit_percent.toFixed(0)}%` }) },
@@ -75,15 +90,51 @@ function MiniSky({ row }: { row: CompareRow }) {
   );
 }
 
-export function CompareView({ places, live, clockMs, onRemove, onOpen, onClose }: Props) {
+function earliest(land: Record<string, NextLanding>): number | null {
+  const t = Object.values(land).flatMap((n) => (n.kind === 'window' ? [n.fromMs] : []));
+  return t.length ? Math.min(...t) : null;
+}
+
+/** One sentence above the table: can any of these places land on this date, and if not, when is the soonest chance. */
+function LandingSummary({ places, land, atMs, onJump }: { places: ReferenceSite[]; land: Record<string, NextLanding>; atMs: number; onJump: (ms: number) => void }) {
+  const all = places.map((p) => ({ p, n: land[p.site_id] ?? ({ kind: 'pending' } as NextLanding) }));
+  const pending = all.filter((x) => x.n.kind === 'pending').length;
+  const open = all.filter((x) => x.n.kind === 'window' && x.n.openAt);
+  const later = all.flatMap((x) => (x.n.kind === 'window' && !x.n.openAt ? [{ p: x.p, n: x.n }] : [])).sort((a, b) => a.n.fromMs - b.n.fromMs);
+  const names = (xs: { p: ReferenceSite }[]) => xs.map((x) => x.p.name).join(', ');
+  let body;
+  if (open.length) {
+    body = <p><b className="good-c">You can land on {dayText(atMs)} at {names(open)}.</b>{pending ? ` Still checking ${pending}.` : ''}</p>;
+  } else if (later.length) {
+    const s = later[0];
+    body = (
+      <>
+        <p>
+          <b>{pending ? 'So far, none of these places can land' : 'None of these places can land'} on {dayText(atMs)}.</b>{' '}
+          Soonest chance: <b>{s.p.name}</b> from {dayText(s.n.fromMs)}, in {spanText(s.n.fromMs - atMs)}.
+          {pending ? ` Still checking ${pending}.` : ''}
+        </p>
+        <button type="button" className="la-btn primary" onClick={() => onJump(s.n.bestMs)}>Compare on {dayText(s.n.bestMs)}</button>
+      </>
+    );
+  } else if (pending) {
+    body = <p>Looking for the next landing window at each place: {places.length - pending} of {places.length} done.</p>;
+  } else {
+    body = <p><b>No landing window at any of these places in the {SEARCH_DAYS} days searched.</b> A shorter mission or a higher Sun limit (site Details) can open one.</p>;
+  }
+  return <div className="la-cmp-land" role="status">{body}</div>;
+}
+
+export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, onClose }: Props) {
   const [days, setDays] = useState(30);
   const st = useCompare(places.map((p) => p.site_id), clockMs, days, live, 0);
+  const land = useNextLanding(places.map((p) => p.site_id), clockMs, live);
   const [, tick] = useState(0);
   useEffect(() => {
-    if (st.s !== 'loading') return;
+    if (st.s !== 'loading' && !Object.values(land).some((x) => x.kind === 'pending')) return;
     const t = setInterval(() => tick((k) => k + 1), 1000);
     return () => clearInterval(t);
-  }, [st.s]);
+  }, [st.s, land]);
 
   const r = st.s === 'ready' ? st.r : null;
   const shown = r ?? (st.s === 'loading' ? st.last : null);
@@ -114,6 +165,8 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onClose }
       )}
       {live && st.s === 'error' && <div className="la-cmp-status"><p className="la-err" role="alert">{st.m}</p></div>}
 
+      {live && places.length > 0 && <LandingSummary places={places} land={land} atMs={clockMs} onJump={onJump} />}
+
       {live && shown && (
         <div className={`la-cmp${st.s === 'loading' ? ' stale' : ''}`} style={{ gridTemplateColumns: `150px repeat(${shown.rows.length}, minmax(132px, 1fr))` }}>
           <div className="c-corner"><span className="la-cap">{new Date(shown.at_utc).toISOString().slice(0, 16).replace('T', ' ')} UTC, then {shown.days} days</span></div>
@@ -130,6 +183,28 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onClose }
           })}
           <div className="c-label">Horizon now<small>terrain, Sun ● Earth ●</small></div>
           {shown.rows.map((row) => <div key={row.key} className="c-cell sky"><MiniSky row={row} /></div>)}
+          <div className="c-label">Next landing window<small>{DEFAULT_MISSION_DAYS}-day mission in sunlight, Earth in view, Sun ≤ {DEFAULT_MAX_SUN_DEG}° at touchdown</small></div>
+          {shown.rows.map((row) => {
+            const p = byKey(row);
+            const n: NextLanding = p ? land[p.site_id] ?? { kind: 'pending' } : { kind: 'error' };
+            const lead = shown.rows.length > 1 && n.kind === 'window' && earliest(land) === n.fromMs;
+            return (
+              <div key={row.key} role="cell" className={`c-cell${lead ? ' lead' : ''}`}>
+                {n.kind === 'pending' && <><b className="dim-c">Checking…</b><small>about 10–60 s the first time</small></>}
+                {n.kind === 'error' && <b className="dim-c">Not checked</b>}
+                {n.kind === 'none' && <><b className="dim-c">None</b><small>through {dayText(n.throughMs)}</small></>}
+                {n.kind === 'window' && n.openAt && <><b className="good-c">Open now</b><small>until {dayText(n.untilMs)}</small></>}
+                {n.kind === 'window' && !n.openAt && (
+                  <>
+                    <b>{dayText(n.fromMs)}</b>
+                    <small>in {spanText(n.fromMs - clockMs)}{n.sunDeg !== undefined ? `, Sun ${n.sunDeg.toFixed(1)}° at best` : ''}</small>
+                    <button type="button" className="c-go" onClick={() => onJump(n.bestMs)}>Go to {dayText(n.bestMs)}</button>
+                  </>
+                )}
+                {lead && <span className="c-best">soonest</span>}
+              </div>
+            );
+          })}
           {METRICS.map((m) => (
             <div key={m.label} className="c-row" role="row">
               <div className="c-label" role="rowheader">{m.label}{m.hint && <small>{m.hint}</small>}</div>

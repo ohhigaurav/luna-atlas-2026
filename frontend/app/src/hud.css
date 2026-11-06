@@ -766,3 +766,12 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .sc-note a { color: var(--text); text-underline-offset: 2px; }
 .hl-banner { font-size: 13px !important; color: var(--text-3) !important; }
 .sc-note .la-btn { text-align: left; border-radius: 10px; font-size: 14px; padding: 7px 12px; }
+
+/* compare: can these places land on this date, and the soonest chance (7 Nov) */
+.la-cmp-land { margin: 0 20px 10px; padding: 12px 14px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.la-cmp-land p { margin: 0; flex: 1 1 420px; font-size: 15px; color: var(--text-2); }
+.la-cmp-land b { color: var(--text); }
+.la-cmp-land b.good-c { color: var(--good); }
+.la-cmp .c-go { all: unset; cursor: pointer; margin-top: 4px; font: 600 12.5px var(--font-ui); color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.la-cmp .c-go:focus-visible { outline: 2px solid var(--select); }
