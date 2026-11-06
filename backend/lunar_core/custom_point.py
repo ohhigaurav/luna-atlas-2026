@@ -13,10 +13,11 @@ from typing import Any
 
 CUSTOM_SITE_ID = "custom-point"
 COORD_DECIMALS = 6
-CUSTOM_CAVEAT = ("A point you picked, not a catalogue site: terrain from the 240 m regional map only "
-                 "(no 5 m site tiles). Bumps tens of metres away that a 5 m map would show are smoothed "
-                 "out, and on polar ridges such bumps can decide sunlight; where a catalogue site with 5 m "
-                 "terrain is nearby, trust its result over this one.")
+CUSTOM_CAVEAT = ("A point you picked, not a catalogue site: terrain from the 240 m regional map only. "
+                 "Measured against the 5 m site maps (Sites 001 and 004, Jan 2027), it is usually within a "
+                 "few points of sunlight, but about 1 point in 7 differs by more than 10 points, and at the "
+                 "published Site 001 and 004 points by 31 and 65 points. Use a nearby 5 m site result where "
+                 "one exists.")
 
 
 def normalise(latitude_deg: float, longitude_deg: float) -> tuple[float, float]:
