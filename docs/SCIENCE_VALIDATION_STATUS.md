@@ -1,5 +1,9 @@
 # Scientific validation status — 0.7.2-dev
 
+## Gate S (slope layer) — pass rule written, not yet run (2026-11-07)
+
+Computed slope (Horn 3×3 on the 5 m PGDA Product 78 DEMs) is to be compared with PGDA's published slope maps at Sites 001 and 004 under `validation/slope_tolerances.json`, predeclared 2026-11-07T14:12:20Z before any comparison (status `proposed_before_run`; the team may still change the numbers before the first run). Run: `tools/validate_slope.py --fetch` then `tools/validate_slope.py`. Until it passes, slope answers say `validation.status: not_run`. Verified so far: analytic surfaces only (plane exact to 1e-12°, cone, NoData, scale factor, frame round-trips to 1e-6 m).
+
 ## Gate B passed (2026-10-28)
 
 SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.0413 arcsec elevation and 0.0107 km range at two south-polar reference points (20 comparisons, 8 near the horizon), against 1 arcsec / 1 arcsec / 1 km tolerances approved before the run. Evidence: `validation/evidence/gate_b_geometry_2026-10-28.md`. Still open: Gate C (terrain review), Gate D on real data, usability and release gates.

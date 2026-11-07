@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 # One horizon build holds azimuths x radial samples in memory under the global run lock; the
 # defaults need ~1.7 million. Beyond this a single request could exhaust memory (review, 6 Nov).
 MAX_HORIZON_SAMPLES = 5_000_000
@@ -341,6 +340,31 @@ class EllipseRequest(BaseModel):
 
     @model_validator(mode="after")
     def axes_ordered(self) -> EllipseRequest:
+        if self.semi_minor_m is not None and self.semi_minor_m > self.semi_major_m:
+            raise ValueError("semi_minor_m must not exceed semi_major_m")
+        return self
+
+
+class SlopeRequest(BaseModel):
+    """Ground slope over a landing ellipse from the 5 m DEMs (see lunar_core.slope). No SPICE, no dates."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    site_id: str | None = Field(default=None, min_length=1, max_length=100)
+    latitude_deg: float | None = Field(default=None, ge=-90.0, le=90.0,
+                                       description="Custom point: planetocentric latitude")
+    longitude_deg: float | None = Field(default=None, ge=-180.0, lt=360.0,
+                                        description="Custom point: east longitude (negative = west)")
+    semi_major_m: float = Field(default=250.0, ge=25.0, le=1500.0)
+    semi_minor_m: float | None = Field(default=None, ge=25.0, le=1500.0)
+    orientation_deg: float = Field(default=0.0, ge=0.0, lt=180.0)
+    spacing_m: float | None = Field(default=None, ge=25.0, le=500.0)
+    slope_limit_deg: float = Field(default=8.0, ge=0.5, le=45.0,
+                                   description="The lander's slope limit; 8 deg is an example, not a requirement")
+
+    @model_validator(mode="after")
+    def slope_site_point_and_axes(self) -> SlopeRequest:
+        _site_or_point(self)
         if self.semi_minor_m is not None and self.semi_minor_m > self.semi_major_m:
             raise ValueError("semi_minor_m must not exceed semi_major_m")
         return self

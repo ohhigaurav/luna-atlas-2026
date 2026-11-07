@@ -31,6 +31,7 @@ from lunar_core.api_models import (
     LandingRequest,
     SkyGeometryRequest,
     SkyGeometryResponse,
+    SlopeRequest,
 )
 from lunar_core.catalogue import load_default_catalogue
 from lunar_core.kernels import preflight_kernel_files
@@ -368,6 +369,22 @@ def landing_ellipse(request: EllipseRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Ellipse rejected: {exc}") from exc
+
+
+@app.post("/api/slope", tags=["terrain"])
+def slope(request: SlopeRequest) -> dict[str, Any]:
+    """Ground slope over a landing ellipse from the 5 m DEMs; not a hazard certification (D-23).
+
+    Places without 5 m terrain get ``status: not_available`` with a reason (HTTP 200).
+    """
+    from lunar_core.slope import run_slope
+
+    try:
+        return run_slope(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Slope rejected: {exc}") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=f"Slope unavailable: {exc}") from exc
 
 
 @app.post("/api/sky-geometry", tags=["analysis"], response_model=SkyGeometryResponse)

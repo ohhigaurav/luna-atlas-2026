@@ -10,7 +10,63 @@ For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`
 | **"When can I land here?"** (the main question) | `POST /api/landing-windows` `{site_id, search_start_utc, search_days, mission_days}` |
 | **"Check this site"** for a chosen date | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
 | **compare 2–6 sites/points side by side** (challenge core) | `POST /api/compare` `{places, at_utc, days}` |
+| **slope over a landing ellipse** (5 m terrain only; no dates, no SPICE) | `POST /api/slope` `{site_id, semi_major_m, slope_limit_deg}` |
 | full time series for the surface sky view and time dock | `GET /api/runs/{run_id}` (the check returns `run_url`) |
+
+## `POST /api/slope`: ground slope in the landing ellipse (new 7 Nov, D-23; challenge C11)
+
+Request: `site_id`, or `latitude_deg` + `longitude_deg` (clicked point). Optional: `semi_major_m` 250
+(25–1500), `semi_minor_m` (default = round), `orientation_deg` 0 (bearing of the major axis), `spacing_m`
+(default = the ellipse view's, so `points` line up with `/api/landing-ellipse` points), `slope_limit_deg`
+8 (0.5–45). No SPICE and no dates: one raster window read, expected to be fast but not yet timed on real
+rasters (`compute_seconds` says). Debounce re-asks on limit changes; the CDF covers the instant update.
+
+Response (`status: "ok"`):
+
+- `label`: show it under every slope number, verbatim: "Slope of the 5 m LOLA terrain, 10 m baseline
+  (3×3 Horn). Not a hazard certification: …".
+- `limit_deg`, `limit_note` (the 8° default is an example, not a lander requirement; say so next to the input).
+- `area`: over every 5 m pixel inside the ellipse. `slope_deg.{median,p90,p99,max}`, `share_within_limit`,
+  `share_over_limit`; with the error layer staged also `share_clearly_within`, `share_uncertain`,
+  `share_clearly_over`. `cdf.share_at_or_below[i]` = share of the ellipse with slope ≤ `i × 0.5`°.
+- `points[]`: `east_m`, `north_m`, `slope_deg`, `slope_err_deg` (null if no error layer), `slope_verdict`
+  `within` / `over` / `uncertain` / null.
+- `overlay`: `max_slope_deg[row][col]`, rows north → south, columns west → east, cell `cell_m`, first cell
+  centre at (`first_cell_centre_east_m`, `first_cell_centre_north_m`), local east/north metres from the
+  target (same frame as the ellipse points). Each cell is the **steepest** pixel in it; null = outside or unknown.
+- `chips`: e.g. `["target 3.1°", "typical 4.2°", "steepest 18°", "82% of ellipse ≤ 8°"]`.
+- `terrain.native_resolution_m` (always ≤ 5), `uncertainty.available`, `validation.status`
+  (`not_run` until Gate S runs; then `pass` / `fail` with a summary), `compute_seconds`.
+
+`status: "not_available"` + `reason` (HTTP 200) where no 5 m tile covers the whole ellipse (Malapert,
+equatorial sites, ellipses past the tile edge). Show the reason; never fall back to anything else.
+
+`POST /api/landing-ellipse` now also carries slope (schema 1.1): each point has `slope_deg`,
+`slope_err_deg`, `slope_verdict` at the default 8°, and `slope` has `area`, `overlay`, `chips` and
+`best_sunlit_within_limit` (`east_m`, `north_m`, `sunlit_percent`, `dte_clear_percent`, `slope_deg`, or null).
+If `slope.status` is not `ok`, draw the ellipse as before. For the user's own limit: recolour points from
+`slope_deg`, read the area share from `area.cdf`, and pick the best flat-enough point client-side
+(highest `sunlit_percent` among points with `slope_deg ≤ limit`), or call `/api/slope`. Static mode has
+the baked ellipses only, so use the CDF there.
+
+### Handoff for the frontend session (paste as is)
+
+> Backend 0.7.41 adds slope to the landing ellipse (docs/frontend_api.md → `POST /api/slope`).
+> In the polar site panel's Landing ellipse:
+> 1. A "Slope" toggle beside the sunlight colouring. On: colour each point by `slope_deg` against the
+>    limit (within / uncertain / over; never colour alone, add the number on hover) and draw `slope.overlay`
+>    as a faint heat layer under the points (steepest-in-cell, say so in the legend).
+> 2. A "Lander slope limit" number input (default 8°, step 0.5) with `limit_note` as helper text. Changing
+>    it updates the chips from `area.cdf` immediately and re-asks `/api/slope` (debounced) when live.
+> 3. One new chip next to the sunlight chips: "{share}% of ellipse ≤ {limit}°", and the marker
+>    "best sunlit spot under {limit}°" from `best_sunlit_within_limit` (or from the points for a custom limit),
+>    shown beside the existing best point when they differ. That pair is the demo beat: the sunniest spot
+>    may be too steep.
+> 4. Under the slope numbers always show `label` verbatim and "5 m terrain". When `slope.status` is
+>    `not_available`, show the reason in one grey line and no slope controls.
+> 5. Evidence screen: a "Slope (Gate S)" row from `validation.status`: "not yet checked against NASA's
+>    published slope map" until it reads `pass`.
+> Do not show slope for clicked points outside the 5 m tiles, and never call it "safe" or "hazard-free".
 
 ## `POST /api/sky-geometry`: stars and Earth's face (new 6 Nov)
 

@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Published companion layers of DEM assets in manifest.json, used by the slope layer (D-23): PGDA slope maps (Gate S reference) and slope RMS uncertainty. A layer with sha256 null is not staged and is ignored. Fill the hashes with tools/fetch_slope_layers.py, never by hand.",
+  "layers": [
+    {
+      "layer_id": "pgda78-site01-slope",
+      "base_asset_id": "pgda78-site01-surface",
+      "kind": "slope_deg",
+      "relative_path": "data/dems/assets/Site01_final_adj_5mpp_slp.tif",
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_slp.tif",
+      "sha256": null,
+      "size_bytes": null,
+      "retrieved_utc": null
+    },
+    {
+      "layer_id": "pgda78-site01-slope-error",
+      "base_asset_id": "pgda78-site01-surface",
+      "kind": "slope_rms_error_deg",
+      "relative_path": "data/dems/assets/Site01_final_adj_5mpp_slperr.tif",
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_slperr.tif",
+      "sha256": null,
+      "size_bytes": null,
+      "retrieved_utc": null
+    },
+    {
+      "layer_id": "pgda78-site04-slope",
+      "base_asset_id": "pgda78-site04-surface",
+      "kind": "slope_deg",
+      "relative_path": "data/dems/assets/Site04_final_adj_5mpp_slp.tif",
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_slp.tif",
+      "sha256": null,
+      "size_bytes": null,
+      "retrieved_utc": null
+    },
+    {
+      "layer_id": "pgda78-site04-slope-error",
+      "base_asset_id": "pgda78-site04-surface",
+      "kind": "slope_rms_error_deg",
+      "relative_path": "data/dems/assets/Site04_final_adj_5mpp_slperr.tif",
+      "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_slperr.tif",
+      "sha256": null,
+      "size_bytes": null,
+      "retrieved_utc": null
+    }
+  ]
+}

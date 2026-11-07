@@ -140,3 +140,19 @@ def test_root_serves_built_app_when_present_and_legacy_stays_reachable(tmp_path,
     legacy = client.get("/legacy")
     assert legacy.status_code == 200 and "Landing-window finder" in legacy.text
     assert "worker-src 'self' blob:" in legacy.headers["content-security-policy"]
+
+
+def test_slope_endpoint_answers_not_available_without_5m_terrain() -> None:
+    response = client.post("/api/slope", json={"latitude_deg": -89.45, "longitude_deg": 222.69,
+                                               "semi_major_m": 250, "slope_limit_deg": 10})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "not_available" and "240 m" in payload["reason"]
+    assert payload["limit_deg"] == 10 and "Not a hazard certification" in payload["label"]
+    assert payload["site"]["origin"] == "custom" and payload["ellipse"]["semi_major_m"] == 250
+
+
+def test_slope_endpoint_rejects_bad_requests() -> None:
+    assert client.post("/api/slope", json={"site_id": "no-such-site"}).status_code == 422
+    assert client.post("/api/slope", json={"site_id": "x", "slope_limit_deg": 60}).status_code == 422
+    assert client.post("/api/slope", json={}).status_code == 422
