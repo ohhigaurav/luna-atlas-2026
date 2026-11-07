@@ -31,6 +31,8 @@ export type LandingResult = {
   opportunities: LandingOpportunity[];
   opportunity_count: number;
   closest_miss: { touchdown_utc: string; failed_rules: string[]; daylight_after_h: number; daylight_needed_h: number; verify?: Verify } | null;
+  /** Longest sunlit window in the search period (backend landing.evaluate). */
+  longest_sunlit_window?: { start_utc: string; end_utc: string; hours: number; is_lower_bound: boolean } | null;
   summary: string[];
   caveats: string[];
   compute_seconds: number;

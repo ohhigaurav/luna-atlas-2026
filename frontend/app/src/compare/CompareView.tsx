@@ -8,8 +8,8 @@ import { fetchRun, type LimitCheck, type SavedRun } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText } from '../state/siteState';
-import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS, SEARCH_DAYS } from '../plan/usePlan';
-import type { NextLanding } from './nextLanding';
+import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS } from '../plan/usePlan';
+import type { Miss, NextLanding } from './nextLanding';
 import { useNextLanding } from './useNextLanding';
 import { CloseIcon } from '../ui/Icons';
 
@@ -114,7 +114,18 @@ function earliest(land: Record<string, NextLanding>): number | null {
 }
 
 /** One sentence above the table: can any of these places land on this date, and if not, when is the soonest chance. */
-function LandingSummary({ places, land, atMs, onJump }: { places: ReferenceSite[]; land: Record<string, NextLanding>; atMs: number; onJump: (ms: number) => void }) {
+const daysText = (h: number) => `${(h / 24).toFixed(1)} days`;
+/** Short names for landing.py's rules, for the closest miss. */
+const RULE_SHORT: Record<string, string> = {
+  sun_up: 'Sun not up', daylight: 'too little daylight left', earth_up: 'Earth not in view',
+  low_sun: 'Sun too high for long shadows', sun_high: 'Sun too low to light the ground',
+};
+const missText = (m: Miss) => m.rules.map((k) => (k === 'daylight' ? `${daysText(m.daylightH)} of daylight left, needs ${daysText(m.neededH)}` : RULE_SHORT[k] ?? k)).join('; ');
+
+function LandingSummary({ places, land, atMs, mission, onJump, onMission }: {
+  places: ReferenceSite[]; land: Record<string, NextLanding>; atMs: number; mission: number;
+  onJump: (ms: number) => void; onMission: (d: number) => void;
+}) {
   const all = places.map((p) => ({ p, n: land[p.site_id] ?? ({ kind: 'pending' } as NextLanding) }));
   const pending = all.filter((x) => x.n.kind === 'pending').length;
   const open = all.filter((x) => x.n.kind === 'window' && x.n.openAt);
@@ -138,7 +149,27 @@ function LandingSummary({ places, land, atMs, onJump }: { places: ReferenceSite[
   } else if (pending) {
     body = <p>Looking for the next landing window at each place: {places.length - pending} of {places.length} done.</p>;
   } else {
-    body = <p><b>No landing window at any of these places in the {SEARCH_DAYS} days searched.</b> A shorter mission or a higher Sun limit (site Details) can open one.</p>;
+    // Nothing fits: say how far the search went, the longest sunlight any place gets (what a
+    // shorter mission could use) and the last window before this date, each one click away.
+    const nones = all.flatMap((x) => (x.n.kind === 'none' ? [{ p: x.p, n: x.n }] : []));
+    const through = Math.max(...nones.map((x) => x.n.throughMs));
+    const longest = nones.filter((x) => x.n.longest).sort((a, b) => b.n.longest!.hours - a.n.longest!.hours)[0];
+    const earlier = nones.filter((x) => x.n.earlier).sort((a, b) => b.n.earlier!.fromMs - a.n.earlier!.fromMs)[0];
+    const fits = longest ? Math.floor(longest.n.longest!.hours / 24) : 0;
+    const miss = nones.filter((x) => x.n.miss).sort((a, b) => a.n.miss!.rules.length - b.n.miss!.rules.length || a.n.miss!.atMs - b.n.miss!.atMs)[0];
+    body = (
+      <>
+        <p>
+          <b>No place here gets a {mission}-day landing window from {dayText(atMs)} to {dayText(through)}.</b>
+          {longest && <> The longest sunlight is at <b>{longest.p.name}</b>: {longest.n.longest!.lowerBound ? 'at least ' : ''}{daysText(longest.n.longest!.hours)} from {dayText(longest.n.longest!.fromMs)}.</>}
+          {miss && <> Closest try: <b>{miss.p.name}</b> on {dayText(miss.n.miss!.atMs)}, which fails on {missText(miss.n.miss!)}.</>}
+          {earlier && <> The last chance before this date was <b>{earlier.p.name}</b> on {dayText(earlier.n.earlier!.fromMs)}.</>}
+          {!longest && !earlier && ' The Sun stays below the hills at every place for the whole search.'}
+        </p>
+        {fits >= 1 && fits < mission && <button type="button" className="la-btn primary" onClick={() => onMission(fits)}>Try a {fits}-day mission</button>}
+        {earlier && <button type="button" className="la-btn" onClick={() => onJump(earlier.n.earlier!.bestMs)}>Compare on {dayText(earlier.n.earlier!.bestMs)}</button>}
+      </>
+    );
   }
   return <div className="la-cmp-land" role="status">{body}</div>;
 }
@@ -146,13 +177,15 @@ function LandingSummary({ places, land, atMs, onJump }: { places: ReferenceSite[
 export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, onClose }: Props) {
   const [days, setDays] = useState(30);
   const st = useCompare(places.map((p) => p.site_id), clockMs, days, live, 0);
-  const land = useNextLanding(places.map((p) => p.site_id), clockMs, live);
+  const [mission, setMission] = useState(DEFAULT_MISSION_DAYS);
+  const land = useNextLanding(places.map((p) => p.site_id), clockMs, mission, live);
+  const landPending = Object.values(land).some((x) => x.kind === 'pending');
   const [, tick] = useState(0);
   useEffect(() => {
-    if (st.s !== 'loading' && !Object.values(land).some((x) => x.kind === 'pending')) return;
+    if (st.s !== 'loading' && !landPending) return;
     const t = setInterval(() => tick((k) => k + 1), 1000);
     return () => clearInterval(t);
-  }, [st.s, land]);
+  }, [st.s, landPending]);
 
   const r = st.s === 'ready' ? st.r : null;
   const shown = r ?? (st.s === 'loading' ? st.last : null);
@@ -169,6 +202,12 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
             {[14, 30, 60].map((d) => <option key={d} value={d}>{d} days</option>)}
           </select>
         </label>
+        <label className="la-cmpdate">
+          <span className="la-cap">Mission</span>
+          <select value={mission} onChange={(e) => setMission(Number(e.target.value))}>
+            {[...new Set([1, 2, 3, 5, 7, 10, 14, mission])].sort((a, b) => a - b).map((d) => <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'}{d === DEFAULT_MISSION_DAYS ? ' (default)' : ''}</option>)}
+          </select>
+        </label>
         <span className="la-spacer" />
         <button type="button" className="la-x" aria-label="Close compare (Esc)" onClick={onClose}><CloseIcon /></button>
       </div>
@@ -183,7 +222,7 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
       )}
       {live && st.s === 'error' && <div className="la-cmp-status"><p className="la-err" role="alert">{st.m}</p></div>}
 
-      {live && places.length > 0 && <LandingSummary places={places} land={land} atMs={clockMs} onJump={onJump} />}
+      {live && places.length > 0 && <LandingSummary places={places} land={land} atMs={clockMs} mission={mission} onJump={onJump} onMission={setMission} />}
 
       {live && shown && (
         <div className={`la-cmp${st.s === 'loading' ? ' stale' : ''}`} style={{ gridTemplateColumns: `150px repeat(${shown.rows.length}, minmax(132px, 1fr))` }}>
@@ -201,7 +240,7 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
           })}
           <div className="c-label">Horizon now<small>terrain, Sun ● Earth ●</small></div>
           {shown.rows.map((row) => <div key={row.key} className="c-cell sky"><MiniSky row={row} /></div>)}
-          <div className="c-label">Next landing window<small>{DEFAULT_MISSION_DAYS}-day mission in sunlight, Earth in view, Sun ≤ {DEFAULT_MAX_SUN_DEG}° at touchdown</small></div>
+          <div className="c-label">Next landing window<small>{mission}-day mission in sunlight, Earth in view, Sun ≤ {DEFAULT_MAX_SUN_DEG}° at touchdown</small></div>
           {shown.rows.map((row) => {
             const p = byKey(row);
             const n: NextLanding = p ? land[p.site_id] ?? { kind: 'pending' } : { kind: 'error' };
@@ -210,7 +249,17 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
               <div key={row.key} role="cell" className={`c-cell${lead ? ' lead' : ''}`}>
                 {n.kind === 'pending' && <><b className="dim-c">Checking…</b><small>about 10–60 s the first time</small></>}
                 {n.kind === 'error' && <b className="dim-c">Not checked</b>}
-                {n.kind === 'none' && <><b className="dim-c">None</b><small>through {dayText(n.throughMs)}</small></>}
+                {n.kind === 'none' && (
+                  <>
+                    <b className="dim-c">None</b>
+                    <small>through {dayText(n.throughMs)}</small>
+                    {n.miss && <small>closest {dayText(n.miss.atMs)}: {missText(n.miss)}</small>}
+                    {n.longest
+                      ? <small>longest sunlight {n.longest.lowerBound ? '≥ ' : ''}{daysText(n.longest.hours)}, from {dayText(n.longest.fromMs)}</small>
+                      : <small>no sunlit stretch after this date</small>}
+                    {n.earlier && <button type="button" className="c-go" onClick={() => onJump(n.earlier!.bestMs)}>Earlier: {dayText(n.earlier.bestMs)}</button>}
+                  </>
+                )}
                 {n.kind === 'window' && n.openAt && <><b className="good-c">Open now</b><small>until {dayText(n.untilMs)}</small></>}
                 {n.kind === 'window' && !n.openAt && (
                   <>
