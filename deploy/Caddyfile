@@ -1,9 +1,6 @@
-# HTTPS for the VM's Azure DNS name (LUNA_DOMAIN, e.g. luna-atlas.centralindia.cloudapp.azure.com).
+# HTTPS for the VM's Azure DNS name (LUNA_DOMAIN, e.g. luna-atlas-team.centralindia.cloudapp.azure.com).
 # Caddy obtains and renews the Let's Encrypt certificate itself once ports 80 and 443 are open.
-# The API already gzips its responses. A landing ellipse takes 4-5 minutes: the guide's step 8
-# checks one end to end through this proxy before the URL is submitted.
+# Everything (the app at /, the API at /api) is the api container; it already gzips its responses.
 {$LUNA_DOMAIN} {
-	# The app lives on Cloudflare Pages; someone opening the API's address lands there.
-	redir / {$LUNA_FRONTEND_URL} 302
 	reverse_proxy api:8000
 }

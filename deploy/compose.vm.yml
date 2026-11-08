@@ -1,16 +1,17 @@
-# Luna Atlas on one VM: the API (every answer computed live on this machine) behind Caddy, which
-# gets and renews the HTTPS certificate by itself. Guide: an internal document (not published).
+# Luna Atlas on one VM: the app and the API (every answer computed live on this machine) behind Caddy,
+# which gets and renews the HTTPS certificate by itself. Guide: an internal document (not published).
 #
 #   cd ~/luna-atlas && docker compose -f deploy/compose.vm.yml up -d --build
 #
-# Settings come from deploy/.env (LUNA_DOMAIN, LUNA_CORS_ORIGINS); copy deploy/env.example.
-# Paths are relative to this file. Kernels and DEMs are copied to ../data by hand (rsync) and
-# mounted read-only; the app verifies every file against the manifests' SHA-256 before use.
+# Settings come from deploy/.env (LUNA_DOMAIN; LUNA_CORS_ORIGINS only if the app is also hosted
+# elsewhere); copy deploy/env.example. Paths are relative to this file. Kernels, DEMs and the built app
+# (frontend/app/dist) are copied here by hand (rsync) and mounted read-only; the API verifies every
+# kernel and DEM against the manifests' SHA-256 before use and serves the app at /.
 services:
   api:
     build: ..
     environment:
-      LUNA_CORS_ORIGINS: ${LUNA_CORS_ORIGINS:?set LUNA_CORS_ORIGINS in deploy/.env}
+      LUNA_CORS_ORIGINS: ${LUNA_CORS_ORIGINS:-}   # empty = same-origin only (app served from here)
       LUNA_WARM_LANDING: "1"   # the pins' landing answers are computed here at start, not copied in
     volumes:
       - ../data/kernels:/app/data/kernels:ro
@@ -22,6 +23,7 @@ services:
       - ../data/runs:/app/data/runs
       - ../data/scans:/app/data/scans
       - ../data/ensembles:/app/data/ensembles
+      - ../frontend/app/dist:/app/frontend/app/dist:ro   # the built app, served at /
     expose:
       - "8000"                 # reachable only through Caddy
     restart: unless-stopped
@@ -33,7 +35,6 @@ services:
       - "443:443"
     environment:
       LUNA_DOMAIN: ${LUNA_DOMAIN:?set LUNA_DOMAIN in deploy/.env}
-      LUNA_FRONTEND_URL: ${LUNA_FRONTEND_URL:?set LUNA_FRONTEND_URL in deploy/.env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
