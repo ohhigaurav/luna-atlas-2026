@@ -1,5 +1,5 @@
-// "When is the best date?" (handoff A, the team 8 Nov: "the best possible date, whether it is 30, 90,
-// 200 or 365 days"). Three answers from /api/landing-windows over the chosen look-ahead, counted
+// "When is the best date?" (handoff A in docs/frontend_api.md). Three answers from
+// /api/landing-windows over the chosen look-ahead (30/90/180/365 days), counted
 // from the date bar: the soonest window, the one with the most sunlight after touchdown, and the
 // one with the most Earth in view during the mission. Shows the trade-off; never one magic date.
 import { useEffect, useState } from 'react';
