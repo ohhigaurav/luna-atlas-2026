@@ -261,7 +261,10 @@ Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these def
 - `best`: the touchdown that leaves the **most sunlight after landing**; ties go to more Earth in view
   during the mission, then to the earlier date. Same fields plus `rank` (1 = it is also the soonest)
   and `verify`; null when no window exists;
-- `best_rule`: that rule in one sentence, for the small print.
+- `best_earth` (new 8 Nov, 0.7.43): the touchdown with the **most Earth in view during the mission**; ties go to
+  more sunlight, then earlier. Same fields plus `rank` and `verify`. It differs from `best` often: at Site 001 in
+  2027 the sunniest window (20.6 d) has Earth only 11% of the mission, the first one (18.4 d) has 41%;
+- `best_rule`: both rules in one sentence, for the small print.
 
 `summary` gains a line: "Best in the period: land at … for 13.2 days of sunlight, Earth in view 87% of
 the mission", or "The next opportunity is also the best one in the period". A 365-day search runs about
@@ -270,8 +273,9 @@ elapsed seconds while it runs.
 
 ### Handoff for the frontend session: best date, mission playback, mission length, origin badge (paste as is)
 
-> Backend 0.7.42: `/api/landing-windows` accepts `search_days` up to 366 and returns `soonest`, `best`
-> (most sunlight after touchdown, then Earth %, then earlier) and `best_rule` (docs/frontend_api.md).
+> Backend 0.7.43: `/api/landing-windows` accepts `search_days` up to 366 and returns `soonest`, `best`
+> (most sunlight after touchdown), `best_earth` (most Earth in view during the mission) and `best_rule`.
+> Measured on a development laptop: 365 days at Site 001 took 44 s the first time, 0 s from the cache.
 > The team's feedback 8 Nov: playback ran from 99% to 0 with no explanation, and the request was "the best possible date,
 > whether it is 30, 90, 200 or 365 days".
 >
@@ -284,6 +288,9 @@ elapsed seconds while it runs.
 >    "Best in the next {N} days: {best.best_touchdown_utc}: {daylight_after_best_h as days} of sunlight,
 >    Earth in view {earth_in_view_during_mission_pct}%". When `best.rank === 1`, one line:
 >    "Soonest is also the best in the next {N} days". `best_rule` goes in the tooltip.
+>    Show the trade-off, not one magic date: "Most sunlight: {best date} · {days} d sun · Earth {pct}%" and
+>    "Most Earth contact: {best_earth date} · Earth {pct}% · {days} d sun". Collapse lines that point at the
+>    same window (compare `best_touchdown_utc`).
 > 3. Buttons: "Go to best" (jumps the date bar) and "Play the mission from here" (opens the 3D ground
 >    view at `best.best_touchdown_utc`).
 > 4. While loading: "Searching the next {N} days… {elapsed} s". In static mode, keep 90 d only and grey

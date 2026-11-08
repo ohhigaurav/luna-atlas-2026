@@ -123,7 +123,7 @@ def test_full_pipeline_on_synthetic_geometry(monkeypatch: pytest.MonkeyPatch) ->
     assert r["summary"][0].startswith("Next landing opportunity")
     assert r["cache_hit"] is False
     assert r["soonest"]["best_touchdown_utc"] == r["opportunities"][0]["best_touchdown_utc"]
-    assert r["best"]["rank"] >= 1 and "verify" in r["best"] and "verify" in r["soonest"]
+    assert r["best"]["rank"] >= 1 and all("verify" in r[k] for k in ("soonest", "best", "best_earth"))
     again = landing.run_landing(req)  # same question: served from the result cache, same answer
     assert again["cache_hit"] is True and again["opportunities"] == r["opportunities"]
     long = landing.run_landing(req.model_copy(update={"mission_days": 1.0}))
@@ -248,4 +248,19 @@ def test_best_is_searched_past_the_listed_windows() -> None:
 
 def test_no_window_means_no_soonest_or_best() -> None:
     r = _eval(_samples(60, [_w(10, 30)], [_w(0, 100)]), [_w(10, 30)], [_w(0, 100)], mission_days=2.0)
-    assert r["soonest"] is None and r["best"] is None
+    assert r["soonest"] is None and r["best"] is None and r["best_earth"] is None
+
+
+def test_best_earth_is_the_other_trade_off() -> None:
+    # The 2027 Site 001 shape (The team's run, 8 Nov): the sunniest window has the least Earth.
+    sun = [_w(0, 100), _w(150, 260)]                      # 100 h vs 110 h of sunlight
+    earth = [_w(0, 40), _w(150, 155)]                     # 83 % vs 10 % of a 2-day (48 h) mission
+    r = _eval(_samples(260, sun, earth), sun, earth, mission_days=2.0, search_end_s=259 * H)
+    assert r["best"]["best_touchdown_utc"] == "h150"       # most sunlight
+    assert r["best_earth"]["best_touchdown_utc"] == "h0"   # most Earth
+    assert r["best_earth"]["rank"] == 1 and r["best"]["rank"] == 2
+    text = " ".join(landing.explain(r, mission_days=2.0, site_name="X"))
+    assert "Most Earth contact: land at h0 UTC, Earth in view 83%" in text
+    one = _eval(_samples(50, [_w(0, 50)], [_w(0, 50)]), [_w(0, 50)], [_w(0, 50)], mission_days=0.5)
+    assert one["best_earth"]["best_touchdown_utc"] == one["best"]["best_touchdown_utc"]
+    assert "Most Earth contact" not in " ".join(landing.explain(one, mission_days=0.5, site_name="X"))
