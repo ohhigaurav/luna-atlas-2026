@@ -20,7 +20,7 @@ Baked, for every site in the site index (official sites first, once imported):
 
 Times not baked show "precomputed for <date>" in static mode (the clock snaps to ``baked_times``).
 
-Resumable: answers already in the index with their file present are kept.
+Resumable: the index is saved after every answer; answers already in it with their file present are kept.
 
     .venv/bin/python tools/bake_answers.py [--start 2027-01-01T00:00:00Z] [--out frontend/app/public/data]
                                            [--only landing,check,compare,ellipse]
@@ -117,6 +117,18 @@ def main() -> int:
     runs: dict[str, str] = dict(previous.get("runs", {}))
     errors: dict[str, str] = {}
 
+    def save_index() -> Path:
+        index = {
+            "schema_version": "1.0", "kind": "luna_atlas_static_answers",
+            "generated_utc": iso(datetime.now(UTC)), "start_utc": iso(start),
+            "key_spec": KEY_SPEC, "baked_times": sorted({iso(start + timedelta(days=d)) for d in COMPARE_OFFSETS_D}),
+            "answers": dict(sorted(answers.items())), "runs": dict(sorted(runs.items())),
+            "errors": errors,
+            "note": "Unmodified API responses keyed as in lunar_core.static_answers; other requests need the live server.",
+        }
+        write_atomic(index_path, json.dumps(index, indent=1))
+        return index_path
+
     sites = site_index()["sites"]
     todo = [(e, b) for e, b in plan(sites, start) if e in endpoints]
     print(f"{len(todo)} answers planned for {len(sites)} sites from {iso(start)}", flush=True)
@@ -146,17 +158,9 @@ def main() -> int:
                 shutil.copyfile(src, out / "runs" / f"{run_id}.json")
                 runs[run_id] = f"runs/{run_id}.json"
         print(f"  [{i}/{len(todo)}] {key[:110]} ({time.monotonic() - t0:.1f} s)", flush=True)
+        save_index()  # after every answer, so an interrupted bake keeps what it finished
 
-    baked_times = sorted({iso(start + timedelta(days=d)) for d in COMPARE_OFFSETS_D})
-    index = {
-        "schema_version": "1.0", "kind": "luna_atlas_static_answers",
-        "generated_utc": iso(datetime.now(UTC)), "start_utc": iso(start),
-        "key_spec": KEY_SPEC, "baked_times": baked_times,
-        "answers": dict(sorted(answers.items())), "runs": dict(sorted(runs.items())),
-        "errors": errors,
-        "note": "Unmodified API responses keyed as in lunar_core.static_answers; other requests need the live server.",
-    }
-    write_atomic(index_path, json.dumps(index, indent=1))
+    save_index()
     size = sum(p.stat().st_size for p in (out / "answers").rglob("*.json")) / 1e6
     print(f"\n{len(answers)} answers, {len(runs)} runs, {len(errors)} failed; answers {size:.1f} MB; "
           f"{time.monotonic() - started:.0f} s. Index: {index_path}")
