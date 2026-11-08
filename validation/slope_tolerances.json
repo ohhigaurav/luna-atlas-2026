@@ -1,15 +1,18 @@
 {
   "schema_version": "1.0",
   "gate": "S (slope layer, D-23)",
-  "status": "proposed_before_run",
+  "status": "approved_before_run",
   "predeclared_utc": "2026-11-07T14:12:20Z",
   "proposed_by": "Claude (backend session), 2026-11-07, after the team's go-ahead to build the slope layer and before any slope comparison code or output existed",
-  "approved_by": null,
+  "approved_by": "The team, 2026-11-08T05:20:29Z, before the first Gate S run",
   "approval_rule": "The team may change any number below before the first run of tools/validate_slope.py. After that run, the numbers are frozen: a later change is a new gate with the first result kept in validation/evidence/.",
   "reference": {
     "product": "NASA PGDA Product 78 (Barker et al. 2021, PSS 203, 105119, doi:10.1016/j.pss.2020.105119)",
     "layers": "<Site>_final_adj_5mpp_slp.tif (slope, degrees) on the same 5 m grid as <Site>_final_adj_5mpp_surf.tif",
-    "sites": ["Site01 (reference-lola-site-001)", "Site04 (reference-lola-site-004)"],
+    "sites": [
+      "Site01 (reference-lola-site-001)",
+      "Site04 (reference-lola-site-004)"
+    ],
     "note": "The paper does not state the stencil used for the slope map. Ours is fixed in advance (below); the comparison measures how far apart the two are, it does not tune ours."
   },
   "method_under_test": {
