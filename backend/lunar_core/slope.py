@@ -11,9 +11,10 @@ lander-scale slopes can be steeper than shown. The 240 m regional map is never u
 says nothing about a lander's footing. Where PGDA's slope RMS error layer is staged, a value within
 one RMS error of the user's limit is reported as "uncertain" instead of within / over.
 
-Validation (Gate S): computed slope against PGDA's published slope maps for Sites 001 and 004,
-pass rule ``validation/slope_tolerances.json`` written before the run, tool ``tools/validate_slope.py``.
-If that gate fails, ``SLOPE_SOURCE`` becomes "published" (the PGDA layer is served where it exists).
+Validation (Gate S, PASS 2026-11-08): computed slope against PGDA's published slope maps for Sites
+001 and 004, pass rule ``validation/slope_tolerances.json`` approved before the run, tool
+``tools/validate_slope.py``, evidence ``validation/evidence/slope_check_2026-11-08.md``. Median
+difference -0.002 / -0.004 deg, p95 0.70 / 0.92 deg (limit 1.5). ``SLOPE_SOURCE`` stays "computed".
 
 The pure functions (Horn slope, projections, ellipse mask, statistics) need only NumPy. Rasters are
 read through ``read_window``, which tests replace.
@@ -44,10 +45,14 @@ LABEL = ("Slope of the 5 m LOLA terrain, 10 m baseline (3×3 Horn). Not a hazard
          "craters smaller than ~10 m are not resolved, and most 5 m pixels are interpolated between LOLA tracks.")
 VALIDATION: dict[str, Any] = {
     "gate": "S",
-    "status": "not_run",
+    "status": "pass",
     "rule": "validation/slope_tolerances.json",
-    "evidence": None,
-    "summary": "Not yet compared with NASA PGDA's published slope maps (tools/validate_slope.py).",
+    "evidence": "validation/evidence/slope_check_2026-11-08.md",
+    "summary": ("Checked against NASA PGDA's published slope maps at Sites 001 and 004 (pass rule fixed before the run, "
+                "8 Nov 2026): median difference -0.002 deg / -0.004 deg, 95% of pixels within 0.70 deg / 0.92 deg, "
+                "within-vs-over-8 deg calls differ on 1.2% / 0.4% of the ground. Same grid, 100% coverage, 1.5 km "
+                "around each site."),
+    "scope": "Checked on the two 5 m tiles of Sites 001 and 004; other 5 m tiles use the same code but were not compared.",
 }
 SLOPE_LAYERS = Path(__file__).resolve().parents[2] / "data" / "dems" / "slope_layers.json"
 

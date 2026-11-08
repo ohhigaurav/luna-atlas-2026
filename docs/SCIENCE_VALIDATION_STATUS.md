@@ -1,8 +1,8 @@
 # Scientific validation status — 0.7.2-dev
 
-## Gate S (slope layer) — pass rule written, not yet run (2026-11-07)
+## Gate S (slope layer) passed (2026-11-08)
 
-Computed slope (Horn 3×3 on the 5 m PGDA Product 78 DEMs) is to be compared with PGDA's published slope maps at Sites 001 and 004 under `validation/slope_tolerances.json`, predeclared 2026-11-07T14:12:20Z before any comparison (status `proposed_before_run`; the team may still change the numbers before the first run). Run: `tools/validate_slope.py --fetch` then `tools/validate_slope.py`. Until it passes, slope answers say `validation.status: not_run`. Verified so far: analytic surfaces only (plane exact to 1e-12°, cone, NoData, scale factor, frame round-trips to 1e-6 m).
+Our slope (Horn 3×3 on the 5 m PGDA Product 78 surface DEMs, 10 m baseline) agrees with PGDA's published slope maps within 1.5 km of Sites 001 and 004: median difference −0.002° / −0.004°, 95% of pixels within 0.70° / 0.92° (limit 1.5°; PGDA's own slope RMS error is 1.5–2.5°), within-vs-over-8° calls differ on 1.2% / 0.4% of the ground (limit 5%), identical grids, 100% coverage. Rule `validation/slope_tolerances.json` predeclared 2026-11-07T14:12:20Z and approved by the team at 05:20Z before the run at 05:48Z; nothing was tuned afterwards. Evidence: `validation/evidence/slope_check_2026-11-08.md` (+ .json, .log). Scope: those two tiles; the label stays "not a hazard certification" (features under ~10 m are not resolved).
 
 ## Gate B passed (2026-10-28)
 

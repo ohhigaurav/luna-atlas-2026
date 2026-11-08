@@ -300,3 +300,12 @@ def test_window_covers_the_whole_ellipse_where_map_scale_is_large(fake_terrain: 
     assert out["status"] == "ok"
     # every ground pixel of the disc is present: area matches pi a^2 to the pixel quantisation
     assert out["area"]["area_m2"] == pytest.approx(math.pi * 1500**2, rel=0.005)
+
+
+def test_validation_status_matches_the_recorded_gate() -> None:
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    assert slope.VALIDATION["status"] == "pass" and slope.SLOPE_SOURCE == "computed"
+    assert slope.VALIDATION["evidence"].endswith("slope_check_2026-11-08.md")
+    tol = __import__("json").loads((root / slope.VALIDATION["rule"]).read_text())
+    assert tol["status"] == "approved_before_run"

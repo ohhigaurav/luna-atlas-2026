@@ -35,8 +35,8 @@ Response (`status: "ok"`):
   centre at (`first_cell_centre_east_m`, `first_cell_centre_north_m`), local east/north metres from the
   target (same frame as the ellipse points). Each cell is the **steepest** pixel in it; null = outside or unknown.
 - `chips`: e.g. `["target 3.1°", "typical 4.2°", "steepest 18°", "82% of ellipse ≤ 8°"]`.
-- `terrain.native_resolution_m` (always ≤ 5), `uncertainty.available`, `validation.status`
-  (`not_run` until Gate S runs; then `pass` / `fail` with a summary), `compute_seconds`.
+- `terrain.native_resolution_m` (always ≤ 5), `uncertainty.available`, `validation` (`status: "pass"`
+  since 8 Nov, with `summary`, `evidence`, `scope`), `compute_seconds`.
 
 `status: "not_available"` + `reason` (HTTP 200) where no 5 m tile covers the whole ellipse (Malapert,
 equatorial sites, ellipses past the tile edge). Show the reason; never fall back to anything else.
@@ -64,8 +64,9 @@ the baked ellipses only, so use the CDF there.
 >    may be too steep.
 > 4. Under the slope numbers always show `label` verbatim and "5 m terrain". When `slope.status` is
 >    `not_available`, show the reason in one grey line and no slope controls.
-> 5. Evidence screen: a "Slope (Gate S)" row from `validation.status`: "not yet checked against NASA's
->    published slope map" until it reads `pass`.
+> 5. Evidence screen: a "Slope (Gate S) — PASS" row: "Matches NASA's published slope maps at Sites 001
+>    and 004: 95% of pixels within 0.7° / 0.9°" with a link to `validation.evidence`. Under the slope numbers:
+>    "checked against NASA's slope map" (a link) next to the label; never "safe".
 > Do not show slope for clicked points outside the 5 m tiles, and never call it "safe" or "hazard-free".
 
 ## `POST /api/sky-geometry`: stars and Earth's face (new 6 Nov)
