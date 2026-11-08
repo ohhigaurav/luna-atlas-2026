@@ -40,6 +40,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "backend")]
 
 R_MOON_KM = 1737.4
 POLAR_LIMIT_DEG = -60.0
+RAY_BAND_DEG = -66.6  # review #7: between 60 and ~66.6 S, 200 km rays leave the 240 m map -> flat fallback
 SANITY_KM = 5.0
 
 
@@ -95,6 +96,7 @@ def site_row(site: dict[str, Any], landing: dict[str, Any] | None, error: str | 
     row: dict[str, Any] = {
         "site_id": site["site_id"], "name": site["name"], "latitude_deg": lat, "longitude_deg": lon,
         "polar": lat <= POLAR_LIMIT_DEG,
+        "flat_fallback_band": RAY_BAND_DEG < lat <= POLAR_LIMIT_DEG,
         "nearest_reference": None if ref is None else {"site_id": ref["site_id"], "name": ref["name"], "km": round(dist, 3)},
         "error": error,
     }
@@ -139,6 +141,10 @@ def report_markdown(rows: list[dict[str, Any]], compare: list[dict[str, Any]], m
         lines += ["", f"⚠ = an official site more than {SANITY_KM:g} km from every reference point. Fine if it is "
                   "a new place; if it should match a known mission or landmark, check the longitude convention first "
                   "(a flipped sign moves a site by 2 x longitude; Malapert's NASA page may carry exactly that slip)."]
+    band = [r["name"] for r in rows if r.get("flat_fallback_band")]
+    if band:
+        lines += ["", f"Between 60° and 66.6°S ({', '.join(band)}): the terrain rays leave the 240 m map, so these get a "
+                  "flat horizon with a note (independent review #7, not fixed by decision). Say so if they come up."]
     for block in compare:
         lines += ["", f"## Polar sites side by side at {block['at_utc'][:16]} UTC (30 days)", "",
                   "| site | terrain | Sun now | next Sun event | Earth now | next Earth event | sunlit | Earth | both |",

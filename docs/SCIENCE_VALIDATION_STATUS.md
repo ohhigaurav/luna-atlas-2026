@@ -1,15 +1,49 @@
-# Scientific validation status — 0.7.2-dev
+# Scientific validation status — 0.7.45 (8 Nov 2026)
 
-## Gate S (slope layer) passed (2026-11-08)
+Each gate's pass rule was fixed before its run; FAILs stay recorded. Evidence is in `validation/evidence/`.
 
-Our slope (Horn 3×3 on the 5 m PGDA Product 78 surface DEMs, 10 m baseline) agrees with PGDA's published slope maps within 1.5 km of Sites 001 and 004: median difference −0.002° / −0.004°, 95% of pixels within 0.70° / 0.92° (limit 1.5°; PGDA's own slope RMS error is 1.5–2.5°), within-vs-over-8° calls differ on 1.2% / 0.4% of the ground (limit 5%), identical grids, 100% coverage. Rule `validation/slope_tolerances.json` predeclared 2026-11-07T14:12:20Z and approved by the team at 05:20Z before the run at 05:48Z; nothing was tuned afterwards. Evidence: `validation/evidence/slope_check_2026-11-08.md` (+ .json, .log). Scope: those two tiles; the label stays "not a hazard certification" (features under ~10 m are not resolved).
+| Gate | What was compared | Result | Evidence |
+|---|---|---|---|
+| B geometry | SPICE Sun/Earth azimuth, elevation, range vs JPL Horizons; 2 south-polar points, 20 epochs (8 near the horizon) | **PASS**: worst 0.021″ az, 0.041″ el, 0.011 km | `gate_b_geometry_2026-10-28.md` |
+| D real missions | Our model vs reported events of 7 missions | **6/7 PASS.** Apollo 11/14/15 Sun and Earth at landing within 0.21° of NASA's Apollo Lunar Surface Journal; SLIM sunset; Chandrayaan-3 sunset and sunrise (terrain); Chang'e-4 Earth never up. **FAIL kept:** Blue Ghost 1 sunset +2.41 h on a flat horizon (limit ±2 h) | `mission_events_2026-11-02.md` |
+| Shadows | Terrain shadows vs LRO WAC photos of the pole, 6 frames | **PASS** 5/6 frames (rule ≥ 2/3) | `shadow_match_2026-11-04.md` |
+| E Goddard maps | Average Sun and Earth visibility and permanent shadow vs NASA Goddard PGDA 69, 48 points | **PASS**: Sun median −0.016, Earth −0.045 (fraction of time), PSR agreement 94% | `goddard_maps_2026-11-05.md` |
+| Earth layer | Forecast Earth map vs the production answer at the same pixels | **PASS** 99.86% of 1,440 pixel-frames (100% of clear cases) | `earth_movie_2026-11-06.md` |
+| Sky orientation | Frame checks; Earth's sub-Moon point vs Horizons | **FAIL kept** (A3: our limit ignored the 18.6-year pole term; the frame matches IAU 2015 to 0.001°, checked after the fact). Earth's face: PASS, within 0.1° at 13 dates | `sky_orientation_2026-11-06.md` |
+| S slope | Our Horn slope vs PGDA's published slope maps, Sites 001/004, 1.5 km | **PASS**: median −0.002° / −0.004°, p95 0.70° / 0.92° (limit 1.5°) | `slope_check_2026-11-08.md` |
 
-## Gate B passed (2026-10-28)
+**Measured, no pass rule:** DEM quality at the horizon-controlling terrain (`dem_quality_2026-10-28.md`);
+PGDA clone check and observer-height sweep (`clone_check_and_mast_height_2026-10-28.md`); 0.25° vs 0.5°
+azimuth bins, 0.00-point difference at Sites 001/004 (independent review #10); 5 m vs 240 m terrain
+at Site 001, 69% vs 100% sunlight (`resolution_site001_2026-11-06.md`); the Malapert published point
+sits on the hidden flank (`malapert_earth_2026-11-06.md`).
 
-SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.0413 arcsec elevation and 0.0107 km range at two south-polar reference points (20 comparisons, 8 near the horizon), against 1 arcsec / 1 arcsec / 1 km tolerances approved before the run. Evidence: `validation/evidence/gate_b_geometry_2026-10-28.md`. Still open: Gate C (terrain review), Gate D on real data, usability and release gates.
+**Independent review** (`independent_review_2026-11-06.md`, hostile design review, 11 findings):
+9 fixed, 1 measured (#10), 1 deliberately not fixed (#7, below).
 
+## Not established — say so wherever it matters
 
-## What is verified in this checkout
+- **Landing rules R1–R5 are design choices** taken from Apollo and Blue Ghost practice, not measured
+  quantities. The app shows them with every answer.
+- **Flat horizon** (north of 60°S, or as a fallback): sunrise and sunset can be off by hours
+  (Blue Ghost 1: +2.4 h). Every answer says 5 m / 240 m / flat.
+- **Terrain resolution changes answers** (Site 001: 69% sunlight on 5 m, 100% on 240 m).
+- **Times:** window edges to 30 min, event times to 10 s.
+- **Uncertainty:** answers come from the nominal DEM, with no clone-ensemble spread on the percentages.
+- **Slope** is not a hazard certification: features under ~10 m are not resolved, and it was compared
+  only on the two 5 m tiles.
+- **Earth in view is not a guaranteed radio link.** There is no thermal model, and the battery view is
+  an illustrative power model.
+- **60°–66.6°S (review #7, decision 8 Nov):** the 200 km terrain rays leave the 240 m map, so
+  answers fall back to a flat horizon with a note. Capping the rays at the map edge would drop the
+  distant terrain that matters most for a low Sun, so it was not done before submission. The event-day
+  check lists any official site in that band.
+
+---
+
+## History: the initial checklist (0.7.2-dev, October 2026; superseded by the table above)
+
+### What was verified in that checkout
 
 - 119 unit/API tests pass, including synthetic numerical edge cases and mocked SPICE/API flows.
 - FastAPI exposes the compare, finder, source/assumption, terrain-inventory, saved-run and export endpoints.
@@ -18,7 +52,7 @@ SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.04
 - The browser-local timestamp controls are converted to explicit UTC instants before API calls.
 - Terrain horizons preserve missing/NoData semantics; incomplete horizons are not silently promoted to verified terrain.
 
-## What is not verified
+### What was not verified then (most items closed since: see the table)
 
 - No real SPICE kernels are present in the packaged checkout; the kernel manifest starts `not_configured`.
 - No official 2026 challenge catalogue has been imported. Literature/reference points are a separate set.
@@ -29,7 +63,7 @@ SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.04
 - DEM resolution sensitivity is a required open validation gate. Zhong et al. (2026) reported mean cumulative relative illumination increases of 27.5% (5 m) and 65.1% (20 m) versus a 1 m baseline for one Chang’e-7 study region; these are not universal correction factors. The current planner does not yet run clone ensembles or a complete multi-resolution sensitivity study.
 - The scientific engine has not undergone an independent expert review. The test suite is necessary regression evidence, not scientific acceptance.
 
-## Required pre-release gates
+### Required pre-release gates (as written then)
 
 1. Import the unmodified official challenge site file, preserving all original fields and SHA-256.
 2. Fetch the pinned NAIF kernel candidates from NAIF over HTTPS and record exact versions, hashes, load order and coverage; verify the BPC stored frame and the transform to `MOON_ME` over every requested epoch.
@@ -42,10 +76,10 @@ SPICE Sun/Earth geometry agrees with JPL Horizons to 0.0212 arcsec azimuth, 0.04
 9. Recompute exported metrics independently from event windows; include time boundaries and truncated-outage lower bounds.
 10. Run clean-install, offline, performance and user usability tests. Keep open gates visible in the release report.
 
-## Mathematical contracts in scope
+### Mathematical contracts in scope
 
 The horizon equation and visibility definitions are in `docs/modelling_contract.md`. For each azimuth, terrain elevation is transformed to apparent angle on the declared spherical Moon; the horizon is the maximum valid apparent elevation. Missing/uncovered rays are incomplete. Sun visibility uses upper-limb margin `e_s + asin(R_sun/r_sun) - H(a_s)`; Earth-centre visibility uses `e_E - H(a_E) - m`. Events are roots of those margins with bracket/refinement and grazing-event diagnostics. Metrics are based on refined windows and the requested interval denominator; a boundary-truncated outage is a lower bound. The date finder clips candidate mission windows to `[start, start + duration]` and reports individual constraint violations. None of these definitions certifies safe landing, actual power generation, or RF link availability.
 
-## Environment note
+### Environment note (build container, October)
 
 Outbound DNS/network access was unavailable in the build container, so this package did not acquire fresh NAIF binaries or NASA rasters. The repository scripts are prepared to fetch the pinned candidates from their official HTTPS publishers on a connected machine. The official challenge data release is separate and should be ingested only from its authoritative source.

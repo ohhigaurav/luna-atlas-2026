@@ -13,7 +13,6 @@ content hashes.
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import tempfile
 from functools import lru_cache

@@ -23,7 +23,9 @@ def test_stereo_matches_the_projection_used_everywhere() -> None:
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from tools.find_summit import to_stereo  # the tools' own implementation, checked against Goddard maps
+    from tools.find_summit import (
+        to_stereo,  # the tools' own implementation, checked against Goddard maps
+    )
 
     for lat, lon in ((-89.45, 222.69), (-85.99, 357.07), (-60.0, 90.0)):
         assert south_polar_stereo_m(lat, lon, R) == pytest.approx(to_stereo(lat, lon, R), abs=1e-6)

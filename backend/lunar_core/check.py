@@ -26,9 +26,9 @@ from pathlib import Path
 from typing import Any
 
 from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
-from lunar_core.sky_geometry import SUN_RADIUS_KM
 from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
 from lunar_core.provenance import sha256_file
+from lunar_core.sky_geometry import SUN_RADIUS_KM
 
 POLAR_LIMIT_DEG = -60.0
 COARSE_STEP_MIN = 30
