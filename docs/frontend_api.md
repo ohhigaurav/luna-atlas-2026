@@ -18,8 +18,9 @@ For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`
 Request: `site_id`, or `latitude_deg` + `longitude_deg` (clicked point). Optional: `semi_major_m` 250
 (25–1500), `semi_minor_m` (default = round), `orientation_deg` 0 (bearing of the major axis), `spacing_m`
 (default = the ellipse view's, so `points` line up with `/api/landing-ellipse` points), `slope_limit_deg`
-8 (0.5–45). No SPICE and no dates: one raster window read, expected to be fast but not yet timed on real
-rasters (`compute_seconds` says). Debounce re-asks on limit changes; the CDF covers the instant update.
+8 (0.5–45). No SPICE and no dates. Measured on a development laptop (8 Nov, Sites 001/004): 0.3 s at 250 m and
+0.6 s at 1500 m once the rasters are hash-checked (~1 s the first call per process). Debounce re-asks on
+limit changes; the CDF covers the instant update.
 
 Response (`status: "ok"`):
 
