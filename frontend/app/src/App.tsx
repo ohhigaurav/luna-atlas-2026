@@ -17,14 +17,15 @@ import { siteNow, type SiteNow } from './state/siteState';
 import { DateBar } from './ui/DateBar';
 import { SiteCard } from './plan/SiteCard';
 import { CompareShelf } from './compare/CompareShelf';
-import { useOutlook } from './plan/useOutlook';
+import { anchorFor, useOutlook, type OutlookAnchor } from './plan/useOutlook';
 import { PinKey } from './ui/PinKey';
+import { appNow, staticIndex } from './data/staticMode';
 import { OutlookProgress } from './ui/OutlookProgress';
 import { ForecastPanel, type Layers, type Probe } from './forecast/ForecastPanel';
 import { earthFrameAt, loadForecast, pixelOf, sunFrameAt, unpackFrame, bitAt, type ForecastData } from './forecast/forecastData';
 import { pointId } from './api/plan';
 import { shortName } from './engine/pins';
-import { outlookText } from './state/outlook';
+import { OUTLOOK_DAYS, outlookText } from './state/outlook';
 import { CommandBar, type Command } from './ui/CommandBar';
 import { ProofView } from './proof/ProofView';
 import type { MissionCase } from './proof/evidence';
@@ -141,10 +142,11 @@ export default function App() {
   useEffect(() => {
     if (!selected || playing) return;
     const t = setTimeout(() => {
-      // Inside the 90 days already searched only the "earliest launch" moves (no new search);
-      // outside them, search again from that day.
+      // While the search already covers 30 days past the date bar, only the "earliest launch" moves
+      // (no new search); otherwise search again from that day. Same rule as the pins (anchorFor),
+      // so card and pins ask the same question and share cache keys.
       const c = cursorRef.current, s = plan.settings;
-      const inside = c >= s.searchStartMs && c <= s.searchStartMs + (SEARCH_DAYS - 10) * DAY;
+      const inside = c >= s.searchStartMs && c + OUTLOOK_DAYS * DAY <= s.searchStartMs + SEARCH_DAYS * DAY;
       if (!inside) plan.update({ searchStartMs: utcMidnight(c), notBeforeMs: c });
       else if (Math.abs(s.notBeforeMs - c) > HOUR) plan.update({ notBeforeMs: c });
     }, 400);
@@ -196,7 +198,19 @@ export default function App() {
     for (const s of data.sites) out[s.site_id] = siteNow(sky, times, s.latitude_deg, s.longitude_deg, t);
     return out;
   }, [sky, times, data, stateKey]);
-  const { outlook, progress } = useOutlook(data?.sites ?? null, asks, selected?.site_id ?? null);
+  // Pins answer for today, or for the day the date bar rests on (≥ 1.5 s, more than a day from now).
+  // The static site answers only its baked times, so its pins stay put.
+  const cursorMinute = Math.floor(cursorMs / 60e3);
+  const [outlookAnchor, setOutlookAnchor] = useState<OutlookAnchor>(() => anchorFor(appNow(), appNow(), utcMidnight));
+  useEffect(() => {
+    if (staticIndex()) return;
+    const t = setTimeout(() => {
+      const next = anchorFor(cursorMinute * 60e3, appNow(), utcMidnight);
+      setOutlookAnchor((a) => (a.dayMs === next.dayMs ? a : next));
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [cursorMinute]);
+  const { outlook, fresh, progress } = useOutlook(data?.sites ?? null, asks, selected?.site_id ?? null, outlookAnchor);
   // The forecast frame at the clock's time (null outside the forecast month or when it is off).
   const fcFrame = useMemo(() => {
     if (!forecast || !fc) return null;
@@ -236,7 +250,7 @@ export default function App() {
     const m: Record<string, string> = {}, notes: Record<string, string> = {};
     for (const [id, st] of Object.entries(states)) {
       const o = outlook[id];
-      m[id] = `${st.day ? 'day' : 'night'}${o?.kind === 'window' ? ' window' : ''}`;
+      m[id] = `${st.day ? 'day' : 'night'}${o?.kind === 'window' ? ' window' : ''}${o && o.kind !== 'pending' && !fresh.has(id) ? ' stale' : ''}`;
       notes[id] = o && o.kind !== 'pending' ? outlookText(o) : st.day ? 'Sun up now' : 'night now';
     }
     // In the forecast, sites inside the square show the forecast itself: sunrise arriving.
@@ -252,7 +266,7 @@ export default function App() {
     }
     globe.current?.setPinStates(m);
     globe.current?.setPinNotes(notes);
-  }, [states, outlook, fc, fcFrame, data]);
+  }, [states, outlook, fresh, fc, fcFrame, data]);
 
   // Readout under the pointer: where it is and how high the Sun stands there (smooth sphere).
   const hoverRaf = useRef(0);
@@ -377,7 +391,7 @@ export default function App() {
 
   const sel = selected ? states[selected.site_id] ?? null : null;
 
-  const checked = Object.values(outlook).filter((o) => o.kind !== 'pending').length;
+  const checked = fresh.size;
 
   return (
     <div className={`la-app${selected ? ' site-open' : ''}${sheet ? ` sheet-open sheet-${sheet.kind}` : ''}${comparing ? ' comparing' : ''}${forecast ? ' fc-open' : ''}`}>
@@ -448,7 +462,7 @@ export default function App() {
               ? 'Official challenge sites first; reference points below.'
               : 'Sites are reference points from published sources, not official challenge coordinates.'}
           </p>
-          <PinKey sites={data.sites} states={states} outlook={outlook} live={asks} cursorMs={cursorMs} onPick={pick} />
+          <PinKey sites={data.sites} states={states} outlook={outlook} fresh={fresh} anchor={outlookAnchor} live={asks} cursorMs={cursorMs} onPick={pick} />
           {asks && checked < data.sites.length && (
             <OutlookProgress checked={checked} total={data.sites.length} etaMs={progress.etaMs} at={progress.at} />
           )}

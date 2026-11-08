@@ -9,13 +9,17 @@ import { OUTLOOK_DAYS, type Outlook } from '../state/outlook';
 import { missText } from '../state/rules';
 import { terrainText } from '../state/terrain';
 import { spanText, type SiteNow } from '../state/siteState';
-import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS } from '../plan/usePlan';
+import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS, utcMidnight } from '../plan/usePlan';
 
 type Group = 'green' | 'day' | 'night';
 type Props = {
   sites: ReferenceSite[];
   states: Record<string, SiteNow>;
   outlook: Record<string, Outlook>;
+  /** Sites already answered for the anchor day; others still show the previous day's answer. */
+  fresh: Set<string>;
+  /** The day the pins answer for (today, or where the date bar rests). */
+  anchor: { dayMs: number; atMs: number };
   live: boolean;
   cursorMs: number;
   onPick: (s: ReferenceSite) => void;
@@ -28,12 +32,12 @@ const asc = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
 
 type Row = { site: ReferenceSite; main: string; why: string; sort: number };
 
-function greenRows(sites: ReferenceSite[], outlook: Record<string, Outlook>, nowMs: number): { yes: Row[]; no: Row[]; pending: number } {
+function greenRows(sites: ReferenceSite[], outlook: Record<string, Outlook>, fresh: Set<string>, nowMs: number): { yes: Row[]; no: Row[]; pending: number } {
   const yes: Row[] = [], no: Row[] = [];
   let pending = 0;
   for (const site of sites) {
     const o = outlook[site.site_id];
-    if (!o || o.kind === 'pending') { pending++; continue; }
+    if (!o || o.kind === 'pending' || !fresh.has(site.site_id)) { pending++; continue; }
     if (o.kind === 'window') {
       yes.push({ site, sort: o.fromMs, main: o.openNow ? 'Land now' : `Land from ${day(o.fromMs)}`,
         why: `${o.openNow ? `best touchdown ${day(o.bestMs)}` : `in ${spanText(o.fromMs - nowMs)}, best ${day(o.bestMs)}`} · ${terrainText(o.horizonMode, o.terrainM)}` });
@@ -74,10 +78,11 @@ function List({ rows, onPick }: { rows: Row[]; onPick: (s: ReferenceSite) => voi
   );
 }
 
-export function PinKey({ sites, states, outlook, live, cursorMs, onPick }: Props) {
+export function PinKey({ sites, states, outlook, fresh, anchor, live, cursorMs, onPick }: Props) {
   const [open, setOpen] = useState<Group | null>(null);
-  const now = appNow();
-  const g = greenRows(sites, outlook, now);
+  const today = utcMidnight(appNow()) === anchor.dayMs;
+  const from = today ? appNow() : anchor.atMs;
+  const g = greenRows(sites, outlook, fresh, from);
   const day_ = skyRows(sites, states, cursorMs, true), night = skyRows(sites, states, cursorMs, false);
   const line = (k: Group, sym: string, label: string, n: number) => (
     <button type="button" className={`pk-line${open === k ? ' on' : ''}`} aria-expanded={open === k} onClick={() => setOpen(open === k ? null : k)}>
@@ -86,10 +91,10 @@ export function PinKey({ sites, states, outlook, live, cursorMs, onPick }: Props
   );
   return (
     <div className="hl-key" aria-label="What the pin colours mean; open a line to see the sites and why">
-      {live && line('green', 'window', `Can land within ${OUTLOOK_DAYS} days`, g.yes.length)}
+      {live && line('green', 'window', `Can land within ${OUTLOOK_DAYS} days${today ? '' : ` from ${day(anchor.dayMs)}`}`, g.yes.length)}
       {open === 'green' && (
         <div className="pk-open">
-          <p className="pk-rule">Green means a {DEFAULT_MISSION_DAYS}-day mission can start here: Sun up with at least {DEFAULT_MISSION_DAYS} days of daylight left, Earth in view at touchdown, Sun at most {DEFAULT_MAX_SUN_DEG}° high. Checked from today, with the hills where we have a terrain map (each line says which).</p>
+          <p className="pk-rule">Green means a {DEFAULT_MISSION_DAYS}-day mission can start here: Sun up with at least {DEFAULT_MISSION_DAYS} days of daylight left, Earth in view at touchdown, Sun at most {DEFAULT_MAX_SUN_DEG}° high. Checked from {today ? 'today' : day(anchor.dayMs)}, with the hills where we have a terrain map (each line says which).</p>
           <List rows={g.yes} onPick={onPick} />
           {g.no.length > 0 && <><p className="pk-sub">Not within {OUTLOOK_DAYS} days ({g.no.length})</p><List rows={g.no} onPick={onPick} /></>}
           {g.pending > 0 && <p className="pk-sub">Still checking {g.pending}…</p>}

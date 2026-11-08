@@ -35,6 +35,8 @@ const CSS = `
 @keyframes la-breathe{50%{box-shadow:0 0 0 1.5px #5ed394,0 0 22px 7px rgba(94,211,148,.28)}}
 @media (prefers-reduced-motion:reduce){.la-pin.window .la-mk{animation:none}}
 .la-pin:hover .la-mk,.la-pin:focus-visible .la-mk{transform:scale(1.4)}
+.la-pin.stale .la-mk{background:#6b7078;border-color:#6b7078;box-shadow:none;animation:none}
+.la-pin.stale .la-label,.la-pin.stale .la-label small{color:#8a8f96!important}
 .la-pin.sel .la-mk{transform:scale(1.5);outline:1.5px solid #ece7dc;outline-offset:4px}
 .la-pin:focus-visible .la-mk,.la-cluster:focus-visible .la-count{outline:2px solid #fff;outline-offset:5px}
 .la-label{position:absolute;left:24px;top:50%;transform:translateY(-52%);white-space:nowrap;text-align:left;

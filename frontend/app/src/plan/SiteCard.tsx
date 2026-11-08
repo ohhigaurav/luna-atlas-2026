@@ -38,6 +38,12 @@ type Props = {
 const EVIDENCE_BASE = 'https://github.com/ohhigaurav/luna-atlas-2026/blob/main/';
 
 const day = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const dayTime = (ms: number) => `${day(ms)} ${new Date(ms).toISOString().slice(11, 16)}`;
+/** The whole window, from the API's own first and last allowed touchdown (UTC, like the rest of the card). */
+function windowRange(a: { opportunity: { touchdown_from_utc: string; touchdown_until_utc: string }; bestMs: number }) {
+  const f = Date.parse(a.opportunity.touchdown_from_utc), u = Date.parse(a.opportunity.touchdown_until_utc);
+  return <>{dayTime(f)} → {dayTime(u)} UTC <span className="sc-best-at">best moment {dayTime(a.bestMs)}</span></>;
+}
 const SOURCE_NAMES: Array<[RegExp, string]> = [
   [/lroc/i, 'LROC'], [/nssdc/i, 'NASA NSSDC'], [/10\.3847\/psj|\/psj\//i, 'Planetary Science Journal'],
   [/usgs/i, 'USGS gazetteer'], [/science\.nasa\.gov/i, 'NASA'], [/ncbi|pmc/i, 'peer-reviewed study'],
@@ -82,6 +88,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
       ? terrainText(data.landing.horizon_mode, data.landing.terrain?.finest_resolution_m) : terrain) : null;
   const open = answer?.kind === 'window' && answer.fromMs <= cursorMs + 60e3;
 
+  const searchFrom = data.status === 'ready' ? Date.parse(data.landing.search.start_utc) : cursorMs;
   let verdict: ReactNode;
   if (!live) verdict = <p className="sc-v dim">Landing dates need the live backend.</p>;
   else if (data.status === 'loading') verdict = <p className="sc-v dim">Checking the next 90 days for a landing window… {elapsed} s</p>;
@@ -89,15 +96,17 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
   else if (answer?.kind === 'window' && open) {
     verdict = (
       <>
-        <p className="sc-v good"><i>✓</i> You can land on this date</p>
-        <p className="sc-sub">{answer.opportunity.sun_above_horizon_at_best_deg !== undefined && <>Sun <b>{answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}°</b> above the horizon at the best moment. </>}The window stays open until {day(answer.untilMs)}. Land by then and the Sun stays up for <b>{settings.missionDays} {settings.missionDays === 1 ? 'day' : 'days'}</b> (your mission), with Earth in view at touchdown.</p>
+        <p className="sc-v good"><i>✓</i> You can land on {day(cursorMs)}</p>
+        <p className="sc-range">This landing window: {windowRange(answer)}</p>
+        <p className="sc-sub">{answer.opportunity.sun_above_horizon_at_best_deg !== undefined && <>Sun <b>{answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}°</b> above the horizon at the best moment. </>}Land by {day(answer.untilMs)} and the Sun stays up for <b>{settings.missionDays} {settings.missionDays === 1 ? 'day' : 'days'}</b> (your mission), with Earth in view at touchdown.</p>
       </>
     );
   } else if (answer?.kind === 'window') {
     verdict = (
       <>
-        <p className="sc-v warn">Not a good date to land here</p>
-        <p className="sc-sub">Next chance: <b>{day(answer.fromMs)}</b>, in {spanText(answer.fromMs - cursorMs)}{answer.opportunity.sun_above_horizon_at_best_deg !== undefined ? `, Sun ${answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}° above the horizon` : ''}.</p>
+        <p className="sc-v warn">{day(cursorMs)} is not a good date to land here</p>
+        <p className="sc-range">Next landing window: {windowRange(answer)}</p>
+        <p className="sc-sub">Opens in {spanText(answer.fromMs - cursorMs)}{answer.opportunity.sun_above_horizon_at_best_deg !== undefined ? `; Sun ${answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}° above the horizon at the best moment` : ''}.</p>
         <button type="button" className="la-btn primary" onClick={() => onJump(answer.bestMs)}>Go to {day(answer.bestMs)}</button>
       </>
     );
@@ -105,7 +114,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
     const fx = fixes(answer, settings.missionDays, settings.maxSunDeg);
     verdict = (
       <>
-        <p className="sc-v bad">No landing window in the next 90 days</p>
+        <p className="sc-v bad">No landing window in the 90 days from {day(searchFrom)}</p>
         <p className="sc-sub">The closest try, {day(answer.touchdownMs)}, gets {spanText(answer.daylightH * 3600e3)} of sunlight; a {settings.missionDays}-day mission needs {spanText(answer.neededH * 3600e3)}.</p>
         {fx.length > 0 && <div className="sc-fixes">{fx.map((f) => <button key={f.label} type="button" className="la-btn" onClick={() => onSettings({ ...(f.missionDays !== undefined ? { missionDays: f.missionDays } : {}), ...(f.maxSunDeg !== undefined ? { maxSunDeg: f.maxSunDeg } : {}) })}>{f.label}</button>)}</div>}
       </>
