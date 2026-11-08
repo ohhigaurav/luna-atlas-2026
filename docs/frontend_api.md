@@ -42,6 +42,10 @@ Response (`status: "ok"`):
 `status: "not_available"` + `reason` (HTTP 200) where no 5 m tile covers the whole ellipse (Malapert,
 equatorial sites, ellipses past the tile edge). Show the reason; never fall back to anything else.
 
+**Ellipse timing (measured 8 Nov, a development laptop, 14 days, Sites 001/004, 100–1000 m):** 234–315 s per
+ellipse the first time (each point is a full 5 m terrain analysis), instant from the cache after. Live, show
+the job's progress and elapsed time and never block other panels on it; static mode has the 8 baked ellipses.
+
 `POST /api/landing-ellipse` now also carries slope (schema 1.1): each point has `slope_deg`,
 `slope_err_deg`, `slope_verdict` at the default 8°, and `slope` has `area`, `overlay`, `chips` and
 `best_sunlit_within_limit` (`east_m`, `north_m`, `sunlit_percent`, `dte_clear_percent`, `slope_deg`, or null).
