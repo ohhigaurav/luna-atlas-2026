@@ -254,6 +254,45 @@ not configured (no kernels). Show the message; never fall back to made-up number
 
 Responses are gzip-compressed when the browser accepts it.
 
+## Hosting: API address, CORS and the ellipse job (new 8 Nov, 0.7.46)
+
+The hosted app (Cloudflare Pages) and the API (Azure VM) are different origins. The backend allows the
+app's origin through `LUNA_CORS_ORIGINS`; the frontend must call the API's full address. See
+an internal document (not published).
+
+**`POST /api/landing-ellipse/jobs`** (same body as `POST /api/landing-ellipse`) returns at once:
+`{job_id, status: "queued"|"running"|"done"|"error", done, total, queued_s, elapsed_s, error, error_kind}`.
+Poll **`GET /api/landing-ellipse/jobs/{job_id}`** every 2–3 s; when `status === "done"` the body has
+`result` (exactly the `/api/landing-ellipse` answer). Identical requests share one job (a second
+judge asking the same ellipse joins the first). At most 2 ellipses compute at once; others wait as
+`queued`. 404 means the server restarted: start the job again. 422 = the request is refused (unknown
+or non-polar site) before any job starts. Why: an ellipse takes 4–5 min, and some browsers end a
+single HTTP response after 300 s.
+
+`GET /api/live` is the cheap liveness probe (`{status: "ok", version}`); `/api/health` hashes every
+kernel and DEM and is slow.
+
+### Handoff for the frontend session: hosted mode (paste as is)
+
+> Backend 0.7.46. The app will be served from Cloudflare Pages and call the API on an Azure VM
+> (an internal document (not published)). Two changes:
+>
+> 1. **API base.** Add `src/api/base.ts`:
+>    `export const API = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(/\/$/, '');`
+>    and use `API + path` for every backend call: `post()` and `fetchRun()` in `api/plan.ts`,
+>    `api/sky.ts` (`/api/sky-geometry`), `api/compare.ts`, `CompareView.tsx` (`/api/runs/…`),
+>    `EllipsePanel.tsx`, and both probes in `data/source.ts` (`/api/site-index`, `/api/reference-sites`).
+>    `run_url` values from the backend are relative (`/api/runs/…`): prefix them too. Static-answer
+>    keys (`staticAnswers.ts`, `endpointOf`) keep using the bare path. Empty `VITE_API_BASE` (local dev,
+>    `run_local.sh`) behaves exactly as today. Add `VITE_API_BASE?: string` to `vite-env.d.ts`.
+> 2. **Ellipse as a job.** In live mode `EllipsePanel` starts `POST /api/landing-ellipse/jobs`, polls
+>    `GET /api/landing-ellipse/jobs/{id}` every 2.5 s, and shows "Computing live on the server: point
+>    {done} of {total} · {elapsed_s} s" (or "Waiting for another ellipse to finish · {queued_s} s" while
+>    queued) with a thin progress bar. On `done` render `result` as today. On 404, start again once. On
+>    `error`, show `error`. Stop polling when the panel closes. Static mode keeps reading the baked
+>    `/api/landing-ellipse` answers unchanged. Under the result: "computed live in {elapsed_s} s"
+>    (or "from this server's cache" when `result.cache_hit`).
+
 ## `POST /api/landing-windows`
 
 Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these defaults:

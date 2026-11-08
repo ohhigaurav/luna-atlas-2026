@@ -1,0 +1,47 @@
+# Luna Atlas on one VM: the API (every answer computed live on this machine) behind Caddy, which
+# gets and renews the HTTPS certificate by itself. Guide: an internal document (not published).
+#
+#   cd ~/luna-atlas && docker compose -f deploy/compose.vm.yml up -d --build
+#
+# Settings come from deploy/.env (LUNA_DOMAIN, LUNA_CORS_ORIGINS); copy deploy/env.example.
+# Paths are relative to this file. Kernels and DEMs are copied to ../data by hand (rsync) and
+# mounted read-only; the app verifies every file against the manifests' SHA-256 before use.
+services:
+  api:
+    build: ..
+    environment:
+      LUNA_CORS_ORIGINS: ${LUNA_CORS_ORIGINS:?set LUNA_CORS_ORIGINS in deploy/.env}
+      LUNA_WARM_LANDING: "1"   # the pins' landing answers are computed here at start, not copied in
+    volumes:
+      - ../data/kernels:/app/data/kernels:ro
+      - ../data/manifests:/app/data/manifests:ro
+      - ../data/dems:/app/data/dems:ro
+      - ../data/catalogue:/app/data/catalogue:ro
+      - ../data/reference:/app/data/reference:ro
+      - ../data/cache:/app/data/cache
+      - ../data/runs:/app/data/runs
+      - ../data/scans:/app/data/scans
+      - ../data/ensembles:/app/data/ensembles
+    expose:
+      - "8000"                 # reachable only through Caddy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LUNA_DOMAIN: ${LUNA_DOMAIN:?set LUNA_DOMAIN in deploy/.env}
+      LUNA_FRONTEND_URL: ${LUNA_FRONTEND_URL:?set LUNA_FRONTEND_URL in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

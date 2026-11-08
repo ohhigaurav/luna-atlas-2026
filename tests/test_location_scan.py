@@ -150,3 +150,61 @@ def test_scan_refuses_flat_mode() -> None:
     )
     with pytest.raises(ValueError, match="terrain"):
         run_location_scan("x", request)
+
+
+def _scan_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AnalysisRequest:
+    dem_manifest = tmp_path / "dem.json"
+    dem_manifest.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(analysis_service, "_load_sites", lambda: {BASE_SITE["site_id"]: BASE_SITE})
+    monkeypatch.setattr(analysis_service, "_spice_runtime", lambda: (object(), _Geometry(), "k" * 64, []))
+    monkeypatch.setattr(analysis_service, "assert_required_spk_coverage", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(analysis_service, "assert_required_bpc_coverage", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(analysis_service, "DEM_MANIFEST", dem_manifest)
+    monkeypatch.setattr(analysis_service, "PROJECT_ROOT", tmp_path)
+    return AnalysisRequest(site_ids=[BASE_SITE["site_id"]], horizon_mode="terrain",
+                           start_utc="2027-01-01T00:00:00Z", end_utc="2027-01-02T00:00:00Z")
+
+
+def test_scan_lets_other_requests_in_between_points(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+    import time as _time
+    request = _scan_env(tmp_path, monkeypatch)
+    events: list[str] = []
+    first_point = threading.Event()
+
+    def fake_run_one_site(site: dict[str, Any], request: Any, geometry: Any, **_: Any) -> tuple[dict[str, Any], None]:
+        assert analysis_service._RUN_LOCK.locked()       # each point still runs under the lock
+        events.append("point")
+        first_point.set()
+        _time.sleep(0.01)
+        return _fake_result(sunlit=50.0), None
+
+    def other_user() -> None:
+        first_point.wait(2)
+        with analysis_service._RUN_LOCK:                 # e.g. another judge's landing question
+            events.append("other")
+
+    monkeypatch.setattr(analysis_service, "_run_one_site", fake_run_one_site)
+    t = threading.Thread(target=other_user)
+    t.start()
+    scan = run_location_scan(BASE_SITE["site_id"], request, radius_m=200.0, spacing_m=100.0, save=False)
+    t.join(2)
+    assert scan["points_ok"] == 13 and events.count("point") == 13
+    assert "other" in events and events.index("other") < len(events) - 1   # got in before the scan finished
+
+
+def test_scan_stops_if_the_kernel_pool_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _scan_env(tmp_path, monkeypatch)
+    monkeypatch.setattr(analysis_service, "_LOADED_KERNELS", (("manifest-a", ()), None))
+    calls = []
+
+    def fake_run_one_site(site: dict[str, Any], request: Any, geometry: Any, **_: Any) -> tuple[dict[str, Any], None]:
+        calls.append(1)
+        if len(calls) == 2:   # someone reloaded kernels from another manifest between points
+            analysis_service._LOADED_KERNELS = (("manifest-b", ()), None)
+        return _fake_result(sunlit=50.0), None
+
+    monkeypatch.setattr(analysis_service, "_run_one_site", fake_run_one_site)
+    with pytest.raises(analysis_service.AnalysisNotReady, match="kernel pool changed"):
+        run_location_scan(BASE_SITE["site_id"], request, radius_m=200.0, spacing_m=100.0, save=False)
+    assert len(calls) == 2
