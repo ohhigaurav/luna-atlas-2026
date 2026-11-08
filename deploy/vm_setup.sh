@@ -17,11 +17,11 @@ fi
 if [ ! -d "$HOME/luna-atlas/.git" ]; then
   git clone https://github.com/ohhigaurav/luna-atlas-2026.git "$HOME/luna-atlas"
 fi
-mkdir -p "$HOME/luna-atlas/data/"{kernels,dems/assets,cache,runs,scans,ensembles}
+mkdir -p "$HOME/luna-atlas/data/"{kernels,dems/assets,cache,runs,scans,ensembles} "$HOME/luna-atlas/frontend/app/dist"
 [ -f "$HOME/luna-atlas/deploy/.env" ] || cp "$HOME/luna-atlas/deploy/env.example" "$HOME/luna-atlas/deploy/.env"
 
 echo
 echo "Done. Next (an internal document (not published)):"
 echo "  1. log out and back in (so 'docker' works without sudo)"
 echo "  2. edit ~/luna-atlas/deploy/.env"
-echo "  3. copy kernels and DEMs from your laptop with rsync (step 5 of the guide)"
+echo "  3. copy kernels, DEMs and the built app from your laptop with rsync (step 4 of the guide)"
