@@ -268,7 +268,7 @@ the mission", or "The next opportunity is also the best one in the period". A 36
 7 analysis chunks the first time per site and question, then comes from the cache. It has not been timed on real data yet: show the
 elapsed seconds while it runs.
 
-### Handoff for the frontend session: best date + mission playback (paste as is)
+### Handoff for the frontend session: best date, mission playback, mission length, origin badge (paste as is)
 
 > Backend 0.7.42: `/api/landing-windows` accepts `search_days` up to 366 and returns `soonest`, `best`
 > (most sunlight after touchdown, then Earth %, then earlier) and `best_rule` (docs/frontend_api.md).
@@ -304,6 +304,46 @@ elapsed seconds while it runs.
 > 3. A thin battery-charge curve over the 30 days (from `simulate().socWh`) with the sunlit bands behind
 >    it and a marker where it empties, so 99% → 0 has a visible reason before you press play.
 > 4. Keep "illustrative power model" on screen. Panel, battery and load are the player's choices.
+>
+> **C. Mission length on the card** (team feedback). The
+> −/+ control exists only in the expanded SitePanel. Put it on the SiteCard verdict as chips:
+> `Mission: 1 d · 3 d · 5 d · 7 d · 10 d · 14 d` (current one highlighted, same `onSettings({ missionDays })`),
+> right under "You can land on this date" / "Not a good date to land here". Make the sentence say it:
+> "Land by then and the Sun stays up for **{N} days** (your mission)". The backend accepts 0.25–30 days;
+> keep the app's 1–14 clamp.
+>
+> **D. Origin badge** ("Reference site, not official" reads like an apology). Say where the
+> coordinates come from instead; the "not from the challenge list" part moves to the tooltip. Replace
+> `originLabel` in `SiteCard.tsx` and use `originTitle` as the `title` of both badges (SiteCard, SitePanel):
+>
+> ```ts
+> const SOURCE_NAMES: Array<[RegExp, string]> = [
+>   [/lroc/i, 'LROC'], [/nssdc/i, 'NASA NSSDC'], [/10\.3847\/psj|\/psj\//i, 'Planetary Science Journal'],
+>   [/usgs/i, 'USGS gazetteer'], [/science\.nasa\.gov/i, 'NASA'], [/ncbi|pmc/i, 'peer-reviewed study'],
+> ];
+> const sourceName = (s: ReferenceSite) => SOURCE_NAMES.find(([re]) => re.test(s.source_url ?? ''))?.[1];
+>
+> /** Where the coordinates come from, always in words (an internal document (not published)). */
+> export function originLabel(site: ReferenceSite): string {
+>   if (site.site_id.startsWith('point:')) return 'Your point';
+>   if (site.origin === 'official') return 'Official challenge site';
+>   const src = sourceName(site), from = src ? ` · ${src}` : '';
+>   if (site.position_kind === 'landed_hardware') return `Landing site${from}`;
+>   if (site.position_kind === 'target_region_centre') return `Planned target, region centre${from}`;
+>   return `Published site${from}`;
+> }
+> export function originTitle(site: ReferenceSite): string {
+>   if (site.site_id.startsWith('point:')) return 'A point you picked on the map.';
+>   if (site.origin === 'official') return 'From the Space Apps 2026 challenge site list.';
+>   const src = sourceName(site);
+>   return `Coordinates from ${src ?? 'a published source'}${site.source_record ? ` (${site.source_record})` : ''}. ` +
+>     "Not from the challenge's own site list, which is released 13 Nov and marked \"Official challenge site\".";
+> }
+> ```
+>
+> Result: "Landing site · LROC" (Chandrayaan-3, IM-1, Chang'e, SLIM), "Landing site · NASA NSSDC"
+> (Apollo), "Published site · Planetary Science Journal" (LOLA 001/004), "Planned target, region
+> centre · USGS gazetteer" (IM-3). Keep the App.tsx footer line (~429) as is: the honesty stays one hover away.
 
 Cached (5 Nov): an identical request with the same software, horizon algorithm and kernel/DEM
 manifests is answered from `data/cache/landing/` with `"cache_hit": true`. The app asks this for
