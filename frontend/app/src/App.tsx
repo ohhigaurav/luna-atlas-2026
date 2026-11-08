@@ -366,7 +366,7 @@ export default function App() {
     else if (c.id === 'grid') setGrid((g) => !g);
     else if (c.id === 'forecast') openForecast();
     else if (c.id === 'compare') startCompare();
-  }, [pick, goNow, selected, live, plan, jump, openForecast, startCompare]);
+  }, [pick, goNow, selected, asks, plan, jump, openForecast, startCompare]);
 
   const showMission = useCallback((c: MissionCase) => {
     const s = c.siteId ? byId(c.siteId) : null;
