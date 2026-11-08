@@ -48,12 +48,14 @@ from typing import Any
 from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
 
-CACHE_SCHEMA = "landing-cache-7"  # 4: R5; 5: clearance; 6: R5 v2 (local horizon, latitude-scaled)
+CACHE_SCHEMA = "landing-cache-8"  # 4: R5; 5: clearance; 6: R5 v2 (local horizon, latitude-scaled); 8: soonest/best
 POLAR_LIMIT_DEG = -60.0
 CHUNK_DAYS = 59
 STEP_MIN = 30
 EVENT_TOLERANCE_S = 10.0
 MAX_OPPORTUNITIES = 24
+BEST_RULE = ("Best = the touchdown that leaves the most sunlight after landing (the most margin for the mission); "
+             "ties go to more Earth in view during the mission, then to the earlier date. Every window passes R1-R5.")
 RULE_TEXT = {
     "sun_up": "Sun above the horizon at touchdown",
     "daylight": "enough daylight left for the mission",
@@ -203,7 +205,13 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
             "earth_up": best["s"].earth_up,
         }
     longest = max(sun, key=lambda w: w.end_s - w.start_s, default=None)
+    # Over ALL windows in the search, not only the first MAX_OPPORTUNITIES listed.
+    best = max(opportunities, key=lambda o: (o["daylight_after_best_h"], o["earth_in_view_during_mission_pct"]),
+               default=None)  # max keeps the first of equals, i.e. the earliest
     return {
+        "soonest": dict(opportunities[0]) if opportunities else None,
+        "best": None if best is None else {**best, "rank": opportunities.index(best) + 1},
+        "best_rule": BEST_RULE,
         "opportunities": opportunities[:MAX_OPPORTUNITIES],
         "opportunity_count": len(opportunities),
         "candidates_checked": len(rows),
@@ -230,6 +238,14 @@ def explain(result: dict[str, Any], *, mission_days: float, site_name: str) -> l
             f"Earth is in view {first['earth_in_view_during_mission_pct']:.0f}% of the mission.")
         if result["opportunity_count"] > 1:
             lines.append(f"{result['opportunity_count']} opportunities in the search period.")
+        best = result.get("best")
+        if best and best["best_touchdown_utc"] != first["best_touchdown_utc"]:
+            lines.append(
+                f"Best in the period: land at {best['best_touchdown_utc'][:16]} UTC for "
+                f"{'at least ' if best['daylight_is_lower_bound'] else ''}{best['daylight_after_best_h'] / 24:.1f} days "
+                f"of sunlight, Earth in view {best['earth_in_view_during_mission_pct']:.0f}% of the mission.")
+        elif best:
+            lines.append("The next opportunity is also the best one in the period (most sunlight after landing).")
         return lines
     lines.append(f"No touchdown time in this period meets all the rules for a {mission_days:g}-day mission.")
     miss = result["closest_miss"]
@@ -347,6 +363,9 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
 
     for o in result["opportunities"]:
         o["verify"] = _verify(o["best_touchdown_utc"])
+    for k in ("soonest", "best"):
+        if result[k] is not None:
+            result[k]["verify"] = _verify(result[k]["best_touchdown_utc"])
     if result["closest_miss"] is not None:
         result["closest_miss"]["verify"] = _verify(result["closest_miss"]["touchdown_utc"])
     caveats = ["Reference site from published sources, not an official challenge coordinate."

@@ -93,7 +93,8 @@ def test_merge_joins_chunk_seams_only() -> None:
 def test_request_limits() -> None:
     ok = LandingRequest(site_id="x", search_start_utc="2027-01-01T00:00:00Z")
     assert (ok.search_days, ok.mission_days, ok.max_sun_elevation_deg) == (90, 10.0, 20.0)
-    for bad in ({"search_days": 181}, {"mission_days": 0.1}, {"search_start_utc": "2027-01-01T00:00:00"},
+    assert LandingRequest(site_id="x", search_start_utc="2027-01-01T00:00:00Z", search_days=365).search_days == 365
+    for bad in ({"search_days": 367}, {"search_days": 0}, {"mission_days": 0.1}, {"search_start_utc": "2027-01-01T00:00:00"},
                 {"horizon_mode": "flat"}):
         with pytest.raises(ValidationError):
             LandingRequest(**{"site_id": "x", "search_start_utc": "2027-01-01T00:00:00Z", **bad})
@@ -121,6 +122,8 @@ def test_full_pipeline_on_synthetic_geometry(monkeypatch: pytest.MonkeyPatch) ->
         assert o["daylight_after_best_h"] >= 6.0 - 0.6 and o["earth_in_view_during_mission_pct"] == 100.0
     assert r["summary"][0].startswith("Next landing opportunity")
     assert r["cache_hit"] is False
+    assert r["soonest"]["best_touchdown_utc"] == r["opportunities"][0]["best_touchdown_utc"]
+    assert r["best"]["rank"] >= 1 and "verify" in r["best"] and "verify" in r["soonest"]
     again = landing.run_landing(req)  # same question: served from the result cache, same answer
     assert again["cache_hit"] is True and again["opportunities"] == r["opportunities"]
     long = landing.run_landing(req.model_copy(update={"mission_days": 1.0}))
@@ -208,3 +211,41 @@ def test_horizon_sample_budget() -> None:
     with pytest.raises(ValidationError, match="samples"):
         AnalysisRequest(**base, terrain_near_step_m=1.0, terrain_near_range_m=50_000.0, terrain_azimuth_step_deg=0.25)
     AnalysisRequest(**{**base, "horizon_mode": "flat"}, terrain_near_step_m=1.0, terrain_near_range_m=50_000.0)
+
+
+def test_best_is_most_daylight_and_soonest_is_first() -> None:
+    sun = [_w(0, 30), _w(40, 140), _w(150, 200)]          # 30 h, 100 h, 50 h of sunlight
+    earth = [_w(0, 200)]
+    r = _eval(_samples(200, sun, earth), sun, earth, mission_days=0.5, search_end_s=199 * H)
+    assert r["opportunity_count"] == 3
+    assert r["soonest"]["best_touchdown_utc"] == "h0" and r["soonest"]["daylight_after_best_h"] == 30.0
+    assert r["best"]["best_touchdown_utc"] == "h40" and r["best"]["daylight_after_best_h"] == 100.0
+    assert r["best"]["rank"] == 2 and "most sunlight" in r["best_rule"]
+    text = " ".join(landing.explain(r, mission_days=0.5, site_name="X"))
+    assert "Best in the period: land at h40 UTC for 4.2 days of sunlight" in text
+
+
+def test_best_ties_go_to_more_earth_then_to_the_earlier_date() -> None:
+    sun = [_w(0, 50), _w(100, 150), _w(200, 250)]         # equal daylight everywhere
+    earth = [_w(0, 10), _w(100, 150), _w(200, 250)]       # the second and third keep Earth all mission
+    r = _eval(_samples(250, sun, earth), sun, earth, mission_days=0.5, search_end_s=249 * H)
+    assert [o["earth_in_view_during_mission_pct"] for o in r["opportunities"]] == [
+        pytest.approx(10 / 12 * 100), 100.0, 100.0]
+    assert r["best"]["best_touchdown_utc"] == "h100"      # beats h0 on Earth, ties h200 and is earlier
+    one = _eval(_samples(50, [_w(0, 50)], [_w(0, 50)]), [_w(0, 50)], [_w(0, 50)], mission_days=0.5)
+    assert one["best"]["best_touchdown_utc"] == one["soonest"]["best_touchdown_utc"]
+    assert "also the best one" in " ".join(landing.explain(one, mission_days=0.5, site_name="X"))
+
+
+def test_best_is_searched_past_the_listed_windows() -> None:
+    n = landing.MAX_OPPORTUNITIES + 6
+    sun = [_w(i * 10, i * 10 + (9 if i == n - 2 else 5)) for i in range(n)]   # one late window is longest
+    earth = [_w(0, n * 10)]
+    r = _eval(_samples(n * 10, sun, earth), sun, earth, mission_days=0.1, search_end_s=(n * 10 - 1) * H)
+    assert r["opportunity_count"] == n and len(r["opportunities"]) == landing.MAX_OPPORTUNITIES
+    assert r["best"]["rank"] == n - 1 and r["best"]["daylight_after_best_h"] == 9.0
+
+
+def test_no_window_means_no_soonest_or_best() -> None:
+    r = _eval(_samples(60, [_w(10, 30)], [_w(0, 100)]), [_w(10, 30)], [_w(0, 100)], mission_days=2.0)
+    assert r["soonest"] is None and r["best"] is None

@@ -264,7 +264,8 @@ class LandingRequest(BaseModel):
     longitude_deg: float | None = Field(default=None, ge=-180.0, lt=360.0,
                                         description="Custom point: east longitude (negative = west)")
     search_start_utc: datetime
-    search_days: int = Field(default=90, ge=1, le=180)
+    search_days: int = Field(default=90, ge=1, le=366,
+                             description="How far ahead to look: 30, 90, 180 or 365 days are the app's presets")
     mission_days: float = Field(default=10.0, ge=0.25, le=30.0)
     panel_height_m: float = Field(default=2.0, ge=0.0, le=10.0)
     require_earth_at_landing: bool = True

@@ -251,8 +251,59 @@ Responses are gzip-compressed when the browser accepts it.
 ## `POST /api/landing-windows`
 
 Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these defaults:
-`search_days` 90 (max 180), `mission_days` 10, `panel_height_m` 2,
+`search_days` 90 (max 366; the app's presets are 30 / 90 / 180 / 365), `mission_days` 10, `panel_height_m` 2,
 `require_earth_at_landing` true, `max_sun_elevation_deg` 20 (null turns that rule off).
+
+**Soonest and best (new 8 Nov, 0.7.42).** Every answer now has, over *all* windows in the search
+(not only the first 24 listed in `opportunities`):
+
+- `soonest`: the first window (same fields as an opportunity, plus `verify`), or null;
+- `best`: the touchdown that leaves the **most sunlight after landing**; ties go to more Earth in view
+  during the mission, then to the earlier date. Same fields plus `rank` (1 = it is also the soonest)
+  and `verify`; null when no window exists;
+- `best_rule`: that rule in one sentence, for the small print.
+
+`summary` gains a line: "Best in the period: land at … for 13.2 days of sunlight, Earth in view 87% of
+the mission", or "The next opportunity is also the best one in the period". A 365-day search runs about
+7 analysis chunks the first time per site and question, then comes from the cache. It has not been timed on real data yet: show the
+elapsed seconds while it runs.
+
+### Handoff for the frontend session: best date + mission playback (paste as is)
+
+> Backend 0.7.42: `/api/landing-windows` accepts `search_days` up to 366 and returns `soonest`, `best`
+> (most sunlight after touchdown, then Earth %, then earlier) and `best_rule` (docs/frontend_api.md).
+> The team's feedback 8 Nov: playback ran from 99% to 0 with no explanation, and the request was "the best possible date,
+> whether it is 30, 90, 200 or 365 days".
+>
+> **A. Best date.**
+> 1. In the site card and panel, a small segmented control "Look ahead: 30 d · 90 d · 180 d · 365 d"
+>    (default 90). It changes only this question: send `search_days` with it and put it in the
+>    `landingRequest` cache key. The ring, calendar and pins keep their 90 / 30 days.
+> 2. Two lines, both from the date in the date bar:
+>    "Soonest: {soonest.best_touchdown_utc} (in {span from the date bar})" and
+>    "Best in the next {N} days: {best.best_touchdown_utc}: {daylight_after_best_h as days} of sunlight,
+>    Earth in view {earth_in_view_during_mission_pct}%". When `best.rank === 1`, one line:
+>    "Soonest is also the best in the next {N} days". `best_rule` goes in the tooltip.
+> 3. Buttons: "Go to best" (jumps the date bar) and "Play the mission from here" (opens the 3D ground
+>    view at `best.best_touchdown_utc`).
+> 4. While loading: "Searching the next {N} days… {elapsed} s". In static mode, keep 90 d only and grey
+>    the others with "needs the live backend".
+> 5. SitePanel's `formatIn(answer.inDays)` counts from `Date.now()`, while the card counts from the date
+>    bar. Make both count from the date bar.
+>
+> **B. Mission playback.** The drain happens because "Stand here in 3D" on the SiteCard opens at the
+> date bar's moment (`onStand(cursorMs)`), not at a landing window. If the Sun is down or behind a ridge,
+> the panel makes 0 W and the 2 kWh battery at 60 W is empty in ~33 h with nothing else happening.
+> 1. "Stand here in 3D": if the date bar is inside a window, start there. Otherwise start at the next
+>    window's best touchdown, with a one-line note: "Starting at the next landing window, {date}". If there
+>    is none in the look-ahead, open at the date bar with: "No landing window in the next {N} days: this
+>    shows the lander waiting in the dark."
+> 2. A live status line under the battery, from the run's series: "Charging: Sun 1.8° up, panel 380 W,
+>    using 60 W" / "Draining: Sun behind the hills (rises in 9 h)" / "Night: battery lasts {h} more at
+>    {loadW} W, sunrise in {h}" (the latter "no sunrise in these 30 days" when none).
+> 3. A thin battery-charge curve over the 30 days (from `simulate().socWh`) with the sunlit bands behind
+>    it and a marker where it empties, so 99% → 0 has a visible reason before you press play.
+> 4. Keep "illustrative power model" on screen. Panel, battery and load are the player's choices.
 
 Cached (5 Nov): an identical request with the same software, horizon algorithm and kernel/DEM
 manifests is answered from `data/cache/landing/` with `"cache_hit": true`. The app asks this for
