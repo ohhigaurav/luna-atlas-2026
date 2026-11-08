@@ -9,7 +9,8 @@ import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText } from '../state/siteState';
 import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS } from '../plan/usePlan';
-import type { Miss, NextLanding } from './nextLanding';
+import type { NextLanding } from './nextLanding';
+import { missText } from '../state/rules';
 import { useNextLanding } from './useNextLanding';
 import { CloseIcon } from '../ui/Icons';
 
@@ -115,12 +116,6 @@ function earliest(land: Record<string, NextLanding>): number | null {
 
 /** One sentence above the table: can any of these places land on this date, and if not, when is the soonest chance. */
 const daysText = (h: number) => `${(h / 24).toFixed(1)} days`;
-/** Short names for landing.py's rules, for the closest miss. */
-const RULE_SHORT: Record<string, string> = {
-  sun_up: 'Sun not up', daylight: 'too little daylight left', earth_up: 'Earth not in view',
-  low_sun: 'Sun too high for long shadows', sun_high: 'Sun too low to light the ground',
-};
-const missText = (m: Miss) => m.rules.map((k) => (k === 'daylight' ? `${daysText(m.daylightH)} of daylight left, needs ${daysText(m.neededH)}` : RULE_SHORT[k] ?? k)).join('; ');
 
 function LandingSummary({ places, land, atMs, mission, onJump, onMission }: {
   places: ReferenceSite[]; land: Record<string, NextLanding>; atMs: number; mission: number;

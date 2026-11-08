@@ -26,6 +26,7 @@ describe('outlookOf (pin status)', () => {
     const o = outlookOf(result([opp('2026-11-01T00:00:00Z', '2026-11-02T00:00:00Z', '2026-11-01T06:00:00Z'),
       opp('2026-12-06T00:00:00Z', '2026-12-07T00:00:00Z', '2026-12-06T06:00:00Z')]), NOW);
     expect(o.kind).toBe('none');
+    expect(o.kind === 'none' && o.laterMs).toBe(Date.parse('2026-12-06T00:00:00Z'));
     expect(outlookText(o)).toBe('no window ≤ 30 d');
   });
 });
@@ -40,5 +41,10 @@ describe('etaMs (pin progress)', () => {
     expect(etaText(3000)).toBe('almost done');
     expect(etaText(42000)).toBe('about 40 s left');
     expect(etaText(150000)).toBe('about 3 min left');
+  });
+  it('names the closest try\'s failed rule when nothing opens in the search', () => {
+    const r = { ...result([]), closest_miss: { touchdown_utc: '2026-11-20T00:00:00Z', failed_rules: ['earth_up'], daylight_after_h: 300, daylight_needed_h: 240 } } as LandingResult;
+    const o = outlookOf(r, NOW);
+    expect(o).toEqual({ kind: 'none', horizonMode: 'terrain', miss: { atMs: Date.parse('2026-11-20T00:00:00Z'), rules: ['earth_up'], daylightH: 300, neededH: 240 } });
   });
 });

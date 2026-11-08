@@ -605,8 +605,7 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-hello p { margin: 0; font-size: 16px; color: var(--text-2); }
 .la-hello .la-btn { align-self: flex-start; }
 .hl-key { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
-.hl-key span { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; font: 500 15px var(--font-ui); }
-.hl-key b { font-weight: 700; }
+.hl-key .pk-line b { font-weight: 700; }
 .hl-phase { font-size: 14px !important; text-align: left; }
 .la-hello .la-progress { color: var(--text-2); font-size: 14px; }
 .la-sym { width: 11px; height: 11px; }
@@ -776,3 +775,21 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-cmp .c-go { all: unset; cursor: pointer; margin-top: 4px; font: 600 12.5px var(--font-ui); color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .la-cmp .c-go:focus-visible { outline: 2px solid var(--select); }
 .la-cmp .c-lim { display: block; font-size: 12px; color: var(--text-2); line-height: 1.35; }
+
+/* pin key: each line opens its sites and the reason (8 Nov) */
+.hl-key .pk-line { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 22px 1fr auto 18px; align-items: center;
+  font: 500 15px var(--font-ui); padding: 4px 6px; margin: 0 -6px; border-radius: 8px; }
+.hl-key .pk-line:hover, .hl-key .pk-line.on { background: rgba(255, 255, 255, 0.06); }
+.hl-key .pk-line:focus-visible { outline: 2px solid var(--select); }
+.hl-key .pk-chev { justify-self: end; color: var(--text-3); font-weight: 600; }
+.pk-open { margin: 2px 0 8px; max-height: 38vh; overflow-y: auto; padding-right: 4px; }
+.la-hello .pk-rule { margin: 0 0 6px; font-size: 13px; line-height: 1.45; color: var(--text-3); }
+.la-hello .pk-sub { margin: 10px 0 4px; font: 600 12.5px var(--font-ui); color: var(--text-2); text-transform: none; }
+.pk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hl-key .pk-list button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px;
+  padding: 6px 8px; border-radius: 8px; }
+.hl-key .pk-list button:hover { background: rgba(255, 255, 255, 0.06); }
+.hl-key .pk-list button:focus-visible { outline: 2px solid var(--select); }
+.pk-name { font: 600 14px var(--font-ui); color: var(--text); }
+.pk-main { font: 600 13px var(--font-ui); color: var(--text); justify-self: end; }
+.pk-why { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-3); line-height: 1.35; }

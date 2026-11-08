@@ -10,7 +10,9 @@ export type Outlook =
   | { kind: 'pending' }
   | { kind: 'error' }
   | { kind: 'window'; fromMs: number; bestMs: number; openNow: boolean; horizonMode: string }
-  | { kind: 'none'; horizonMode: string };   // no window in the next OUTLOOK_DAYS (later ones may exist)
+  /** No window in the next OUTLOOK_DAYS. laterMs: the first one after that, inside the search;
+   *  miss: the closest try's failed rules (landing.py RULE_TEXT keys) when there is no later one. */
+  | { kind: 'none'; horizonMode: string; laterMs?: number; miss?: { atMs: number; rules: string[]; daylightH: number; neededH: number } };
 
 export function outlookOf(result: LandingResult, nowMs: number): Outlook {
   const limit = nowMs + OUTLOOK_DAYS * DAY;
@@ -23,7 +25,17 @@ export function outlookOf(result: LandingResult, nowMs: number): Outlook {
       best = { kind: 'window', fromMs: start, bestMs: Math.max(Date.parse(o.best_touchdown_utc), start), openNow: from <= nowMs, horizonMode: result.horizon_mode };
     }
   }
-  return best ?? { kind: 'none', horizonMode: result.horizon_mode };
+  if (best) return best;
+  const none: Outlook & { kind: 'none' } = { kind: 'none', horizonMode: result.horizon_mode };
+  for (const o of result.opportunities) {
+    const from = Date.parse(o.touchdown_from_utc);
+    if (from > limit && (none.laterMs === undefined || from < none.laterMs)) none.laterMs = from;
+  }
+  const m = result.closest_miss;
+  if (none.laterMs === undefined && m) {
+    none.miss = { atMs: Date.parse(m.touchdown_utc), rules: m.failed_rules, daylightH: m.daylight_after_h, neededH: m.daylight_needed_h };
+  }
+  return none;
 }
 
 /** Short pin/list text: "land now", "land 8 Nov", "no window ≤ 30 d". */

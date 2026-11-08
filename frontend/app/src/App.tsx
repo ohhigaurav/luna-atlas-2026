@@ -18,6 +18,7 @@ import { DateBar } from './ui/DateBar';
 import { SiteCard } from './plan/SiteCard';
 import { CompareShelf } from './compare/CompareShelf';
 import { useOutlook } from './plan/useOutlook';
+import { PinKey } from './ui/PinKey';
 import { OutlookProgress } from './ui/OutlookProgress';
 import { ForecastPanel, type Layers, type Probe } from './forecast/ForecastPanel';
 import { earthFrameAt, loadForecast, pixelOf, sunFrameAt, unpackFrame, bitAt, type ForecastData } from './forecast/forecastData';
@@ -373,10 +374,6 @@ export default function App() {
 
   const sel = selected ? states[selected.site_id] ?? null : null;
 
-  const legendCounts = {
-    green: Object.values(outlook).filter((o) => o.kind === 'window').length,
-    day: data.sites.filter((x) => states[x.site_id]?.day).length,
-  };
   const checked = Object.values(outlook).filter((o) => o.kind !== 'pending').length;
 
   return (
@@ -428,11 +425,7 @@ export default function App() {
               ? 'Official challenge sites first; reference points below.'
               : 'Sites are reference points from published sources, not official challenge coordinates.'}
           </p>
-          <div className="hl-key" aria-label="What the pin colours mean">
-            {live && <span><i className="la-sym window" />Can land within 30 days <b>{legendCounts.green}</b></span>}
-            <span><i className="la-sym day" />Sunlit now <b>{legendCounts.day}</b></span>
-            <span><i className="la-sym night" />Night now <b>{data.sites.length - legendCounts.day}</b></span>
-          </div>
+          <PinKey sites={data.sites} states={states} outlook={outlook} live={live} cursorMs={cursorMs} onPick={pick} />
           {live && checked < data.sites.length && (
             <OutlookProgress checked={checked} total={data.sites.length} etaMs={progress.etaMs} at={progress.at} />
           )}
