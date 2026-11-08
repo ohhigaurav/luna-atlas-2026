@@ -12,7 +12,7 @@ Each gate's pass rule was fixed before its run; FAILs stay recorded. Evidence is
 | Sky orientation | Frame checks; Earth's sub-Moon point vs Horizons | **FAIL kept** (A3: our limit ignored the 18.6-year pole term; the frame matches IAU 2015 to 0.001°, checked after the fact). Earth's face: PASS, within 0.1° at 13 dates | `sky_orientation_2026-11-06.md` |
 | S slope | Our Horn slope vs PGDA's published slope maps, Sites 001/004, 1.5 km | **PASS**: median −0.002° / −0.004°, p95 0.70° / 0.92° (limit 1.5°) | `slope_check_2026-11-08.md` |
 
-**Measured, no pass rule:** DEM quality at the horizon-controlling terrain (`dem_quality_2026-10-28.md`);
+**Measured, no pass rule:** the app's "verify with NASA JPL" link at Apollo 11, 2027-01-13 17:00, Sun +0.1″ and Earth −0.2″ from Horizons, i.e. display rounding (`apollo11_verify_link_2026-11-08.md`); DEM quality at the horizon-controlling terrain (`dem_quality_2026-10-28.md`);
 PGDA clone check and observer-height sweep (`clone_check_and_mast_height_2026-10-28.md`); 0.25° vs 0.5°
 azimuth bins, 0.00-point difference at Sites 001/004 (independent review #10); 5 m vs 240 m terrain
 at Site 001, 69% vs 100% sunlight (`resolution_site001_2026-11-06.md`); the Malapert published point
