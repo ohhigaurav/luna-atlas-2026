@@ -1,6 +1,7 @@
 // src/api/sky.ts — client and time lookup for POST /api/sky-geometry.
 // Field names match backend/lunar_core/api_models.py (SkyGeometryResponse, schema 1.0).
 // Replace these hand-written types with the generated src/api/types.ts once it exists.
+import { API } from './base';
 
 export type Vec3 = [number, number, number];
 
@@ -35,7 +36,7 @@ export async function fetchSkyGeometry(
   stepMin = 30,
   signal?: AbortSignal,
 ): Promise<SkyGeometry> {
-  const res = await fetch('/api/sky-geometry', {
+  const res = await fetch(`${API}/api/sky-geometry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ start_utc: startUtc, end_utc: endUtc, step_min: stepMin }),

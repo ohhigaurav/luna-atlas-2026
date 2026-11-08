@@ -4,6 +4,7 @@
 // The rest of the app never needs to know which; static mode only disables what it cannot do.
 import type { AnswersIndex } from './staticAnswers';
 import { enableStaticAnswers } from './staticMode';
+import { API } from '../api/base';
 import { fetchSkyGeometry, type SkyGeometry } from '../api/sky';
 import type { PinSite } from '../engine/pins';
 
@@ -78,9 +79,9 @@ async function detectLive(): Promise<{ sites: ReferenceSite[]; index: SiteIndexI
   try {
     // The site index (official challenge sites first) is the source; an older backend without it
     // falls back to the reference catalogue.
-    const r = await fetch('/api/site-index', { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`${API}/api/site-index`, { signal: AbortSignal.timeout(8000) });
     if (r.ok) return fromIndex((await r.json()) as SiteIndex);
-    const f = await fetch('/api/reference-sites', { signal: AbortSignal.timeout(8000) });
+    const f = await fetch(`${API}/api/reference-sites`, { signal: AbortSignal.timeout(8000) });
     if (!f.ok) return null;
     return { sites: ((await f.json()) as { sites: ReferenceSite[] }).sites, index: REFERENCE_ONLY };
   } catch {

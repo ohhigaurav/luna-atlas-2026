@@ -852,3 +852,4 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .tb-crumbs button:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .tb-crumbs button:focus-visible { outline: 2px solid var(--select); }
 .tb-crumbs .on { color: var(--text); }
+.el-prog { height: 3px; margin-top: 6px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; } .el-prog i { display: block; height: 100%; background: var(--text); transition: width 0.4s; }

@@ -1,6 +1,7 @@
 // Client for the two "simple flow" calls (docs/frontend_api.md). Field names follow
 // backend/lunar_core/landing.py (run_landing) and check.py (run_check); neither endpoint has a
 // response model yet, so these types are hand-written from that code.
+import { API } from './base';
 import { staticIndex, staticPost, staticRun } from '../data/staticMode';
 
 export type UtcRange = { start_utc: string; end_utc: string };
@@ -40,6 +41,7 @@ export type LandingResult = {
   /** Which DEMs set the horizon (null on a flat horizon). */
   terrain?: { finest_resolution_m: number | null; dem_assets?: string[]; ground_elevation_m?: number | null } | null;
   /** Longest sunlit window in the search period (backend landing.evaluate). */
+  cache_hit?: boolean;
   longest_sunlit_window?: { start_utc: string; end_utc: string; hours: number; is_lower_bound: boolean } | null;
   summary: string[];
   caveats: string[];
@@ -87,7 +89,7 @@ export async function post<T>(url: string, body: unknown, signal?: AbortSignal):
   if (staticIndex()) {
     try { return await staticPost<T>(url, body as Record<string, unknown>); } catch (e) { throw new ApiError(404, (e as Error).message); }
   }
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
+  const r = await fetch(API + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
   if (!r.ok) {
     const j = (await r.json().catch(() => ({}))) as { detail?: unknown };
     const d = j.detail;
@@ -95,6 +97,16 @@ export async function post<T>(url: string, body: unknown, signal?: AbortSignal):
       : Array.isArray(d) ? d.map((x: { msg?: string }) => x.msg ?? String(x)).join('; ')
       : `HTTP ${r.status}`;
     throw new ApiError(r.status, msg);
+  }
+  return (await r.json()) as T;
+}
+
+/** GET a backend path (hosted or same origin), with the API's error message on failure. */
+export async function getApi<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const r = await fetch(API + path, { signal });
+  if (!r.ok) {
+    const j = (await r.json().catch(() => ({}))) as { detail?: unknown };
+    throw new ApiError(r.status, typeof j.detail === 'string' ? j.detail : `HTTP ${r.status}`);
   }
   return (await r.json()) as T;
 }
@@ -148,7 +160,7 @@ export async function fetchRun(runUrl: string, signal?: AbortSignal): Promise<Sa
   if (staticIndex()) {
     try { return await staticRun<SavedRun>(runUrl); } catch (e) { throw new ApiError(404, (e as Error).message); }
   }
-  const r = await fetch(runUrl, { signal });
+  const r = await fetch(API + runUrl, { signal });
   if (!r.ok) throw new ApiError(r.status, `run ${r.status}`);
   return (await r.json()) as SavedRun;
 }

@@ -8,6 +8,7 @@ import { useCompare } from '../compare/useCompare';
 import type { ReferenceSite } from '../data/source';
 import { terrainText } from '../state/terrain';
 import { BestDate } from './BestDate';
+import { staticIndex } from '../data/staticMode';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
 import { fixes, type Answer } from './answer';
@@ -152,7 +153,9 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
         )}
       </div>
 
-      <div className="sc-verdict" aria-live="polite">{verdict}{answerTerrain && verdict && <p className="sc-terr">Checked on {answerTerrain}.</p>}{chips}</div>
+      <div className="sc-verdict" aria-live="polite">{verdict}{answerTerrain && verdict && data.status === 'ready' && (
+        <p className="sc-terr">Checked on {answerTerrain} · {staticIndex() ? 'precomputed by the same code' : data.landing.cache_hit ? 'from this server\'s cache' : `computed live in ${Math.max(1, Math.round(data.landing.compute_seconds ?? 0))} s`}.</p>
+      )}{chips}</div>
       {live && data.status === 'ready' && (
         <BestDate siteId={site.site_id} cursorMs={cursorMs} missionDays={settings.missionDays} maxSunDeg={settings.maxSunDeg}
           onJump={onJump} onStand={onStand} />

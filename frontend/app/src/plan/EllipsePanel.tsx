@@ -3,8 +3,14 @@
 // the full production analysis at ~45 points filling the ellipse; this draws them in local
 // east/north metres, coloured by sunlit share, with the best and worst spots marked. A spread over
 // evenly spaced points, not a landing probability (the API says so; so does this panel).
-import { useEffect, useMemo, useState } from 'react';
-import { isoZ, post } from '../api/plan';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError, getApi, isoZ, post } from '../api/plan';
+import { staticIndex } from '../data/staticMode';
+
+/** POST /api/landing-ellipse/jobs (backend 0.7.46): an ellipse takes 4-5 min, so it runs as a polled job. */
+type Job = { job_id: string; status: 'queued' | 'running' | 'done' | 'error'; done: number; total: number;
+  queued_s: number; elapsed_s: number; error?: string | null; result?: EllipseResult };
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export type EllipsePoint = {
   east_m: number; north_m: number; latitude_deg: number; longitude_deg: number; status: string;
@@ -141,7 +147,9 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
   const [rot, setRot] = useState(0);
   const [colourBy, setColourBy] = useState<'sun' | 'slope'>('sun');
   const [limit, setLimit] = useState(8);
-  const [st, setSt] = useState<{ s: 'idle' } | { s: 'loading'; since: number } | { s: 'ready'; r: EllipseResult } | { s: 'error'; m: string }>({ s: 'idle' });
+  const [st, setSt] = useState<{ s: 'idle' } | { s: 'loading'; since: number; job?: Job } | { s: 'ready'; r: EllipseResult; liveS?: number } | { s: 'error'; m: string }>({ s: 'idle' });
+  const poll = useRef<{ stop: boolean } | null>(null);
+  useEffect(() => () => { if (poll.current) poll.current.stop = true; }, []);
   const [, tick] = useState(0);
   const body = useMemo(() => ({
     site_id: siteId, start_utc: isoZ(startMs), days: 14, semi_major_m: size,
@@ -149,7 +157,9 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
   }), [siteId, startMs, size, ratio, rot]);
   const key = JSON.stringify(body);
   const [asked, setAsked] = useState<string | null>(null);
-  useEffect(() => { if (asked !== key) setSt({ s: 'idle' }); }, [key, asked]);
+  useEffect(() => {
+    if (asked !== key) { if (poll.current) poll.current.stop = true; setSt({ s: 'idle' }); }
+  }, [key, asked]);
   useEffect(() => {
     if (st.s !== 'loading') return;
     const t = setInterval(() => tick((k) => k + 1), 1000);
@@ -158,8 +168,34 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
 
   const run = () => {
     setAsked(key);
-    setSt({ s: 'loading', since: performance.now() });
-    post<EllipseResult>('/api/landing-ellipse', body).then((r) => setSt({ s: 'ready', r }), (e: Error) => setSt({ s: 'error', m: e.message }));
+    const since = performance.now();
+    setSt({ s: 'loading', since });
+    if (staticIndex()) {
+      // The static site reads the baked /api/landing-ellipse answers.
+      post<EllipseResult>('/api/landing-ellipse', body).then((r) => setSt({ s: 'ready', r }), (e: Error) => setSt({ s: 'error', m: e.message }));
+      return;
+    }
+    if (poll.current) poll.current.stop = true;
+    const token = { stop: false };
+    poll.current = token;
+    const go = async (retried: boolean): Promise<void> => {
+      let j = await post<Job>('/api/landing-ellipse/jobs', body);
+      while (!token.stop) {
+        if (j.status === 'done' && j.result) { setSt({ s: 'ready', r: j.result, liveS: j.elapsed_s }); return; }
+        if (j.status === 'error') { setSt({ s: 'error', m: j.error ?? 'The ellipse job failed.' }); return; }
+        setSt({ s: 'loading', since, job: j });
+        await sleep(2500);
+        if (token.stop) return;
+        try {
+          j = await getApi<Job>(`/api/landing-ellipse/jobs/${j.job_id}`);
+        } catch (e) {
+          // 404: the server restarted and forgot the job; start it again once.
+          if (e instanceof ApiError && e.status === 404 && !retried) return go(true);
+          throw e;
+        }
+      }
+    };
+    go(false).catch((e: Error) => { if (!token.stop) setSt({ s: 'error', m: e.message }); });
   };
 
   if (!open) {
@@ -197,9 +233,15 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
       )}
       {st.s === 'loading' && (
         <div role="status" className="la-fine">
-          Running the full analysis at about 45 points inside the ellipse: {Math.round((performance.now() - st.since) / 1000)} s.
-          The first time takes about 2–4 minutes; the same ellipse again is instant.
-          <div className="la-bar" />
+          {st.job?.status === 'queued'
+            ? <>Waiting for another ellipse to finish · {Math.round(st.job.queued_s)} s</>
+            : st.job
+              ? <>Computing live on the server: point {st.job.done} of {st.job.total} · {Math.round(st.job.elapsed_s)} s</>
+              : <>Running the full analysis at about 45 points inside the ellipse: {Math.round((performance.now() - st.since) / 1000)} s.</>}
+          {' '}The first time takes about 4–5 minutes; the same ellipse again is instant.
+          {st.job && st.job.total > 0
+            ? <div className="el-prog"><i style={{ width: `${Math.round((st.job.done / st.job.total) * 100)}%` }} /></div>
+            : <div className="la-bar" />}
         </div>
       )}
       {st.s === 'error' && <p className="la-err" role="alert">{st.m}</p>}
@@ -250,6 +292,7 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
                 Earth in view {r.risk.earth_percent?.worst.toFixed(0)}–{r.risk.earth_percent?.best.toFixed(0)}% across the ellipse.
                 {' '}{r.risk.points_ok} of {r.points.length} points answered{r.points_unavailable ? `, ${r.points_unavailable} without terrain` : ''}; {r.ellipse.spacing_m.toFixed(0)} m apart.
                 {' '}{r.interpretation}
+                {' '}{r.cache_hit ? 'From this server\'s cache.' : st.s === 'ready' && st.liveS !== undefined ? `Computed live in ${Math.round(st.liveS)} s.` : staticIndex() ? 'Precomputed.' : ''}
               </p>
             </>
           ) : <p className="la-err">No point in this ellipse could be analysed (terrain unavailable).</p>}
