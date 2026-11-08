@@ -105,7 +105,7 @@ export function ForecastPanel({ fc, cursorMs, frame, layers, probe, onLayers, on
             <div className="la-fc-now">
               <span className="la-cap">Showing</span>
               <b>{fmt(cursorMs)} UTC</b>
-              <span>{Math.round(frame.litShare * 100)}% of the square in sunlight</span>
+              <span>{Math.round(frame.litShare * 100)}% of the square in sunlight (ground level, 0 m)</span>
             </div>
           ) : (
             <button type="button" className="la-btn primary" onClick={() => onJump(t0)}>Go to {month}</button>
@@ -133,7 +133,7 @@ export function ForecastPanel({ fc, cursorMs, frame, layers, probe, onLayers, on
               <p className="la-fc-probe">
                 Now: <b className={litNow ? 'sun-c' : undefined}>{litNow ? 'in sunlight' : 'in shadow'}</b>,{' '}
                 <b className={earthNow ? 'earth-c' : undefined}>{earthNow ? 'Earth in view' : 'Earth hidden'}</b>.
-                This month: Sun <b>{sunPct.toFixed(0)}%</b> of the time, Earth <b>{earthPct.toFixed(0)}%</b>.
+                This month: Sun <b>{sunPct.toFixed(0)}%</b> of the time at ground level (0 m), Earth <b>{earthPct.toFixed(0)}%</b> (2 m antenna).
               </p>
               <Ribbon fc={fc} series={series} cursorMs={cursorMs} onJump={onJump} />
               <div className="la-ribbon-key"><span className="sun-c">Sun</span><span className="earth-c">Earth</span><span className="good-c">Both</span><span className="la-dim">1, 8, 15, 22, 29 {new Date(t0).toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })}</span></div>
@@ -151,7 +151,7 @@ export function ForecastPanel({ fc, cursorMs, frame, layers, probe, onLayers, on
         <section className="la-sec">
           <p className="la-fine" style={{ margin: 0 }}>
             240 m regional view; site panels use 5 m terrain where available, so a site's own numbers can differ from its forecast pixel.
-            {' '}Forecast, 240 m LOLA terrain, observer on the ground. Same shadow method that matched 5 of 6 LRO photos. Earth view agrees with the site panel's own analysis on 99.86% of 1,440 checked pixel-frames (all clear cases).
+            {' '}Forecast, 240 m LOLA terrain. Sunlight is for the ground itself (0 m); site panels use a panel 2 m up, which sees more Sun, so their numbers are higher. Same shadow method that matched 5 of 6 LRO photos. The Earth layer matches the app's own analysis at the same 240 m terrain on 99.86% of 1,440 tested pixel-times (a consistency check, not a check against 5 m site answers).
             {' '}Limits: {fc.limits} Earth: geometric line of sight from a 2 m antenna, not a radio link budget.
           </p>
         </section>

@@ -6,6 +6,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { nextText } from '../api/compare';
 import { useCompare } from '../compare/useCompare';
 import type { ReferenceSite } from '../data/source';
+import { terrainText } from '../state/terrain';
+import { BestDate } from './BestDate';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
 import { fixes, type Answer } from './answer';
@@ -23,7 +25,8 @@ type Props = {
   details: ReactNode;
   onSettings: (p: Partial<PlanSettings>) => void;
   onJump: (ms: number) => void;
-  onStand: (ms: number) => void;
+  /** Opens the 3D ground view at ms; note says why it starts there (handoff B). */
+  onStand: (ms: number, note?: string) => void;
   onCompare: () => void;
   onClose: () => void;
   /** Opens a suggested nearby point (analysis_note.suggested_point) as a clicked point. */
@@ -34,11 +37,30 @@ type Props = {
 const EVIDENCE_BASE = 'https://github.com/ohhigaurav/luna-atlas-2026/blob/main/';
 
 const day = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-/** Where the coordinates come from, always in words (an internal document (not published)). */
+const SOURCE_NAMES: Array<[RegExp, string]> = [
+  [/lroc/i, 'LROC'], [/nssdc/i, 'NASA NSSDC'], [/10\.3847\/psj|\/psj\//i, 'Planetary Science Journal'],
+  [/usgs/i, 'USGS gazetteer'], [/science\.nasa\.gov/i, 'NASA'], [/ncbi|pmc/i, 'peer-reviewed study'],
+];
+const sourceName = (s: ReferenceSite) => SOURCE_NAMES.find(([re]) => re.test(s.source_url ?? ''))?.[1];
+
+/** Where the coordinates come from, always in words (an internal document (not published); handoff D). */
 export function originLabel(site: ReferenceSite): string {
   if (site.site_id.startsWith('point:')) return 'Your point';
-  return site.origin === 'official' ? 'Official challenge site' : 'Reference site, not official';
+  if (site.origin === 'official') return 'Official challenge site';
+  const src = sourceName(site), from = src ? ` · ${src}` : '';
+  if (site.position_kind === 'landed_hardware') return `Landing site${from}`;
+  if (site.position_kind === 'target_region_centre') return `Planned target, region centre${from}`;
+  return `Published site${from}`;
 }
+/** The rest of the story, one hover away: the source and that it is not the challenge's own list. */
+export function originTitle(site: ReferenceSite): string {
+  if (site.site_id.startsWith('point:')) return 'A point you picked on the map.';
+  if (site.origin === 'official') return 'From the Space Apps 2026 challenge site list.';
+  const src = sourceName(site);
+  return `Coordinates from ${src ?? 'a published source'}${site.source_record ? ` (${site.source_record})` : ''}. `
+    + "Not from the challenge's own site list, which is released 13 Nov and marked \"Official challenge site\".";
+}
+const MISSION_CHIPS = [1, 3, 5, 7, 10, 14];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry }: Props) {
@@ -51,7 +73,12 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
   }, [data.status]);
   const cmp = useCompare([site.site_id], cursorMs, 30, live);
   const row = cmp.s === 'ready' ? cmp.r.rows[0] : cmp.s === 'loading' && cmp.last?.rows[0]?.site.name === site.name ? cmp.last.rows[0] : null;
-  const terrain = row ? (row.horizon_mode === 'terrain' ? `${row.terrain?.finest_resolution_m ?? ''} m terrain`.trim() : 'flat horizon') : null;
+  const terrain = row ? terrainText(row.horizon_mode, row.terrain?.finest_resolution_m)
+    : data.status === 'ready' ? terrainText(data.landing.horizon_mode, data.landing.terrain?.finest_resolution_m) : null;
+  // The landing answer's own terrain; the compare row's when the landing answer does not say (older backend).
+  const answerTerrain = data.status === 'ready'
+    ? (data.landing.terrain?.finest_resolution_m != null || data.landing.horizon_mode !== 'terrain'
+      ? terrainText(data.landing.horizon_mode, data.landing.terrain?.finest_resolution_m) : terrain) : null;
   const open = answer?.kind === 'window' && answer.fromMs <= cursorMs + 60e3;
 
   let verdict: ReactNode;
@@ -62,7 +89,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
     verdict = (
       <>
         <p className="sc-v good"><i>✓</i> You can land on this date</p>
-        <p className="sc-sub">{answer.opportunity.sun_above_horizon_at_best_deg !== undefined && <>Sun <b>{answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}°</b> above the horizon at the best moment. </>}The window stays open until {day(answer.untilMs)}. Land by then and the Sun stays up for {settings.missionDays} days, with Earth in view at touchdown.</p>
+        <p className="sc-sub">{answer.opportunity.sun_above_horizon_at_best_deg !== undefined && <>Sun <b>{answer.opportunity.sun_above_horizon_at_best_deg.toFixed(1)}°</b> above the horizon at the best moment. </>}The window stays open until {day(answer.untilMs)}. Land by then and the Sun stays up for <b>{settings.missionDays} {settings.missionDays === 1 ? 'day' : 'days'}</b> (your mission), with Earth in view at touchdown.</p>
       </>
     );
   } else if (answer?.kind === 'window') {
@@ -85,13 +112,29 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
   } else verdict = null;
 
   const sun = row ? row.now.sun : null, earth = row ? row.now.earth : null;
+  // Start the 3D mission inside a landing window, never silently in the dark (handoff B).
+  const stand = () => {
+    if (answer?.kind === 'window' && open) onStand(cursorMs);
+    else if (answer?.kind === 'window') onStand(answer.bestMs, `Starting at the next landing window, ${day(answer.bestMs)}.`);
+    else if (live && data.status === 'ready') onStand(cursorMs, 'No landing window in the next 90 days: this shows the lander waiting in the dark.');
+    else onStand(cursorMs);
+  };
+  const chips = live && data.status === 'ready' && (
+    <div className="sc-chips" role="group" aria-label="Mission length">
+      <span>Mission</span>
+      {[...new Set([...MISSION_CHIPS, settings.missionDays])].sort((a, b) => a - b).map((d) => (
+        <button key={d} type="button" className={d === settings.missionDays ? 'on' : undefined} aria-pressed={d === settings.missionDays}
+          onClick={() => onSettings({ missionDays: d })}>{d} d</button>
+      ))}
+    </div>
+  );
   return (
     <aside className="la-card" aria-label={site.name}>
       <div className="sc-top">
         <button type="button" className="sc-close" onClick={onClose} aria-label="Close (Esc)">×</button>
         <h2>{site.name}</h2>
         <p className="sc-where">
-          <span className={`sc-origin${site.origin === 'official' ? ' official' : ''}`}>{originLabel(site)}</span>
+          <span className={`sc-origin${site.origin === 'official' ? ' official' : ''}`} title={originTitle(site)}>{originLabel(site)}</span>
           {formatLat(site.latitude_deg)}, {formatLon(site.longitude_deg)}{terrain ? `, ${terrain}` : ''}
         </p>
         {site.analysis_note && (
@@ -109,7 +152,11 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
         )}
       </div>
 
-      <div className="sc-verdict" aria-live="polite">{verdict}</div>
+      <div className="sc-verdict" aria-live="polite">{verdict}{answerTerrain && verdict && <p className="sc-terr">Checked on {answerTerrain}.</p>}{chips}</div>
+      {live && data.status === 'ready' && (
+        <BestDate siteId={site.site_id} cursorMs={cursorMs} missionDays={settings.missionDays} maxSunDeg={settings.maxSunDeg}
+          onJump={onJump} onStand={onStand} />
+      )}
 
       <div className="sc-now">
         <p className="sc-h">On {day(cursorMs)} at {new Date(cursorMs).toISOString().slice(11, 16)} UTC</p>
@@ -133,12 +180,12 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
             ) : null}
           </div>
         </div>
-        {row && <p className="sc-month">Next 30 days: sunlit {row.period.sunlit_percent.toFixed(0)}% of the time, Earth in view {row.period.earth_percent.toFixed(0)}%, longest night {spanText(row.period.longest_darkness_h * 3600e3)}{row.period.longest_darkness_lower_bound ? '+' : ''}.</p>}
+        {row && <p className="sc-month">Next 30 days ({terrain}): sunlight {(row.period.sun_disc_percent ?? row.period.sunlit_percent).toFixed(0)}%{row.period.sun_disc_percent != null ? ` (any part of the Sun ${row.period.sunlit_percent.toFixed(0)}%)` : ''}, Earth in view {row.period.earth_percent.toFixed(0)}%, longest night {spanText(row.period.longest_darkness_h * 3600e3)}{row.period.longest_darkness_lower_bound ? '+' : ''}.</p>}
         {cmp.s === 'loading' && !row && <p className="sc-month dim">Working out the real horizon here…</p>}
       </div>
 
       <div className="sc-actions">
-        <button type="button" className="la-btn primary" onClick={() => onStand(cursorMs)}>Stand here in 3D</button>
+        <button type="button" className="la-btn primary" onClick={stand}>{answer?.kind === 'window' && !open ? 'Stand here at the next window' : 'Stand here in 3D'}</button>
         <button type="button" className={`la-btn${inCompare ? ' on' : ''}`} aria-pressed={inCompare} onClick={onCompare}>{inCompare ? '✓ Comparing' : '+ Compare'}</button>
         <button type="button" className="la-btn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? 'Fewer details' : 'Details'}</button>
       </div>

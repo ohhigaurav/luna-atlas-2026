@@ -1,6 +1,7 @@
 // F18 calendar heat map: three months, each day coloured by what the API says for this site.
 // Click a day to put the launch knob there; the arrows move the 90-day search to other months
 // (a new /api/landing-windows request, cached).
+import { appNow } from '../data/staticMode';
 import { classifyDays, type CalDay } from './calendarDays';
 import { SEARCH_DAYS, utcMidnight, type PlanData, type PlanSettings } from './usePlan';
 import { CloseIcon } from '../ui/Icons';
@@ -15,7 +16,7 @@ export function Calendar({ settings, data, onSettings, onClose }: Props) {
   const s = new Date(start);
   const months = [0, 1, 2, 3].map((k) => Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + k, 1));
   const ready = data.status === 'ready';
-  const today = utcMidnight(Date.now());
+  const today = utcMidnight(appNow());
   const knobDay = utcMidnight(settings.notBeforeMs);
 
   const pick = (d: CalDay) => {

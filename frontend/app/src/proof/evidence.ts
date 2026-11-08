@@ -74,3 +74,17 @@ export const GODDARD = {
   psrAgreementPct: 94,
   caveat: 'Earth reads about 9% low (cause open), so it passes narrowly; brightest ridges (> 0.6) not tested. Their DEM 60 m, ours 240 m.',
 };
+
+/** Further checks, each quoted from its evidence file (passes and the open problems alike). */
+export const MORE_CHECKS: Array<{ name: string; verdict: 'PASS' | 'FAIL' | 'OPEN'; text: string; file: string }> = [
+  { name: 'Slope (Gate S)', verdict: 'PASS', file: 'validation/evidence/slope_check_2026-11-08.md',
+    text: "Our slope of the 5 m terrain matches NASA's published slope maps (PGDA) at Sites 001 and 004: 95% of pixels within 0.70° / 0.92° (limit 1.5°), median difference under 0.01°. Rule fixed the day before the run." },
+  { name: 'Average sunlight and Earth (Gate E)', verdict: 'PASS', file: 'validation/evidence/goddard_maps_2026-11-05.md',
+    text: "vs NASA Goddard's south-pole maps over 18.6 years: Sun median gap −0.016, Earth −0.045 (Earth reads a little low, cause open), permanent shadow 94% agreement. Brightest ridges (> 0.6) not tested." },
+  { name: 'Observed illumination (LROC WAC)', verdict: 'OPEN', file: 'validation/evidence/wac_illumination_2026-11-01.md',
+    text: "Agrees with LROC's observed illumination at 100 m pixels (median −0.6 points), except on the brightest ridges, where the model is about 17 points too dark. Open; candidate causes are listed in the file. An earlier run failed because of a bug; both runs stay on record." },
+  { name: 'Forecast Earth layer', verdict: 'PASS', file: 'validation/evidence/earth_movie_2026-11-06.md',
+    text: "The Earth layer matches the app's own analysis at the same 240 m terrain on 99.86% of 1,440 tested pixel-times. A consistency check, not a check against 5 m site answers." },
+  { name: 'Sky orientation (stars, Earth’s face)', verdict: 'FAIL', file: 'validation/evidence/sky_orientation_2026-11-06.md',
+    text: 'Failed as pre-registered on one part (Moon pole direction): the limit assumed the pole wobble was under 1°, but its 18.6-year term is 3.9°. Earth sub-point vs JPL Horizons passed at all 13 dates. Recorded as a FAIL; the post-hoc check is not a gate.' },
+];

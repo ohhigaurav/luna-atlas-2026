@@ -9,10 +9,10 @@ const DAY = 86400e3;
 export type Outlook =
   | { kind: 'pending' }
   | { kind: 'error' }
-  | { kind: 'window'; fromMs: number; bestMs: number; openNow: boolean; horizonMode: string }
+  | { kind: 'window'; fromMs: number; bestMs: number; openNow: boolean; horizonMode: string; terrainM?: number | null }
   /** No window in the next OUTLOOK_DAYS. laterMs: the first one after that, inside the search;
    *  miss: the closest try's failed rules (landing.py RULE_TEXT keys) when there is no later one. */
-  | { kind: 'none'; horizonMode: string; laterMs?: number; miss?: { atMs: number; rules: string[]; daylightH: number; neededH: number } };
+  | { kind: 'none'; horizonMode: string; terrainM?: number | null; laterMs?: number; miss?: { atMs: number; rules: string[]; daylightH: number; neededH: number } };
 
 export function outlookOf(result: LandingResult, nowMs: number): Outlook {
   const limit = nowMs + OUTLOOK_DAYS * DAY;
@@ -23,10 +23,12 @@ export function outlookOf(result: LandingResult, nowMs: number): Outlook {
     const start = Math.max(from, nowMs);
     if (best === null || (best.kind === 'window' && start < best.fromMs)) {
       best = { kind: 'window', fromMs: start, bestMs: Math.max(Date.parse(o.best_touchdown_utc), start), openNow: from <= nowMs, horizonMode: result.horizon_mode };
+      if (result.terrain) best.terrainM = result.terrain.finest_resolution_m;
     }
   }
   if (best) return best;
   const none: Outlook & { kind: 'none' } = { kind: 'none', horizonMode: result.horizon_mode };
+  if (result.terrain) none.terrainM = result.terrain.finest_resolution_m;
   for (const o of result.opportunities) {
     const from = Date.parse(o.touchdown_from_utc);
     if (from > limit && (none.laterMs === undefined || from < none.laterMs)) none.laterMs = from;

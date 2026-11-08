@@ -2,7 +2,9 @@
 // tools/shadow_match.py output copied by tools/export_proof.py; every number is from the evidence
 // files (./evidence.ts). The failing frame and the failing mission are shown, not hidden.
 import { useEffect, useState } from 'react';
-import { HORIZONS, MISSION_EVENTS, SHADOW_MATCH, type MissionCase } from './evidence';
+import { HORIZONS, MISSION_EVENTS, MORE_CHECKS, SHADOW_MATCH, type MissionCase } from './evidence';
+
+const REPO_BLOB = 'https://github.com/ohhigaurav/luna-atlas-2026/blob/main/';
 import { CloseIcon } from '../ui/Icons';
 
 const BASE = `${import.meta.env.BASE_URL}proof/`;
@@ -66,7 +68,7 @@ function Wipe({ frame, mode }: { frame: string; mode: 'wipe' | 'diff' }) {
 }
 
 export function ProofView({ live, onClose, onShow }: Props) {
-  const [tab, setTab] = useState<'lro' | 'missions' | 'horizons'>('lro');
+  const [tab, setTab] = useState<'lro' | 'missions' | 'horizons' | 'more'>('lro');
   const [sel, setSel] = useState(0);
   const [mode, setMode] = useState<'wipe' | 'diff'>('wipe');
   const [report, setReport] = useState<Report | null>(null);
@@ -89,6 +91,7 @@ export function ProofView({ live, onClose, onShow }: Props) {
           <button type="button" role="tab" aria-selected={tab === 'lro'} className={tab === 'lro' ? 'on' : ''} onClick={() => setTab('lro')}>LRO photos · 5/6</button>
           <button type="button" role="tab" aria-selected={tab === 'missions'} className={tab === 'missions' ? 'on' : ''} onClick={() => setTab('missions')}>Real missions · 6/7</button>
           <button type="button" role="tab" aria-selected={tab === 'horizons'} className={tab === 'horizons' ? 'on' : ''} onClick={() => setTab('horizons')}>JPL Horizons</button>
+          <button type="button" role="tab" aria-selected={tab === 'more'} className={tab === 'more' ? 'on' : ''} onClick={() => setTab('more')}>Slope, maps, open problems</button>
         </div>
         <span className="la-spacer" />
         <button type="button" className="la-x" style={{ position: 'static' }} aria-label="Close evidence (Esc)" onClick={onClose}><CloseIcon /></button>
@@ -164,6 +167,24 @@ export function ProofView({ live, onClose, onShow }: Props) {
             </tbody>
           </table>
           <span className="la-cap">Source: {MISSION_EVENTS.file}</span>
+        </div>
+      )}
+
+      {tab === 'more' && (
+        <div className="la-sheet-main">
+          <p className="la-note">Every check had its pass rule written down before the run. Failures and open problems stay on the list.</p>
+          <table className="la-table">
+            <thead><tr><th>Check</th><th>What we found</th><th>Verdict</th></tr></thead>
+            <tbody>
+              {MORE_CHECKS.map((c) => (
+                <tr key={c.name}>
+                  <td>{c.name}<div className="la-note" style={{ fontSize: 12, marginTop: 4 }}><a href={REPO_BLOB + c.file} target="_blank" rel="noreferrer">evidence ↗</a></div></td>
+                  <td>{c.text}</td>
+                  <td><span className={`la-verdict ${c.verdict === 'PASS' ? 'pass' : 'fail'}`}>{c.verdict}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

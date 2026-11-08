@@ -5,12 +5,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReferenceSite } from '../data/source';
 import { spanText } from '../state/siteState';
 import { Ground3D } from './Ground3D';
-import { simulate, socAt, type PanelKind, type SunSample } from './power';
+import { panelPowerW, simulate, socAt, type PanelKind, type PowerResult, type SunSample } from './power';
 import { rowAt, RUN_DAYS, useRun } from './run';
 
 type Props = {
   site: ReferenceSite;
   touchdownMs: number;
+  /** Why the view starts at touchdownMs (next window, or "waiting in the dark"). */
+  note?: string;
   missionDays: number;
   cursorMs: number;
   playing: boolean;
@@ -22,7 +24,7 @@ type Props = {
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const fmt = (ms: number) => new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 
-export function Surface3D({ site, touchdownMs, missionDays, cursorMs, playing, onPlay, onJump, onClose }: Props) {
+export function Surface3D({ site, touchdownMs, note, missionDays, cursorMs, playing, onPlay, onJump, onClose }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const g = useRef<Ground3D | null>(null);
   const [heading, setHeading] = useState(0);
@@ -89,6 +91,18 @@ export function Surface3D({ site, touchdownMs, missionDays, cursorMs, playing, o
   // The model starts at the half hour before touchdown (the run's first sample).
   const madeIt = res.diedMs === null ? res.endMs >= goalMs : res.diedMs >= goalMs;
 
+  // What the battery is doing right now and why (handoff B2), from the same run and model.
+  let status: string | null = null;
+  if (now && soc !== null) {
+    const w = panelPowerW({ panelW, panel }, now.sun_elevation_deg, now.sun_visible_upper_limb);
+    const hidden = now.sun_elevation_deg < 0 ? 'below the horizon' : 'behind the hills';
+    const rise = sunNext ? `rises in ${spanText(sunNext - cursorMs)}` : `no sunrise in these ${RUN_DAYS} days`;
+    if (soc <= 0) status = `Empty: the lander is off. Sun ${now.sun_visible_upper_limb ? 'up, but too late' : `${hidden}, ${rise}`}.`;
+    else if (w >= loadW) status = `Charging: Sun ${now.sun_elevation_deg.toFixed(1)}° up, panel ${Math.round(w)} W, using ${loadW} W.`;
+    else if (w > 0) status = `Draining slowly: Sun ${now.sun_elevation_deg.toFixed(1)}° up, panel only ${Math.round(w)} W against ${loadW} W.`;
+    else status = `Draining: Sun ${hidden}, ${rise}. Battery lasts about ${spanText((soc / loadW) * 3600e3)} at ${loadW} W.`;
+  }
+
   // Compass ribbon: 120 degrees either side of where you look.
   const rel = (az: number) => { let d = az - heading; if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
   const ticks = Array.from({ length: 24 }, (_, i) => i * 15).map((a) => ({ a, d: rel(a) })).filter((t) => Math.abs(t.d) <= 90);
@@ -102,6 +116,7 @@ export function Surface3D({ site, touchdownMs, missionDays, cursorMs, playing, o
         <div className="g-title">
           <h2>{site.name}</h2>
           <span>Standing on the ground, looking {COMPASS[Math.round(heading / 45) % 8]}. Drag to look around, scroll to zoom.</span>
+          {note && <span className="g-start">{note}</span>}
         </div>
       </header>
 
@@ -146,13 +161,15 @@ export function Surface3D({ site, touchdownMs, missionDays, cursorMs, playing, o
       {st.status === 'ready' && (
         <div className="g-battery">
           <div className="b-head">
-            <span>Lander battery</span>
+            <span>Lander battery <small>illustrative model</small></span>
             <button type="button" className="la-mlink" onClick={() => setSettings((v) => !v)}>{settings ? 'Hide settings' : 'Settings'}</button>
           </div>
           <div className="b-gauge" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? 0} aria-label="Battery charge">
             <i style={{ width: `${pct ?? 100}%` }} className={pct !== null && pct < 20 ? 'low' : undefined} />
             <b>{pct === null ? 'not landed yet' : `${pct}%`}</b>
           </div>
+          {status && <p className="b-status" aria-live="polite">{status}</p>}
+          <BatteryCurve res={res} samples={samples} batteryWh={batteryWh} cursorMs={cursorMs} touchdownMs={touchdownMs} goalMs={goalMs} />
           <p className={`b-verdict ${res.diedMs === null || madeIt ? 'good-c' : 'bad-c'}`}>
             {res.diedMs === null ? `Survives all ${RUN_DAYS} days` : madeIt ? `${missionDays}-day mission done; battery empty after ${spanText(res.diedMs - touchdownMs)}` : `Battery empty after ${spanText(res.diedMs - touchdownMs)}: mission fails`}
           </p>
@@ -176,5 +193,41 @@ export function Surface3D({ site, touchdownMs, missionDays, cursorMs, playing, o
         </div>
       )}
     </section>
+  );
+}
+
+/** 30 days of battery charge with the sunlit stretches behind it, so a drain has a visible reason
+ *  before you press play (handoff B3). */
+function BatteryCurve({ res, samples, batteryWh, cursorMs, touchdownMs, goalMs }: {
+  res: PowerResult; samples: SunSample[]; batteryWh: number; cursorMs: number; touchdownMs: number; goalMs: number;
+}) {
+  const n = res.tMs.length;
+  if (n < 2) return null;
+  const t0 = res.tMs[0], t1 = res.tMs[n - 1], W = 340, H = 46;
+  const x = (t: number) => ((t - t0) / (t1 - t0)) * W;
+  const y = (wh: number) => H - 2 - (wh / batteryWh) * (H - 4);
+  const bands: Array<[number, number]> = [];
+  let from: number | null = null;
+  for (const sm of samples) {
+    if (sm.tMs < t0) continue;
+    if (sm.sunVisible && from === null) from = sm.tMs;
+    if (!sm.sunVisible && from !== null) { bands.push([from, sm.tMs]); from = null; }
+  }
+  if (from !== null) bands.push([from, t1]);
+  let d = '';
+  for (let i = 0; i < n; i++) d += `${i ? 'L' : 'M'}${x(res.tMs[i]).toFixed(1)},${y(res.socWh[i]).toFixed(1)}`;
+  return (
+    <figure className="b-curve">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img"
+        aria-label={`Battery over ${Math.round((t1 - t0) / 86400e3)} days; yellow bands are sunlight${res.diedMs ? `; empty on ${new Date(res.diedMs).toUTCString().slice(5, 16)}` : ''}`}>
+        {bands.map(([a, b]) => <rect key={a} x={x(a)} y={0} width={Math.max(1, x(b) - x(a))} height={H} className="sunband" />)}
+        {goalMs <= t1 && <line x1={x(goalMs)} x2={x(goalMs)} y1={0} y2={H} className="goal" />}
+        <path d={d} className="soc" />
+        {res.diedMs !== null && <circle cx={x(res.diedMs)} cy={y(0)} r={3.5} className="died" />}
+        {cursorMs >= t0 && cursorMs <= t1 && <line x1={x(cursorMs)} x2={x(cursorMs)} y1={0} y2={H} className="now" />}
+        {touchdownMs >= t0 && <line x1={x(touchdownMs)} x2={x(touchdownMs)} y1={H - 6} y2={H} className="td" />}
+      </svg>
+      <figcaption>Yellow: Sun up over the real horizon. Line: battery. Dashed: mission end. {res.diedMs !== null ? 'Dot: empty.' : ''}</figcaption>
+    </figure>
   );
 }

@@ -2,6 +2,8 @@
 //   live   FastAPI is reachable: real sky geometry for "now", any dates and sites.
 //   static judge bundle in public/data/: unmodified API responses baked by tools/bake_static.py.
 // The rest of the app never needs to know which; static mode only disables what it cannot do.
+import type { AnswersIndex } from './staticAnswers';
+import { enableStaticAnswers } from './staticMode';
 import { fetchSkyGeometry, type SkyGeometry } from '../api/sky';
 import type { PinSite } from '../engine/pins';
 
@@ -46,6 +48,8 @@ export type DataSource = {
   initialCursorMs: number;
   manifest?: StaticManifest;
   index: SiteIndexInfo;
+  /** Static site with precomputed answers: the times they exist for. */
+  answers?: { bakedTimes: string[] };
 };
 
 /** Official sites first (the API already orders them; keep it true for any source). */
@@ -109,5 +113,10 @@ export async function loadDataSource(): Promise<DataSource> {
     siteIndex.catch(() => getJson<{ sites: ReferenceSite[] }>(`${base}data/${manifest.files.reference_sites}`).then((r) => ({ sites: r.sites, index: REFERENCE_ONLY }))),
     getJson<SkyGeometry>(`${base}data/${manifest.files.sky}`),
   ]);
-  return { mode, sites: sitesRes.sites, index: sitesRes.index, sky, initialCursorMs: Date.parse(sky.series.utc[0]), manifest };
+  // Precomputed API answers (tools/bake_answers.py): with them the static site answers landing,
+  // compare, the ellipse and the 3D ground view for the baked dates; without them it shows geometry only.
+  const answers = await getJson<AnswersIndex>(`${base}data/answers/index.json`).catch(() => null);
+  if (answers) enableStaticAnswers(answers, base);
+  return { mode, sites: sitesRes.sites, index: sitesRes.index, sky, initialCursorMs: Date.parse(sky.series.utc[0]), manifest,
+    answers: answers ? { bakedTimes: answers.baked_times } : undefined };
 }

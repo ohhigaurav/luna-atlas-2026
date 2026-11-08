@@ -36,7 +36,7 @@ const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21
 const HOUR = 3600e3, DAY = 86400e3;
 
 
-type Sheet = { kind: 'proof' } | { kind: 'surface'; touchdownMs: number } | { kind: 'compare' } | null;
+type Sheet = { kind: 'proof' } | { kind: 'surface'; touchdownMs: number; note?: string } | { kind: 'compare' } | null;
 
 export default function App() {
   const [data, setData] = useState<DataSource | null>(null);
@@ -80,6 +80,8 @@ export default function App() {
   }, []);
 
   const live = data?.mode === 'live';
+  // Can the app ask landing / compare / run questions? Live, or the static site's baked answers.
+  const asks = live || !!data?.answers;
   const span = useMemo(() => sky && { start: Date.parse(sky.settings.start_utc), end: Date.parse(sky.settings.end_utc) }, [sky]);
   const times = useMemo(() => (sky ? sampleTimesMs(sky) : null), [sky]);
   const setCursor = useCallback((ms: number) => { cursorRef.current = ms; setCursorMs(ms); }, []);
@@ -132,7 +134,8 @@ export default function App() {
   }, [setCursor, live, covered, loadSky]);
 
   const onSelect = useCallback((s: PinSite | null) => { setSelected(s as ReferenceSite | null); setForecast(false); if (!s) setSheet(null); }, []);
-  const plan = usePlan(selected?.site_id ?? null, live, Date.now());
+  // "In N days" counts from the date bar, as the card does (handoff A5).
+  const plan = usePlan(selected?.site_id ?? null, asks, Math.floor(cursorMs / 60e3) * 60e3);
   // Date first: with a site open, the landing question starts from the date in the date bar.
   const cursorHour = Math.floor(cursorMs / HOUR);
   useEffect(() => {
@@ -193,7 +196,7 @@ export default function App() {
     for (const s of data.sites) out[s.site_id] = siteNow(sky, times, s.latitude_deg, s.longitude_deg, t);
     return out;
   }, [sky, times, data, stateKey]);
-  const { outlook, progress } = useOutlook(data?.sites ?? null, live, selected?.site_id ?? null);
+  const { outlook, progress } = useOutlook(data?.sites ?? null, asks, selected?.site_id ?? null);
   // The forecast frame at the clock's time (null outside the forecast month or when it is off).
   const fcFrame = useMemo(() => {
     if (!forecast || !fc) return null;
@@ -340,7 +343,7 @@ export default function App() {
     else if (c.kind === 'point') goPoint(c.lat, c.lon);
     else if (c.kind === 'date') {
       if (c.when.precision === 'instant') { goNow(); return; }
-      if (selected && live) { const t = utcMidnight(c.when.ms); plan.update({ searchStartMs: t, notBeforeMs: t }); }
+      if (selected && asks) { const t = utcMidnight(c.when.ms); plan.update({ searchStartMs: t, notBeforeMs: t }); }
       else jump(c.when.ms + 12 * HOUR);
     } else if (c.id === 'proof') setSheet({ kind: 'proof' });
     else if (c.id === 'home') globe.current?.flyHome();
@@ -392,9 +395,29 @@ export default function App() {
       </div>
 
       <header className="la-topbar">
+        <div className="tb-left">
         <button type="button" className="tb-brand" onClick={() => { setForecast(false); setComparing(false); globe.current?.flyHome(); }}>
-          Luna Atlas<small>{live ? 'live from JPL SPICE' : `precomputed, as of ${data.sky.settings.start_utc.slice(0, 10)}`}</small>
+          Luna Atlas
+          {live ? (
+            <small title="Sun and Earth positions from NASA NAIF SPICE kernels (DE421 frame), computed on the server for each question you ask. Terrain: LOLA 5 m site maps where they exist, else the 240 m regional map. Each answer carries its kernel and DEM hashes.">
+              Geometry: NAIF SPICE · DE421 · computed live
+            </small>
+          ) : (
+            <small title={data.manifest ? `Kernel manifest ${data.manifest.kernel_manifest_sha256.slice(0, 12)}…, commit ${data.manifest.git_commit?.slice(0, 7) ?? 'unknown'}. The live backend answers any date; this site shows the baked ones.` : undefined}>
+              Precomputed on {(data.manifest?.generated_utc ?? data.sky.settings.start_utc).slice(0, 10)} by the same code{data.answers ? ` · answers for ${data.answers.bakedTimes.map((t) => t.slice(0, 10)).join(', ')}` : ''}
+            </small>
+          )}
         </button>
+        {introDone && (
+          <nav className="tb-crumbs" aria-label="Zoom level">
+            <button type="button" className={!selected && !forecast ? 'on' : undefined} onClick={() => { setForecast(false); setComparing(false); globe.current?.flyHome(); }}>Moon</button>
+            {(forecast || (selected && selected.latitude_deg <= -80)) && (
+              <><span aria-hidden="true">›</span><button type="button" className={forecast && !selected ? 'on' : undefined} onClick={() => (forecast ? globe.current?.flyToSouthPole() : openForecast())}>South polar region</button></>
+            )}
+            {selected && <><span aria-hidden="true">›</span><span className="on">{selected.name.replace(/ reference point.*$/, '')}</span></>}
+          </nav>
+        )}
+        </div>
         {introDone && (
           <DateBar ms={cursorMs} live={live} following={followNow} playing={playing} speedLabel={SPEED_LABEL[speed]}
             range={loop ?? [span.start, span.end]}
@@ -425,8 +448,8 @@ export default function App() {
               ? 'Official challenge sites first; reference points below.'
               : 'Sites are reference points from published sources, not official challenge coordinates.'}
           </p>
-          <PinKey sites={data.sites} states={states} outlook={outlook} live={live} cursorMs={cursorMs} onPick={pick} />
-          {live && checked < data.sites.length && (
+          <PinKey sites={data.sites} states={states} outlook={outlook} live={asks} cursorMs={cursorMs} onPick={pick} />
+          {asks && checked < data.sites.length && (
             <OutlookProgress checked={checked} total={data.sites.length} etaMs={progress.etaMs} at={progress.at} />
           )}
           {phase && (
@@ -439,16 +462,16 @@ export default function App() {
 
       {selected && !forecast && !sheet && (
         <SiteCard
-          site={selected} live={live} cursorMs={cursorMs} now={sel}
+          site={selected} live={asks} cursorMs={cursorMs} now={sel}
           settings={plan.settings} data={plan.data} answer={plan.answer}
           inCompare={cmp.some((x) => x.site_id === selected.site_id)}
           onSettings={plan.update} onJump={jump}
-          onStand={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
+          onStand={(ms, note) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms, note }); }}
           onCompare={() => toggleCompare(selected)}
           onClose={() => globe.current?.flyHome()}
           onTry={goPoint}
           details={
-            <SitePanel site={selected} live={live} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}
+            <SitePanel site={selected} live={asks} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}
               onSettings={plan.update} onJump={jump} onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
               onClose={() => globe.current?.flyHome()} onProof={() => setSheet({ kind: 'proof' })}
               inCompare={cmp.some((x) => x.site_id === selected.site_id)} onCompare={() => toggleCompare(selected)} details />
@@ -463,7 +486,7 @@ export default function App() {
         </aside>
       )}
 
-      {selected && live && !sheet && !forecast && (
+      {selected && asks && !sheet && !forecast && (
         <LandingRing site={selected} screenOf={screenOf} settings={plan.settings} data={plan.data}
           answer={plan.answer} onSettings={plan.update} onJump={jump} />
       )}
@@ -480,20 +503,20 @@ export default function App() {
       )}
 
       {comparing && !sheet && (
-        <CompareShelf places={cmp} live={live} cursorMs={cursorMs}
-          suggest={live ? () => setCmp(polarSix()) : null}
+        <CompareShelf places={cmp} live={asks} cursorMs={cursorMs}
+          suggest={asks ? () => setCmp(polarSix()) : null}
           onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
           onOpen={(s) => { setComparing(false); pick(s); }}
           onTable={() => setSheet({ kind: 'compare' })}
           onClear={() => { setComparing(false); }} />
       )}
       {sheet?.kind === 'compare' && (
-        <CompareView places={cmp} live={live} clockMs={cursorMs} onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
+        <CompareView places={cmp} live={asks} clockMs={cursorMs} onRemove={(id) => setCmp((c) => c.filter((x) => x.site_id !== id))}
           onOpen={(s) => { setSheet(null); setComparing(false); pick(s); }} onJump={jump} onClose={() => setSheet(null)} />
       )}
       {sheet?.kind === 'proof' && <ProofView live={live} onClose={() => setSheet(null)} onShow={showMission} />}
       {sheet?.kind === 'surface' && selected && (
-        <Surface3D site={selected} touchdownMs={sheet.touchdownMs} missionDays={plan.settings.missionDays} cursorMs={cursorMs}
+        <Surface3D site={selected} touchdownMs={sheet.touchdownMs} note={sheet.note} missionDays={plan.settings.missionDays} cursorMs={cursorMs}
           playing={playing}
           onPlay={(from) => {
             if (from === null) { setPlaying(false); return; }

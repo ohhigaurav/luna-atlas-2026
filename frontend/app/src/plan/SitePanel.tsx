@@ -1,9 +1,11 @@
 // Right panel for the selected site (PRD Phase 2, F17/F18): the answer first, as a date and three
 // readouts; every readout can be touched and moves the clock to where its number comes from.
 // The API's sentences stay in tooltips and screen-reader text; the caveats stay visible.
+import { appNow } from '../data/staticMode';
 import { useEffect, useState, type MouseEvent as RMouseEvent } from 'react';
 import type { UtcRange, Verify } from '../api/plan';
-import { originLabel } from './SiteCard';
+import { originLabel, originTitle } from './SiteCard';
+import { terrainText } from '../state/terrain';
 import type { ReferenceSite } from '../data/source';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
@@ -115,7 +117,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
   const earthEv = data.status === 'ready' && data.bands && answer?.kind === 'window' ? earthAfter(data.bands.earth, answer.bestMs) : null;
   const polar = site.latitude_deg <= -75;
   const quick: { label: string; act: () => void }[] = [
-    { label: 'Today', act: () => { const t = utcMidnight(Date.now()); onSettings({ searchStartMs: t, notBeforeMs: t }); } },
+    { label: 'Today', act: () => { const t = utcMidnight(appNow()); onSettings({ searchStartMs: t, notBeforeMs: t }); } },
     { label: '+1 lunar day', act: () => {
       const k = settings.notBeforeMs + SYNODIC_MS;
       if (k > settings.searchStartMs + SEARCH_DAYS * DAY) onSettings({ searchStartMs: utcMidnight(k), notBeforeMs: k });
@@ -144,12 +146,12 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
                 <>
                   <span className="la-tag">Your point</span>
                   <span className="la-tag warn" title="Points you click use the 240 m regional terrain map only (no 5 m tiles); outside it, a flat horizon.">
-                    {data.status === 'ready' ? (data.horizonMode === 'terrain' ? '240 m terrain' : 'flat horizon, no terrain map here') : 'terrain: 240 m map near the pole'}
+                    {data.status === 'ready' ? terrainText(data.landing.horizon_mode, data.landing.terrain?.finest_resolution_m) : 'terrain: 240 m map near the pole'}
                   </span>
                 </>
               ) : (
                 <>
-                  <span className={`la-tag${site.origin === 'official' ? ' official' : ''}`}>{originLabel(site)}</span>
+                  <span className={`la-tag${site.origin === 'official' ? ' official' : ''}`} title={originTitle(site)}>{originLabel(site)}</span>
                   {tag && <span className={`la-tag${tag.warn ? ' warn' : ''}`}>{tag.text}</span>}
                 </>
               )}
@@ -276,7 +278,7 @@ export function SitePanel({ site, live, now, cursorMs, settings, data, answer, o
 
             {data.status === 'ready' && (
               <section className="la-sec">
-                <span className="la-cap">{data.horizonMode === 'terrain' ? 'Horizon: real terrain (LOLA)' : 'Horizon: flat (no terrain here)'}</span>
+                <span className="la-cap">Horizon: {terrainText(data.landing.horizon_mode, data.landing.terrain?.finest_resolution_m)}</span>
                 <ul className="la-caveats">{data.landing.caveats.map((c) => <li key={c}>{c}</li>)}</ul>
               </section>
             )}

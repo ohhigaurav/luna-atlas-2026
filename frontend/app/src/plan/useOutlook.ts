@@ -3,6 +3,7 @@
 // one analysis at a time and caches answers, so: the selected site goes first, flat-horizon sites
 // next (seconds), polar terrain sites last (slower the first time), and nothing is asked twice.
 // lunar_core.warm asks the same questions when the server starts, so usually these are cache hits.
+import { appNow } from '../data/staticMode';
 import { useEffect, useRef, useState } from 'react';
 import type { ReferenceSite } from '../data/source';
 import { etaMs, outlookOf, type Outlook, type Timing } from '../state/outlook';
@@ -12,7 +13,7 @@ export function useOutlook(sites: ReferenceSite[] | null, live: boolean, selecte
   const [map, setMap] = useState<Record<string, Outlook>>({});
   // Progress for the "finding landing windows" timer: when the last answer came and the time left then.
   const [progress, setProgress] = useState<{ etaMs: number | null; at: number }>({ etaMs: null, at: 0 });
-  const start = useRef(utcMidnight(Date.now()));
+  const start = useRef(utcMidnight(appNow()));
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
 
@@ -35,7 +36,7 @@ export function useOutlook(sites: ReferenceSite[] | null, live: boolean, selecte
         let o: Outlook;
         const t0 = performance.now();
         try {
-          o = outlookOf(await landingRequest(next.site_id, start.current, DEFAULT_MISSION_DAYS, DEFAULT_MAX_SUN_DEG), Date.now());
+          o = outlookOf(await landingRequest(next.site_id, start.current, DEFAULT_MISSION_DAYS, DEFAULT_MAX_SUN_DEG), appNow());
         } catch {
           o = { kind: 'error' };
         }

@@ -2,6 +2,7 @@
 // /api/landing-windows one place at a time (the backend runs one analysis at a time), first with
 // today's search (the warm, cached question the pins use), and, when that finds nothing after the
 // moment, again from the moment's own day. Answers are shared through landingRequest's cache.
+import { appNow } from '../data/staticMode';
 import { useEffect, useRef, useState } from 'react';
 import type { LandingResult } from '../api/plan';
 import { DEFAULT_MAX_SUN_DEG, SEARCH_DAYS, landingRequest, utcMidnight } from '../plan/usePlan';
@@ -13,7 +14,7 @@ export function useNextLanding(ids: string[], atMs: number, missionDays: number,
   // Answers are stored with the question they answer, so a changed date range or mission length
   // shows "Checking…" at once instead of the old answers under the new label.
   const [store, setStore] = useState<{ key: string; got: Record<string, Got> }>({ key: '', got: {} });
-  const today = utcMidnight(Date.now());
+  const today = utcMidnight(appNow());
   const start = searchStartFor(atMs, today, SEARCH_DAYS);
   const atRef = useRef(atMs);
   atRef.current = atMs;

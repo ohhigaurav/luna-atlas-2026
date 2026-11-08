@@ -40,6 +40,9 @@ cd frontend/app && npm run dev            # http://localhost:5173, /api is proxi
 | Site pins (buttons, clustered at the pole) | `src/engine/pins.ts` | `GET /api/reference-sites` |
 | Date bar (top): the moment every answer is for; day steps, picker, play, Now, scrub | `src/ui/DateBar.tsx` | shared clock |
 | Site card: origin tag (official / reference / your point), our measured note with evidence + "Try" point, plain verdict for the date, Sun and Earth now with sunset/Earthset, actions; Details = expert controls | `src/plan/SiteCard.tsx`, `src/plan/SitePanel.tsx` (details) | `/api/landing-windows`, `/api/compare` |
+| Best date on the site card: 30/90/180/365-day look-ahead, soonest / most sunlight / most Earth contact; mission-length chips | `src/plan/BestDate.tsx`, `src/plan/SiteCard.tsx` | `/api/landing-windows` (`soonest`, `best`, `best_earth`) |
+| Pin key: tap a line to list its sites and why | `src/ui/PinKey.tsx`, `src/state/outlook.ts`, `src/state/rules.ts` | `/api/landing-windows` |
+| Static site answers (no backend): POSTs and runs from the baked `data/answers/` | `src/data/staticMode.ts`, `src/data/staticAnswers.ts` | `tools/bake_answers.py` output |
 | Home: welcome and pin legend with counts | `App.tsx`, `src/state/outlook.ts`, `src/state/siteState.ts` | `/api/landing-windows` (all sites, cached), sky-geometry |
 | Green pins: a landing window within 30 days; amber: Sun up now; hollow: night | `src/engine/pins.ts`, `src/plan/useOutlook.ts` | same |
 | Marginalia: UTC clock (live dot while it follows the wall clock), "% lit from Earth", grid | `App.tsx`, `src/state/phase.ts` | sky-geometry vectors |

@@ -56,6 +56,10 @@ def test_leaders_ties_and_up_only() -> None:
     hi, lo = _row("hi", 0, 0, 0, 0, True, 1, False, 0, 5.0), _row("lo", 0, 0, 0, 0, True, 1, False, 0, 3.0)
     hi["now"]["sun"]["horizon_deg"], lo["now"]["sun"]["horizon_deg"] = 4.0, 0.5
     assert compare.leaders([hi, lo])["highest_sun_now"] == ["lo"]
+    # Sunlight leader uses the disc-averaged share when the rows carry it.
+    hi["period"]["sunlit_percent"], lo["period"]["sunlit_percent"] = 80.0, 70.0
+    hi["period"]["sun_disc_percent"], lo["period"]["sun_disc_percent"] = 40.0, 65.0
+    assert compare.leaders([hi, lo])["most_sunlight"] == ["lo"]
 
 
 def test_request_limits() -> None:

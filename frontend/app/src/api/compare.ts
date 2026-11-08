@@ -14,6 +14,8 @@ export type CompareRow = {
   earth_next: NextEvent;
   period: {
     sunlit_percent: number; earth_percent: number; both_percent: number;
+    /** Mean visible fraction of the Sun's disc: the power-relevant sunlight (6 Nov). */
+    sun_disc_percent?: number | null;
     longest_darkness_h: number; longest_darkness_lower_bound: boolean;
     longest_earth_gap_h: number; longest_earth_gap_lower_bound: boolean;
   };

@@ -113,7 +113,9 @@ def leaders(rows: list[dict[str, Any]]) -> dict[str, list[str]]:
 
     keyed = {_key(r): r for r in rows}
     return {
-        "most_sunlight": best({k: r["period"]["sunlit_percent"] for k, r in keyed.items()}),
+        # Disc-averaged sunlight (what a panel gets) when present; "any part of the Sun" otherwise.
+        "most_sunlight": best({k: (r["period"]["sun_disc_percent"] if r["period"].get("sun_disc_percent") is not None
+                                   else r["period"]["sunlit_percent"]) for k, r in keyed.items()}),
         "most_earth": best({k: r["period"]["earth_percent"] for k, r in keyed.items()}),
         "most_both": best({k: r["period"]["both_percent"] for k, r in keyed.items()}),
         "shortest_darkness": best({k: r["period"]["longest_darkness_h"] for k, r in keyed.items()}, higher=False),

@@ -793,3 +793,62 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .pk-name { font: 600 14px var(--font-ui); color: var(--text); }
 .pk-main { font: 600 13px var(--font-ui); color: var(--text); justify-self: end; }
 .pk-why { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-3); line-height: 1.35; }
+
+/* 3D mission: why it starts here, what the battery is doing, and its 30-day curve (8 Nov) */
+.g-title .g-start { display: block; margin-top: 4px; color: var(--sun); font-weight: 600; }
+.g-battery .b-head small { font-weight: 500; color: var(--text-3); margin-left: 6px; font-size: 12px; }
+.g-battery .b-status { margin: 8px 0 0; font-size: 14px; color: var(--text); line-height: 1.4; }
+.b-curve { margin: 8px 0 0; }
+.b-curve svg { display: block; background: rgba(255, 255, 255, 0.03); border-radius: 6px; }
+.b-curve .sunband { fill: rgba(255, 196, 77, 0.16); }
+.b-curve .soc { fill: none; stroke: #e8eaed; stroke-width: 1.6; }
+.b-curve .goal { stroke: rgba(255, 255, 255, 0.45); stroke-dasharray: 3 3; }
+.b-curve .now { stroke: var(--select); stroke-width: 1.5; }
+.b-curve .td { stroke: var(--good); stroke-width: 2; }
+.b-curve .died { fill: var(--bad); }
+.b-curve figcaption { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+/* mission-length chips on the site card (handoff C) */
+.sc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.sc-chips span { font: 600 13px var(--font-ui); color: var(--text-3); margin-right: 2px; }
+.sc-chips button { all: unset; cursor: pointer; font: 600 13px var(--font-ui); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
+.sc-chips button:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.35); }
+.sc-chips button.on { background: var(--text); color: #111; border-color: var(--text); }
+.sc-chips button:focus-visible { outline: 2px solid var(--select); }
+.sc-terr { margin: 6px 0 0; font-size: 13px; color: var(--text-3); }
+
+/* best landing date: soonest, most sunlight, most Earth (handoff A, 8 Nov) */
+.sc-best { margin: 0 24px; padding: 12px 0 4px !important; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.bd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 600 13px var(--font-ui); color: var(--text-2); }
+.bd-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.bd-seg button { all: unset; cursor: pointer; padding: 3px 10px; font: 600 12.5px var(--font-ui); color: var(--text-2); }
+.bd-seg button.on { background: var(--text); color: #111; }
+.bd-seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+.bd-seg button:focus-visible { outline: 2px solid var(--select); }
+.bd-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bd-list li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; align-items: baseline; }
+.bd-l { grid-column: 1 / -1; font: 600 12px var(--font-ui); color: var(--text-3); }
+.bd-d { font-size: 14px; color: var(--text-2); }
+.bd-d b { color: var(--text); }
+.la-card .c-go { all: unset; cursor: pointer; font: 600 12.5px var(--font-ui); color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.bd-wait, .bd-note { margin: 0; font-size: 13.5px; color: var(--text-3); }
+.sc-best .la-btn { align-self: flex-start; }
+
+/* slope in the landing ellipse (D-23, Gate S PASS 8 Nov) */
+.el-slope { display: flex; flex-direction: column; gap: 8px; }
+.el-limit { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.el-limit input { width: 64px; font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.la-elplot .el-ov { fill: #fff; }
+.la-elplot .el-cell.over { stroke: #2a0d0a; stroke-width: 1.2; stroke-dasharray: 2 2; }
+.la-elplot .el-mark.flat circle { stroke: #9fd8ff; }
+.la-elkey.slope { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; }
+.la-elkey.slope span { display: inline-flex; align-items: center; gap: 5px; }
+.la-elkey.slope i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.la-elkey.slope i.over { outline: 1px dashed #2a0d0a; outline-offset: -2px; }
+
+/* named zoom levels: Moon › South polar region › site (7 Nov review) */
+.tb-left { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+.tb-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font: 600 13px var(--font-ui); color: var(--text-3); text-shadow: var(--halo); }
+.tb-crumbs button { all: unset; cursor: pointer; color: var(--text-2); }
+.tb-crumbs button:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.tb-crumbs button:focus-visible { outline: 2px solid var(--select); }
+.tb-crumbs .on { color: var(--text); }

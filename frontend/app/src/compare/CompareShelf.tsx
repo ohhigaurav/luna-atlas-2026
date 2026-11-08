@@ -61,7 +61,7 @@ export function CompareShelf({ places, live, cursorMs, suggest, onRemove, onOpen
                 <>
                   <p className="sh-line"><i className={`dot sun${row.now.sun.up ? '' : ' off'}`} /><b>{row.now.sun.up ? `Sun ${row.now.sun.elevation_deg.toFixed(1)}°` : 'Sun down'}</b><span>{cap(nextText(row.sun_next, r!.days))}</span></p>
                   <p className="sh-line"><i className={`dot earth${row.now.earth.up ? '' : ' off'}`} /><b>{row.now.earth.up ? 'Earth in view' : 'Earth hidden'}</b><span>{cap(nextText(row.earth_next, r!.days))}</span></p>
-                  <p className="sh-pct">Sunlit <b>{row.period.sunlit_percent.toFixed(0)}%</b> of the next {r!.days} days</p>
+                  <p className="sh-pct">Sunlight <b>{(row.period.sun_disc_percent ?? row.period.sunlit_percent).toFixed(0)}%</b> over the next {r!.days} days</p>
                   <div className="sh-badges">{badges.map((b) => <span key={b}>{b}</span>)}</div>
                 </>
               ) : (

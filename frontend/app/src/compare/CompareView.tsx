@@ -11,6 +11,7 @@ import { spanText } from '../state/siteState';
 import { DEFAULT_MAX_SUN_DEG, DEFAULT_MISSION_DAYS } from '../plan/usePlan';
 import type { NextLanding } from './nextLanding';
 import { missText } from '../state/rules';
+import { terrainText } from '../state/terrain';
 import { useNextLanding } from './useNextLanding';
 import { CloseIcon } from '../ui/Icons';
 
@@ -69,7 +70,10 @@ const METRICS: Metric[] = [
     cell: (r) => { const a = aboveHorizon(r.now.earth); return { main: `${r.now.earth.up ? 'In view' : 'Hidden'} ${a.main}`, sub: a.sub, tone: r.now.earth.up ? 'earth' : 'dim' }; } },
   { label: 'Earthset or Earthrise', leader: 'longest_until_earthset',
     cell: (r, d) => ({ main: cap(nextText(r.earth_next, d)), tone: r.earth_next.up ? 'earth' : 'dim' }) },
-  { label: 'Sunlit', hint: 'share of the period', leader: 'most_sunlight', cell: (r) => ({ main: `${r.period.sunlit_percent.toFixed(0)}%` }) },
+  { label: 'Sunlight', hint: 'share of the Sun\'s disc in view, averaged over the period (what a panel gets)', leader: 'most_sunlight',
+    cell: (r) => (r.period.sun_disc_percent != null
+      ? { main: `${r.period.sun_disc_percent.toFixed(0)}%`, sub: `any part of the Sun: ${r.period.sunlit_percent.toFixed(0)}%` }
+      : { main: `${r.period.sunlit_percent.toFixed(0)}%`, sub: 'any part of the Sun' }) },
   { label: 'Earth in view', leader: 'most_earth', cell: (r) => ({ main: `${r.period.earth_percent.toFixed(0)}%` }) },
   { label: 'Sunlit and Earth', hint: 'can work and talk', leader: 'most_both', cell: (r) => ({ main: `${r.period.both_percent.toFixed(0)}%` }) },
   { label: 'Longest darkness', leader: 'shortest_darkness',
@@ -79,9 +83,7 @@ const METRICS: Metric[] = [
 ];
 
 function terrainLabel(r: CompareRow): string {
-  if (r.horizon_mode !== 'terrain') return 'flat horizon';
-  const m = r.terrain?.finest_resolution_m;
-  return m ? `${m >= 100 ? Math.round(m) : +m.toFixed(1)} m terrain` : 'terrain';
+  return terrainText(r.horizon_mode, r.terrain?.finest_resolution_m);
 }
 
 /** The column's 360-degree horizon with the Sun and Earth at the compare moment (from the saved run). */

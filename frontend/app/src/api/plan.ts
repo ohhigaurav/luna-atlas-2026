@@ -1,6 +1,7 @@
 // Client for the two "simple flow" calls (docs/frontend_api.md). Field names follow
 // backend/lunar_core/landing.py (run_landing) and check.py (run_check); neither endpoint has a
 // response model yet, so these types are hand-written from that code.
+import { staticIndex, staticPost, staticRun } from '../data/staticMode';
 
 export type UtcRange = { start_utc: string; end_utc: string };
 
@@ -29,8 +30,15 @@ export type LandingResult = {
   horizon_mode: 'flat' | 'terrain' | string;
   search: { start_utc: string; days: number };
   opportunities: LandingOpportunity[];
+  /** Over all windows in the search (8 Nov): the first, the most sunlight after touchdown, the most Earth in view. */
+  soonest?: LandingOpportunity | null;
+  best?: (LandingOpportunity & { rank: number }) | null;
+  best_earth?: (LandingOpportunity & { rank: number }) | null;
+  best_rule?: string;
   opportunity_count: number;
   closest_miss: { touchdown_utc: string; failed_rules: string[]; daylight_after_h: number; daylight_needed_h: number; verify?: Verify } | null;
+  /** Which DEMs set the horizon (null on a flat horizon). */
+  terrain?: { finest_resolution_m: number | null; dem_assets?: string[]; ground_elevation_m?: number | null } | null;
   /** Longest sunlit window in the search period (backend landing.evaluate). */
   longest_sunlit_window?: { start_utc: string; end_utc: string; hours: number; is_lower_bound: boolean } | null;
   summary: string[];
@@ -55,7 +63,7 @@ export type CheckResult = {
   summary: {
     headline: string;
     lines: string[];
-    numbers: { sunlit_percent: number; earth_percent: number; both_percent: number };
+    numbers: { sunlit_percent: number; sun_disc_percent?: number | null; earth_percent: number; both_percent: number };
     limits: { source: string; checks: LimitCheck[]; all_pass: boolean };
     bands: { sun: UtcRange[]; earth: UtcRange[] };
     terrain_status: string;
@@ -76,6 +84,9 @@ export class ApiError extends Error {
 }
 
 export async function post<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  if (staticIndex()) {
+    try { return await staticPost<T>(url, body as Record<string, unknown>); } catch (e) { throw new ApiError(404, (e as Error).message); }
+  }
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
   if (!r.ok) {
     const j = (await r.json().catch(() => ({}))) as { detail?: unknown };
@@ -134,6 +145,9 @@ export type SavedRun = {
 };
 
 export async function fetchRun(runUrl: string, signal?: AbortSignal): Promise<SavedRun> {
+  if (staticIndex()) {
+    try { return await staticRun<SavedRun>(runUrl); } catch (e) { throw new ApiError(404, (e as Error).message); }
+  }
   const r = await fetch(runUrl, { signal });
   if (!r.ok) throw new ApiError(r.status, `run ${r.status}`);
   return (await r.json()) as SavedRun;
