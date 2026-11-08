@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 log = logging.getLogger("lunar_core.warm")
@@ -28,13 +28,13 @@ POLAR_LIMIT_DEG = -60.0
 
 
 def _today_utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
+    return datetime.now(UTC).strftime("%Y-%m-%dT00:00:00Z")
 
 
 def warm_once(day: str) -> tuple[int, int]:
     from lunar_core.api_models import LandingRequest
-    from lunar_core.landing import run_landing
     from lunar_core.catalogue import load_default_catalogue
+    from lunar_core.landing import run_landing
     from lunar_core.references import load_reference_catalogue
 
     # Official challenge sites first (from 13 Nov), then reference points; flat-horizon sites

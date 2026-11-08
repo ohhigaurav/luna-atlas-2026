@@ -87,6 +87,12 @@ def test_site_row_and_report() -> None:
                                                     "source_url": "u", "start_utc": "2027-01-01T00:00:00Z"})
     assert "2027-01-09T21:00 → 2027-01-23T21:00" in md and "≥ 32 d 2 h" in md and "⚠" in md
     assert "error: TerrainNotReady" in md and "| 5 m |" in md
+    assert row["flat_fallback_band"] is False and "66.6" not in md
+    mid = event_day.site_row({**site, "site_id": "m", "name": "Mid", "latitude_deg": -63.0}, None, None, refs)
+    assert mid["flat_fallback_band"] is True and mid["polar"] is True
+    md2 = event_day.report_markdown([mid], [], {"created_utc": "s", "official_count": 1, "unplaced": 0,
+                                                "source_url": "u", "start_utc": "2027-01-01T00:00:00Z"})
+    assert "Between 60° and 66.6°S (Mid)" in md2
 
 
 def test_warm_puts_official_sites_first(monkeypatch: pytest.MonkeyPatch) -> None:

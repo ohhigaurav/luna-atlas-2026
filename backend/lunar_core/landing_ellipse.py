@@ -110,6 +110,23 @@ def _cache_path(request: EllipseRequest, site: dict[str, Any]) -> Any:
     return analysis_service.RUNS_DIR.parent / "cache" / "ellipses" / f"{key}.json"
 
 
+def _slope_for(site: dict[str, Any], a: float, b: float, orientation_deg: float,
+               offsets: list[GridOffset]) -> dict[str, Any]:
+    """Slope over the same ellipse at the default limit (D-23). Never fails the ellipse itself.
+
+    The frontend applies the user's own limit with ``slope.area.cdf`` and each point's ``slope_deg``,
+    or asks ``POST /api/slope`` (no SPICE; one raster window read).
+    """
+    from lunar_core import slope
+
+    try:
+        return slope.ellipse_slope(site, a, b, orientation_deg, offsets, slope.DEFAULT_LIMIT_DEG)
+    except Exception as exc:  # noqa: BLE001 - slope is an add-on; the sunlight answer must still be served
+        out = slope.not_available(f"slope could not be computed: {exc}", slope.DEFAULT_LIMIT_DEG)
+        out["status"] = "error"
+        return out
+
+
 def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[str, Any]:
     sites = analysis_service._load_sites()
     if request.site_id not in sites:
@@ -136,16 +153,31 @@ def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[s
             "layout": "square grid in local east/north clipped to the ellipse; spherical geodesic offsets"}
     scan = location_scan.run_location_scan(request.site_id, analysis, offsets=offsets, grid_description=grid,
                                            save=False, progress=progress)
+    slope_block = _slope_for(sites[request.site_id], request.semi_major_m, b, request.orientation_deg, offsets)
+    slope_by_point = {(p["east_m"], p["north_m"]): p for p in slope_block.pop("points", [])}
+    points = []
+    for p in scan["points"]:
+        rec = {k: p.get(k) for k in ("east_m", "north_m", "latitude_deg", "longitude_deg", "status",
+                                     "sunlit_percent", "dte_clear_percent", "both_percent",
+                                     "longest_darkness_h", "ground_elevation_m")}
+        s = slope_by_point.get((p["east_m"], p["north_m"]), {})
+        rec.update({k: s.get(k) for k in ("slope_deg", "slope_err_deg", "slope_verdict")})
+        points.append(rec)
+    if slope_block.get("status") == "ok":
+        flat_enough = [p for p in points if p["status"] == "ok" and p["slope_verdict"] == "within"]
+        best = max(flat_enough, key=lambda p: (p["sunlit_percent"], p["dte_clear_percent"]), default=None)
+        slope_block["best_sunlit_within_limit"] = (
+            {k: best[k] for k in ("east_m", "north_m", "sunlit_percent", "dte_clear_percent", "slope_deg")}
+            if best else None)
     payload = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "kind": "landing_ellipse",
         "site": scan["site"],
         "ellipse": grid,
         "settings": scan["settings"],
         "risk": risk_summary(scan["points"]),
-        "points": [{k: p.get(k) for k in ("east_m", "north_m", "latitude_deg", "longitude_deg", "status",
-                                          "sunlit_percent", "dte_clear_percent", "both_percent",
-                                          "longest_darkness_h", "ground_elevation_m")} for p in scan["points"]],
+        "slope": slope_block,
+        "points": points,
         "points_unavailable": scan["points_unavailable"],
         "interpretation": ("Evenly spaced points filling the ellipse, each a full production analysis. "
                            "A spread of outcomes, not a landing probability: real dispersion is denser near the target."),

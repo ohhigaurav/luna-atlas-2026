@@ -40,7 +40,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "backend")]
 
 from tools.preview_polar_map import write_png  # noqa: E402
-from tools.shadow_match import Grid, from_stereo, load_regional_dem, ray_distances, to_stereo  # noqa: E402
+from tools.shadow_match import (  # noqa: E402
+    Grid,
+    from_stereo,
+    load_regional_dem,
+    ray_distances,
+    to_stereo,
+)
 
 R_MOON = 1_737_400.0
 ANTENNA_M = 2.0

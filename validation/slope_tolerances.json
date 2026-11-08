@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "gate": "S (slope layer, D-23)",
+  "status": "approved_before_run",
+  "predeclared_utc": "2026-11-07T14:12:20Z",
+  "proposed_by": "Claude (backend session), 2026-11-07, after the team's go-ahead to build the slope layer and before any slope comparison code or output existed",
+  "approved_by": "The team, 2026-11-08T05:20:29Z, before the first Gate S run",
+  "approval_rule": "The team may change any number below before the first run of tools/validate_slope.py. After that run, the numbers are frozen: a later change is a new gate with the first result kept in validation/evidence/.",
+  "reference": {
+    "product": "NASA PGDA Product 78 (Barker et al. 2021, PSS 203, 105119, doi:10.1016/j.pss.2020.105119)",
+    "layers": "<Site>_final_adj_5mpp_slp.tif (slope, degrees) on the same 5 m grid as <Site>_final_adj_5mpp_surf.tif",
+    "sites": [
+      "Site01 (reference-lola-site-001)",
+      "Site04 (reference-lola-site-004)"
+    ],
+    "note": "The paper does not state the stencil used for the slope map. Ours is fixed in advance (below); the comparison measures how far apart the two are, it does not tune ours."
+  },
+  "method_under_test": {
+    "algorithm": "Horn (1981) 3x3 finite differences on the 5 m surface DEM (the GDAL gdaldem slope default), 10 m between outer pixel centres; gradient multiplied by the polar-stereographic scale factor k = 1 + rho^2 / (4 R^2), R = 1737.4 km; slope = atan(k |grad z|); unknown if any of the 9 pixels is NoData",
+    "fixed_before_run": true,
+    "diagnostic_only": "Central differences (2-pixel) are reported beside it. They may not replace the method under test after this run without a new recorded decision that keeps this result."
+  },
+  "domain": "For each site: every pixel whose centre lies within 1500 m (the largest ellipse semi-axis the API accepts) of the site's catalogue point, excluding the raster's outermost pixel ring",
+  "criteria": {
+    "S1_same_grid": "published slope raster has the same CRS, affine transform, width and height as the surface DEM (no resampling; otherwise FAIL)",
+    "S2_coverage_min_share": 0.99,
+    "S3_abs_median_difference_max_deg": 0.25,
+    "S4_p95_abs_difference_max_deg": 1.5,
+    "S5_limit_disagreement_max_share": 0.05,
+    "S5_limit_deg": 8.0
+  },
+  "pass_rule": "PASS only if S1-S5 hold at both sites. Difference = ours minus published, over domain pixels where both are finite.",
+  "rationale": "S4 1.5 deg: the publisher's own median RMS slope error is 1.5-2.5 deg (1.90 deg in the paper), so a method difference below the low end of that range is smaller than the data's own uncertainty and cannot change a lander decision more than the data already can. S3 0.25 deg: a stencil difference should scatter, not bias; a systematic offset above a quarter degree would point to a scale, unit or grid-registration error. S2 99%: the surface DEM is interpolated everywhere inside the tile, so missing values inside 1.5 km would mean a read or alignment error. S5 5% at 8 deg: 8 deg is the example threshold in Barker et al. (LEAG 2021, 'fraction of pixels within 100 m with slope < 8 deg'); the decision a planner makes (inside/outside the limit) must agree on at least 95% of the ground.",
+  "consequence": {
+    "PASS": "Production computes slope from any verified <= 5 m DEM (site-agnostic, so official sites on other tiles work the same way) and labels it 'checked against the NASA PGDA slope map at Sites 001 and 004'.",
+    "FAIL": "The FAIL stays recorded. Production switches SLOPE_SOURCE to the published PGDA slope layer wherever it exists, and labels computed slope elsewhere 'not checked against a published map'."
+  }
+}

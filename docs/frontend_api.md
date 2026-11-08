@@ -10,7 +10,65 @@ For whoever builds `frontend/app`. Use these five calls. The expert endpoints (`
 | **"When can I land here?"** (the main question) | `POST /api/landing-windows` `{site_id, search_start_utc, search_days, mission_days}` |
 | **"Check this site"** for a chosen date | `POST /api/check` `{site_id, start_utc, days, panel_height_m}` |
 | **compare 2–6 sites/points side by side** (challenge core) | `POST /api/compare` `{places, at_utc, days}` |
+| **slope over a landing ellipse** (5 m terrain only; no dates, no SPICE) | `POST /api/slope` `{site_id, semi_major_m, slope_limit_deg}` |
 | full time series for the surface sky view and time dock | `GET /api/runs/{run_id}` (the check returns `run_url`) |
+
+## `POST /api/slope`: ground slope in the landing ellipse (new 7 Nov, D-23; challenge C11)
+
+Request: `site_id`, or `latitude_deg` + `longitude_deg` (clicked point). Optional: `semi_major_m` 250
+(25–1500), `semi_minor_m` (default = round), `orientation_deg` 0 (bearing of the major axis), `spacing_m`
+(default = the ellipse view's, so `points` line up with `/api/landing-ellipse` points), `slope_limit_deg`
+8 (0.5–45). No SPICE and no dates. Measured on a development laptop (8 Nov, Sites 001/004): 0.3 s at 250 m and
+0.6 s at 1500 m once the rasters are hash-checked (~1 s the first call per process). Debounce re-asks on
+limit changes; the CDF covers the instant update.
+
+Response (`status: "ok"`):
+
+- `label`: show it under every slope number, verbatim: "Slope of the 5 m LOLA terrain, 10 m baseline
+  (3×3 Horn). Not a hazard certification: …".
+- `limit_deg`, `limit_note` (the 8° default is an example, not a lander requirement; say so next to the input).
+- `area`: over every 5 m pixel inside the ellipse. `slope_deg.{median,p90,p99,max}`, `share_within_limit`,
+  `share_over_limit`; with the error layer staged also `share_clearly_within`, `share_uncertain`,
+  `share_clearly_over`. `cdf.share_at_or_below[i]` = share of the ellipse with slope ≤ `i × 0.5`°.
+- `points[]`: `east_m`, `north_m`, `slope_deg`, `slope_err_deg` (null if no error layer), `slope_verdict`
+  `within` / `over` / `uncertain` / null.
+- `overlay`: `max_slope_deg[row][col]`, rows north → south, columns west → east, cell `cell_m`, first cell
+  centre at (`first_cell_centre_east_m`, `first_cell_centre_north_m`), local east/north metres from the
+  target (same frame as the ellipse points). Each cell is the **steepest** pixel in it; null = outside or unknown.
+- `chips`: e.g. `["target 3.1°", "typical 4.2°", "steepest 18°", "82% of ellipse ≤ 8°"]`.
+- `terrain.native_resolution_m` (always ≤ 5), `uncertainty.available`, `validation` (`status: "pass"`
+  since 8 Nov, with `summary`, `evidence`, `scope`), `compute_seconds`.
+
+`status: "not_available"` + `reason` (HTTP 200) where no 5 m tile covers the whole ellipse (Malapert,
+equatorial sites, ellipses past the tile edge). Show the reason; never fall back to anything else.
+
+`POST /api/landing-ellipse` now also carries slope (schema 1.1): each point has `slope_deg`,
+`slope_err_deg`, `slope_verdict` at the default 8°, and `slope` has `area`, `overlay`, `chips` and
+`best_sunlit_within_limit` (`east_m`, `north_m`, `sunlit_percent`, `dte_clear_percent`, `slope_deg`, or null).
+If `slope.status` is not `ok`, draw the ellipse as before. For the user's own limit: recolour points from
+`slope_deg`, read the area share from `area.cdf`, and pick the best flat-enough point client-side
+(highest `sunlit_percent` among points with `slope_deg ≤ limit`), or call `/api/slope`. Static mode has
+the baked ellipses only, so use the CDF there.
+
+### Handoff for the frontend session (paste as is)
+
+> Backend 0.7.41 adds slope to the landing ellipse (docs/frontend_api.md → `POST /api/slope`).
+> In the polar site panel's Landing ellipse:
+> 1. A "Slope" toggle beside the sunlight colouring. On: colour each point by `slope_deg` against the
+>    limit (within / uncertain / over; never colour alone, add the number on hover) and draw `slope.overlay`
+>    as a faint heat layer under the points (steepest-in-cell, say so in the legend).
+> 2. A "Lander slope limit" number input (default 8°, step 0.5) with `limit_note` as helper text. Changing
+>    it updates the chips from `area.cdf` immediately and re-asks `/api/slope` (debounced) when live.
+> 3. One new chip next to the sunlight chips: "{share}% of ellipse ≤ {limit}°", and the marker
+>    "best sunlit spot under {limit}°" from `best_sunlit_within_limit` (or from the points for a custom limit),
+>    shown beside the existing best point when they differ. That pair is the demo beat: the sunniest spot
+>    may be too steep.
+> 4. Under the slope numbers always show `label` verbatim and "5 m terrain". When `slope.status` is
+>    `not_available`, show the reason in one grey line and no slope controls.
+> 5. Evidence screen: a "Slope (Gate S) — PASS" row: "Matches NASA's published slope maps at Sites 001
+>    and 004: 95% of pixels within 0.7° / 0.9°" with a link to `validation.evidence`. Under the slope numbers:
+>    "checked against NASA's slope map" (a link) next to the label; never "safe".
+> Do not show slope for clicked points outside the 5 m tiles, and never call it "safe" or "hazard-free".
 
 ## `POST /api/sky-geometry`: stars and Earth's face (new 6 Nov)
 
@@ -195,8 +253,106 @@ Responses are gzip-compressed when the browser accepts it.
 ## `POST /api/landing-windows`
 
 Request: `site_id`, `search_start_utc` (ending in `Z`). Optional, with these defaults:
-`search_days` 90 (max 180), `mission_days` 10, `panel_height_m` 2,
+`search_days` 90 (max 366; the app's presets are 30 / 90 / 180 / 365), `mission_days` 10, `panel_height_m` 2,
 `require_earth_at_landing` true, `max_sun_elevation_deg` 20 (null turns that rule off).
+
+**Soonest and best (new 8 Nov, 0.7.42).** Every answer now has, over *all* windows in the search
+(not only the first 24 listed in `opportunities`):
+
+- `soonest`: the first window (same fields as an opportunity, plus `verify`), or null;
+- `best`: the touchdown that leaves the **most sunlight after landing**; ties go to more Earth in view
+  during the mission, then to the earlier date. Same fields plus `rank` (1 = it is also the soonest)
+  and `verify`; null when no window exists;
+- `best_earth` (new 8 Nov, 0.7.43): the touchdown with the **most Earth in view during the mission**; ties go to
+  more sunlight, then earlier. Same fields plus `rank` and `verify`. It differs from `best` often: at Site 001 in
+  2027 the sunniest window (20.6 d) has Earth only 11% of the mission, the first one (18.4 d) has 41%;
+- `best_rule`: both rules in one sentence, for the small print.
+
+`summary` gains a line: "Best in the period: land at … for 13.2 days of sunlight, Earth in view 87% of
+the mission", or "The next opportunity is also the best one in the period". A 365-day search runs about
+7 analysis chunks the first time per site and question, then comes from the cache. It has not been timed on real data yet: show the
+elapsed seconds while it runs.
+
+### Handoff for the frontend session: best date, mission playback, mission length, origin badge (paste as is)
+
+> Backend 0.7.43: `/api/landing-windows` accepts `search_days` up to 366 and returns `soonest`, `best`
+> (most sunlight after touchdown), `best_earth` (most Earth in view during the mission) and `best_rule`.
+> Measured on a development laptop: 365 days at Site 001 took 44 s the first time, 0 s from the cache.
+> The team's feedback 8 Nov: playback ran from 99% to 0 with no explanation, and the request was "the best possible date,
+> whether it is 30, 90, 200 or 365 days".
+>
+> **A. Best date.**
+> 1. In the site card and panel, a small segmented control "Look ahead: 30 d · 90 d · 180 d · 365 d"
+>    (default 90). It changes only this question: send `search_days` with it and put it in the
+>    `landingRequest` cache key. The ring, calendar and pins keep their 90 / 30 days.
+> 2. Two lines, both from the date in the date bar:
+>    "Soonest: {soonest.best_touchdown_utc} (in {span from the date bar})" and
+>    "Best in the next {N} days: {best.best_touchdown_utc}: {daylight_after_best_h as days} of sunlight,
+>    Earth in view {earth_in_view_during_mission_pct}%". When `best.rank === 1`, one line:
+>    "Soonest is also the best in the next {N} days". `best_rule` goes in the tooltip.
+>    Show the trade-off, not one magic date: "Most sunlight: {best date} · {days} d sun · Earth {pct}%" and
+>    "Most Earth contact: {best_earth date} · Earth {pct}% · {days} d sun". Collapse lines that point at the
+>    same window (compare `best_touchdown_utc`).
+> 3. Buttons: "Go to best" (jumps the date bar) and "Play the mission from here" (opens the 3D ground
+>    view at `best.best_touchdown_utc`).
+> 4. While loading: "Searching the next {N} days… {elapsed} s". In static mode, keep 90 d only and grey
+>    the others with "needs the live backend".
+> 5. SitePanel's `formatIn(answer.inDays)` counts from `Date.now()`, while the card counts from the date
+>    bar. Make both count from the date bar.
+>
+> **B. Mission playback.** The drain happens because "Stand here in 3D" on the SiteCard opens at the
+> date bar's moment (`onStand(cursorMs)`), not at a landing window. If the Sun is down or behind a ridge,
+> the panel makes 0 W and the 2 kWh battery at 60 W is empty in ~33 h with nothing else happening.
+> 1. "Stand here in 3D": if the date bar is inside a window, start there. Otherwise start at the next
+>    window's best touchdown, with a one-line note: "Starting at the next landing window, {date}". If there
+>    is none in the look-ahead, open at the date bar with: "No landing window in the next {N} days: this
+>    shows the lander waiting in the dark."
+> 2. A live status line under the battery, from the run's series: "Charging: Sun 1.8° up, panel 380 W,
+>    using 60 W" / "Draining: Sun behind the hills (rises in 9 h)" / "Night: battery lasts {h} more at
+>    {loadW} W, sunrise in {h}" (the latter "no sunrise in these 30 days" when none).
+> 3. A thin battery-charge curve over the 30 days (from `simulate().socWh`) with the sunlit bands behind
+>    it and a marker where it empties, so 99% → 0 has a visible reason before you press play.
+> 4. Keep "illustrative power model" on screen. Panel, battery and load are the player's choices.
+>
+> **C. Mission length on the card** (team feedback). The
+> −/+ control exists only in the expanded SitePanel. Put it on the SiteCard verdict as chips:
+> `Mission: 1 d · 3 d · 5 d · 7 d · 10 d · 14 d` (current one highlighted, same `onSettings({ missionDays })`),
+> right under "You can land on this date" / "Not a good date to land here". Make the sentence say it:
+> "Land by then and the Sun stays up for **{N} days** (your mission)". The backend accepts 0.25–30 days;
+> keep the app's 1–14 clamp.
+>
+> **D. Origin badge** ("Reference site, not official" reads like an apology). Say where the
+> coordinates come from instead; the "not from the challenge list" part moves to the tooltip. Replace
+> `originLabel` in `SiteCard.tsx` and use `originTitle` as the `title` of both badges (SiteCard, SitePanel):
+>
+> ```ts
+> const SOURCE_NAMES: Array<[RegExp, string]> = [
+>   [/lroc/i, 'LROC'], [/nssdc/i, 'NASA NSSDC'], [/10\.3847\/psj|\/psj\//i, 'Planetary Science Journal'],
+>   [/usgs/i, 'USGS gazetteer'], [/science\.nasa\.gov/i, 'NASA'], [/ncbi|pmc/i, 'peer-reviewed study'],
+> ];
+> const sourceName = (s: ReferenceSite) => SOURCE_NAMES.find(([re]) => re.test(s.source_url ?? ''))?.[1];
+>
+> /** Where the coordinates come from, always in words (an internal document (not published)). */
+> export function originLabel(site: ReferenceSite): string {
+>   if (site.site_id.startsWith('point:')) return 'Your point';
+>   if (site.origin === 'official') return 'Official challenge site';
+>   const src = sourceName(site), from = src ? ` · ${src}` : '';
+>   if (site.position_kind === 'landed_hardware') return `Landing site${from}`;
+>   if (site.position_kind === 'target_region_centre') return `Planned target, region centre${from}`;
+>   return `Published site${from}`;
+> }
+> export function originTitle(site: ReferenceSite): string {
+>   if (site.site_id.startsWith('point:')) return 'A point you picked on the map.';
+>   if (site.origin === 'official') return 'From the Space Apps 2026 challenge site list.';
+>   const src = sourceName(site);
+>   return `Coordinates from ${src ?? 'a published source'}${site.source_record ? ` (${site.source_record})` : ''}. ` +
+>     "Not from the challenge's own site list, which is released 13 Nov and marked \"Official challenge site\".";
+> }
+> ```
+>
+> Result: "Landing site · LROC" (Chandrayaan-3, IM-1, Chang'e, SLIM), "Landing site · NASA NSSDC"
+> (Apollo), "Published site · Planetary Science Journal" (LOLA 001/004), "Planned target, region
+> centre · USGS gazetteer" (IM-3). Keep the App.tsx footer line (~429) as is: the honesty stays one hover away.
 
 Cached (5 Nov): an identical request with the same software, horizon algorithm and kernel/DEM
 manifests is answered from `data/cache/landing/` with `"cache_hit": true`. The app asks this for

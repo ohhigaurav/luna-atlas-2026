@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from lunar_core.static_answers import make_key  # noqa: E402
+
 from tools.bake_answers import plan  # noqa: E402
 
 SITES = [{"site_id": "reference-lola-site-001", "latitude_deg": -89.45},

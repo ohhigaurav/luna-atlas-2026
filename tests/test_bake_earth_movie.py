@@ -9,7 +9,12 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tools.bake_earth_movie import R_MOON, check_alignment, earth_frame_indices, earth_mask  # noqa: E402
+from tools.bake_earth_movie import (  # noqa: E402
+    R_MOON,
+    check_alignment,
+    earth_frame_indices,
+    earth_mask,
+)
 from tools.shadow_match import Grid, from_stereo  # noqa: E402
 
 EARTH_KM = 384_400.0
