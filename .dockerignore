@@ -1,0 +1,22 @@
+# Keep the image to code + small manifests. Kernels, DEMs, caches and runs are mounted at run time
+# (deploy/compose.vm.yml, docker-compose.yml); copying them would bloat every build by ~0.5 GB+.
+.git
+.venv
+**/__pycache__
+**/node_modules
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data/kernels/*
+!data/kernels/README.md
+data/dems/assets/*
+data/dems/quality
+data/dems/clones
+data/cache
+data/runs
+data/scans
+data/ensembles
+data/derived
+frontend/app/public/data
+deploy/.env
+validation/evidence/horizons_raw

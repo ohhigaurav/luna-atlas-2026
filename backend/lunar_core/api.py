@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -79,6 +80,26 @@ async def security_headers(request: Any, call_next: Any) -> Any:
         "frame-ancestors 'none'"
     )
     return response
+
+
+def cors_origins(value: str | None) -> list[str]:
+    """Origins allowed to call the API from another site (the hosted frontend), from LUNA_CORS_ORIGINS.
+
+    Comma-separated full origins, e.g. ``https://luna-atlas.pages.dev``. Empty (the default) adds no
+    CORS headers at all, so local and same-origin use is unchanged. ``*`` is refused: the API runs
+    real computations and should only be called by the app's own frontend.
+    """
+    origins = [o.strip().rstrip("/") for o in (value or "").split(",") if o.strip()]
+    for origin in origins:
+        if origin == "*" or not origin.startswith(("https://", "http://")):
+            raise ValueError(f"LUNA_CORS_ORIGINS: give full origins like https://example.pages.dev, not {origin!r}")
+    return origins
+
+
+CORS_ORIGINS = cors_origins(os.environ.get("LUNA_CORS_ORIGINS"))
+if CORS_ORIGINS:  # outermost middleware, so preflight requests are answered before anything else
+    app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET", "POST"],
+                       allow_headers=["Content-Type"], max_age=600)
 
 
 def _kernel_health() -> dict[str, Any]:
@@ -173,6 +194,16 @@ def index() -> Response:
 @app.get("/legacy", include_in_schema=False)
 def legacy_index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/api/live", tags=["system"])
+def live() -> dict[str, Any]:
+    """Cheap liveness for container health checks and uptime probes (no hashing, no SPICE).
+
+    ``/api/health`` re-hashes every kernel and DEM (~300 MB); calling it every 30 s on a small VM is
+    real load. This only says the process answers.
+    """
+    return {"status": "ok", "version": __version__}
 
 
 @app.get("/api/health", tags=["system"])
@@ -369,6 +400,35 @@ def landing_ellipse(request: EllipseRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=f"Ellipse rejected: {exc}") from exc
+
+
+@app.post("/api/landing-ellipse/jobs", tags=["analysis"])
+def landing_ellipse_job(request: EllipseRequest) -> dict[str, Any]:
+    """Start (or join) a landing-ellipse computation; poll ``GET /api/landing-ellipse/jobs/{job_id}``.
+
+    The ellipse takes minutes; this returns at once with ``status`` queued/running/done/error,
+    ``done``/``total`` points and ``elapsed_s``. ``result`` (the same body as ``POST /api/landing-ellipse``)
+    appears when done. Unknown or non-polar sites are refused here with 422, before any job starts.
+    """
+    from lunar_core.jobs import ELLIPSE_JOBS
+    from lunar_core.landing_ellipse import check_ellipse_request, run_landing_ellipse
+
+    try:
+        check_ellipse_request(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Ellipse rejected: {exc}") from exc
+    key = request.model_dump_json()
+    return ELLIPSE_JOBS.submit(key, lambda progress: run_landing_ellipse(request, progress=progress))
+
+
+@app.get("/api/landing-ellipse/jobs/{job_id}", tags=["analysis"])
+def landing_ellipse_job_status(job_id: str) -> dict[str, Any]:
+    from lunar_core.jobs import ELLIPSE_JOBS
+
+    job = ELLIPSE_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="No such job (the server may have restarted); start it again")
+    return job
 
 
 @app.post("/api/slope", tags=["terrain"])

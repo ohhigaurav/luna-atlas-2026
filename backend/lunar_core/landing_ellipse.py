@@ -127,12 +127,19 @@ def _slope_for(site: dict[str, Any], a: float, b: float, orientation_deg: float,
         return out
 
 
-def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[str, Any]:
+def check_ellipse_request(request: EllipseRequest) -> dict[str, Any]:
+    """The cheap refusals, before any computation (also used before starting a job). Returns the site."""
     sites = analysis_service._load_sites()
     if request.site_id not in sites:
         raise ValueError(f"unknown site ID: {request.site_id}")
     if float(sites[request.site_id]["latitude_deg"]) > POLAR_LIMIT_DEG:
         raise ValueError("the landing ellipse needs terrain, which we have only at or south of 60 S (D-22)")
+    return sites[request.site_id]
+
+
+def run_landing_ellipse(request: EllipseRequest, progress: Any = None) -> dict[str, Any]:
+    check_ellipse_request(request)
+    sites = analysis_service._load_sites()
     cache = _cache_path(request, sites[request.site_id])
     if cache.is_file():
         try:

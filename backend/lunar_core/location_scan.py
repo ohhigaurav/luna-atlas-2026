@@ -205,6 +205,15 @@ def save_json_atomic(payload: dict[str, Any], directory: Path, name: str) -> Pat
     return target
 
 
+SCAN_YIELD_S = 0.05  # pause between points so other requests can take _RUN_LOCK (see run_location_scan)
+
+
+def _pool_key(svc: Any) -> Any:
+    """Identity of the furnished kernel pool (manifest hash + kernel hashes), or None."""
+    loaded = svc._LOADED_KERNELS
+    return None if loaded is None else loaded[0]
+
+
 def run_location_scan(
     site_id: str,
     request: AnalysisRequest,
@@ -231,6 +240,11 @@ def run_location_scan(
         offsets = scan_offsets(radius_m, spacing_m)
     elif not offsets or len(offsets) > MAX_SCAN_POINTS:
         raise ValueError(f"offsets must hold 1 to {MAX_SCAN_POINTS} points")
+    # The lock is taken per point, not for the whole scan: a 45-point ellipse takes 4-5 minutes, and
+    # holding _RUN_LOCK that long froze every other user's new question on a shared server. Each point
+    # is an independent production analysis, so only the kernel pool must stay the same throughout;
+    # the scan stops if it changes. threading.Lock is not fair, so the scan pauses briefly between
+    # points to let a waiting request take the lock.
     with svc._RUN_LOCK:
         sites = svc._load_sites()
         if site_id not in sites:
@@ -239,17 +253,23 @@ def run_location_scan(
         if base.get("latitude_deg") is None or base.get("longitude_deg") is None:
             raise svc.AnalysisNotReady(f"Site {site_id} has no verified coordinates")
         ctx = prepare_run_context(request)
-        geometry, start_et, end_et, step_s = ctx.geometry, ctx.start_et, ctx.end_et, ctx.step_s
-        start_utc, end_utc = ctx.start_utc, ctx.end_utc
-        base_lat, base_lon = float(base["latitude_deg"]), float(base["longitude_deg"])
+        pool = _pool_key(svc)
+    geometry, start_et, end_et, step_s = ctx.geometry, ctx.start_et, ctx.end_et, ctx.step_s
+    start_utc, end_utc = ctx.start_utc, ctx.end_utc
+    base_lat, base_lon = float(base["latitude_deg"]), float(base["longitude_deg"])
 
-        points: list[dict[str, Any]] = []
-        started = time.perf_counter()
-        for index, offset in enumerate(offsets):
-            lat, lon = offset_point(base_lat, base_lon, offset, geometry.reference_radius_m)
-            # Same site_id: DEM asset selection is per site, and every point lies inside the
-            # site's tiles. Only the coordinate changes.
-            point_site = {**base, "latitude_deg": lat, "longitude_deg": lon}
+    points: list[dict[str, Any]] = []
+    started = time.perf_counter()
+    for index, offset in enumerate(offsets):
+        if index:
+            time.sleep(SCAN_YIELD_S)
+        lat, lon = offset_point(base_lat, base_lon, offset, geometry.reference_radius_m)
+        # Same site_id: DEM asset selection is per site, and every point lies inside the
+        # site's tiles. Only the coordinate changes.
+        point_site = {**base, "latitude_deg": lat, "longitude_deg": lon}
+        with svc._RUN_LOCK:
+            if _pool_key(svc) != pool:
+                raise svc.AnalysisNotReady("the SPICE kernel pool changed during the scan; ask again")
             try:
                 result, _windows = svc._run_one_site(
                     point_site, request, geometry, start_et=start_et, end_et=end_et, run_step_s=step_s,
@@ -260,10 +280,10 @@ def run_location_scan(
                     "east_m": offset.east_m, "north_m": offset.north_m, "distance_m": offset.distance_m,
                     "latitude_deg": lat, "longitude_deg": lon, "status": "unavailable", "error": str(exc),
                 }
-            points.append(record)
-            if progress is not None:
-                progress(index + 1, len(offsets), record)
-        elapsed = time.perf_counter() - started
+        points.append(record)
+        if progress is not None:
+            progress(index + 1, len(offsets), record)
+    elapsed = time.perf_counter() - started
 
     ok = [p for p in points if p["status"] == "ok"]
     centre = points[0] if points and points[0]["distance_m"] == 0.0 else None

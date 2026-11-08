@@ -3,7 +3,7 @@
   "note": "Our analysis notes on reference points, kept apart from the citations (reference_sites.json is never edited to carry them). Each note names its evidence file.",
   "notes": {
     "reference-malapert-massif": {
-      "text": "Published point is on the massif's far side from Earth (0% Earth). The DEM crest 10.7 km east (85.989\u00b0 S, 2.101\u00b0 E, 5,169 m) sees Earth 70% and Sun 84% in Nov 2026. Try it as a clicked point.",
+      "text": "Published point is on the massif's far side from Earth (0% Earth). The DEM crest 10.7 km east (85.989° S, 2.101° E, 5,169 m) sees Earth 70% and Sun 84% in Nov 2026. Try it as a clicked point.",
       "evidence": "validation/evidence/malapert_earth_2026-11-06.md",
       "suggested_point": {
         "latitude_deg": -85.9886,
@@ -18,6 +18,10 @@
     "reference-lola-site-004": {
       "text": "The published point sits in a ~200 m pit: 0% Sun on the 5 m map in Jan 2027 while the rim 250 m away gets 86-89%. See the landing ellipse.",
       "evidence": "validation/evidence/resolution_site001_2026-11-06.md"
+    },
+    "reference-shackleton-crater": {
+      "text": "This point is on Shackleton's inner wall, ~8 km from the crater's centre, not on its floor. The wall hides the Sun all month (0%), but across the crater the horizon dips to about 4.5°, and Earth, which climbs to ~6° here, grazes over that rim about 15% of the time (Jan 2027, 240 m map). The start and end of each Earth pass are within hundredths of a degree of the rim, so treat them as uncertain.",
+      "evidence": "validation/evidence/shackleton_point_2026-11-08.md"
     }
   }
 }

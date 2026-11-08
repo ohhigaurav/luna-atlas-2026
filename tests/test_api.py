@@ -156,3 +156,28 @@ def test_slope_endpoint_rejects_bad_requests() -> None:
     assert client.post("/api/slope", json={"site_id": "no-such-site"}).status_code == 422
     assert client.post("/api/slope", json={"site_id": "x", "slope_limit_deg": 60}).status_code == 422
     assert client.post("/api/slope", json={}).status_code == 422
+
+
+
+def test_live_is_cheap_and_answers() -> None:
+    from lunar_core import __version__
+    response = client.get("/api/live")
+    assert response.status_code == 200 and response.json() == {"status": "ok", "version": __version__}
+
+
+def test_cors_origins_parsing_and_default_off() -> None:
+    from lunar_core import api
+    assert api.cors_origins(None) == [] and api.cors_origins("") == []
+    assert api.cors_origins(" https://a.pages.dev/ , http://localhost:5173") == ["https://a.pages.dev", "http://localhost:5173"]
+    for bad in ("*", "a.pages.dev"):
+        with pytest.raises(ValueError):
+            api.cors_origins(bad)
+    # No LUNA_CORS_ORIGINS in the test environment: no CORS header is added.
+    assert "access-control-allow-origin" not in client.get("/api/live", headers={"Origin": "https://evil.example"}).headers
+
+
+
+def test_ellipse_jobs_refuse_bad_requests_and_unknown_ids() -> None:
+    body = {"site_id": "no-such-site", "start_utc": "2027-01-01T00:00:00Z", "days": 14, "semi_major_m": 100}
+    assert client.post("/api/landing-ellipse/jobs", json=body).status_code == 422
+    assert client.get("/api/landing-ellipse/jobs/0123456789abcdef").status_code == 404
