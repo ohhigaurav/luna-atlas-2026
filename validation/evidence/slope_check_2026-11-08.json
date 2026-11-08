@@ -1,0 +1,227 @@
+{
+  "gate": "S",
+  "verdict": "PASS",
+  "run_utc": "2026-11-08T05:48:23Z",
+  "tolerances": {
+    "path": "validation/slope_tolerances.json",
+    "sha256": "b22d1a735d6a5f451a8531fffdeff881166897a094fcf999ff9fbf8ad3624380",
+    "status_at_run": "approved_before_run",
+    "predeclared_utc": "2026-11-07T14:12:20Z",
+    "criteria": {
+      "S1_same_grid": "published slope raster has the same CRS, affine transform, width and height as the surface DEM (no resampling; otherwise FAIL)",
+      "S2_coverage_min_share": 0.99,
+      "S3_abs_median_difference_max_deg": 0.25,
+      "S4_p95_abs_difference_max_deg": 1.5,
+      "S5_limit_disagreement_max_share": 0.05,
+      "S5_limit_deg": 8.0
+    }
+  },
+  "method": {
+    "algorithm": "slope-1.0-horn3x3-stereo-k",
+    "production_source_at_run": "computed"
+  },
+  "git": {
+    "commit": "4aba13c42079d2eaa2754164d07b171447f0de03",
+    "dirty": true
+  },
+  "sites": {
+    "pgda78-site01-surface": {
+      "site_id": "reference-lola-site-001",
+      "dem_sha256": "3ba7b97cb00a2bcf21189c3aeb535f65afc21207154ab9f0d43c5bdc1f7e747e",
+      "published_layer": {
+        "layer_id": "pgda78-site01-slope",
+        "base_asset_id": "pgda78-site01-surface",
+        "kind": "slope_deg",
+        "relative_path": "data/dems/assets/Site01_final_adj_5mpp_slp.tif",
+        "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_slp.tif",
+        "sha256": "3a90035a4946b4a04b7332c52f0b2b1cff71648bd8c105e14d8a7e15c6bcfe8e",
+        "size_bytes": 40980776,
+        "retrieved_utc": "2026-11-08T05:31:24Z"
+      },
+      "S1_same_grid": true,
+      "primary": {
+        "domain_pixels": 282765,
+        "compared_pixels": 282765,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": -0.002204442196200418,
+          "mean": -0.028781570369183714,
+          "rms": 0.34086662567827175,
+          "p95_abs": 0.6955476458855705,
+          "p99_abs": 1.3360533928758422,
+          "max_abs": 8.710597302516973
+        },
+        "ours_deg": {
+          "median": 10.125557032678458,
+          "p90": 17.75074576774306
+        },
+        "published_deg": {
+          "median": 10.146446228027344,
+          "p90": 17.809654235839844
+        },
+        "limit_disagreement_share": 0.011949852350892083,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      },
+      "diagnostic_central_difference": {
+        "domain_pixels": 282765,
+        "compared_pixels": 282765,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": 0.00023821067795282147,
+          "mean": 0.00023499125680544376,
+          "rms": 0.00037851970502937197,
+          "p95_abs": 0.0007179288817773965,
+          "p99_abs": 0.0008796472226425317,
+          "max_abs": 0.003406693825203748
+        },
+        "ours_deg": {
+          "median": 10.14658464740408,
+          "p90": 17.81003020049493
+        },
+        "published_deg": {
+          "median": 10.146446228027344,
+          "p90": 17.809654235839844
+        },
+        "limit_disagreement_share": 3.182855020953796e-05,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      },
+      "diagnostic_whole_tile": {
+        "domain_pixels": 10227204,
+        "compared_pixels": 10227204,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": -0.0029288945961720714,
+          "mean": -0.025882875814831865,
+          "rms": 0.37926979225633567,
+          "p95_abs": 0.7713647430939204,
+          "p99_abs": 1.4832500498290966,
+          "max_abs": 16.941028203167193
+        },
+        "ours_deg": {
+          "median": 12.281038796746817,
+          "p90": 20.580285169443954
+        },
+        "published_deg": {
+          "median": 12.294781684875488,
+          "p90": 20.637819290161133
+        },
+        "limit_disagreement_share": 0.010270255682784855,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      }
+    },
+    "pgda78-site04-surface": {
+      "site_id": "reference-lola-site-004",
+      "dem_sha256": "38ff70dbdf2f066c2cfa94a646c3a59d653ce7f6b4528b15fc1b43ee397ce758",
+      "published_layer": {
+        "layer_id": "pgda78-site04-slope",
+        "base_asset_id": "pgda78-site04-surface",
+        "kind": "slope_deg",
+        "relative_path": "data/dems/assets/Site04_final_adj_5mpp_slp.tif",
+        "source_url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_slp.tif",
+        "sha256": "ec3cfa184b114d95aff498e7452764a8569737ae829e7ff3efd38d5187182579",
+        "size_bytes": 40980772,
+        "retrieved_utc": "2026-11-08T05:43:30Z"
+      },
+      "S1_same_grid": true,
+      "primary": {
+        "domain_pixels": 282747,
+        "compared_pixels": 282747,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": -0.00371959371556585,
+          "mean": -0.020142172178500145,
+          "rms": 0.4428833388618813,
+          "p95_abs": 0.9205188818907866,
+          "p99_abs": 1.7893544405746318,
+          "max_abs": 13.588510979373758
+        },
+        "ours_deg": {
+          "median": 17.939436836902736,
+          "p90": 32.1048183586999
+        },
+        "published_deg": {
+          "median": 17.970884323120117,
+          "p90": 32.164649963378906
+        },
+        "limit_disagreement_share": 0.004431523588225516,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      },
+      "diagnostic_central_difference": {
+        "domain_pixels": 282747,
+        "compared_pixels": 282747,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": 6.819382979550426e-05,
+          "mean": 6.568338773809745e-05,
+          "rms": 0.0002584970943000308,
+          "p95_abs": 0.000500239610826192,
+          "p99_abs": 0.0006178130639698053,
+          "max_abs": 0.0020714500764244664
+        },
+        "ours_deg": {
+          "median": 17.97111050880561,
+          "p90": 32.16460838763756
+        },
+        "published_deg": {
+          "median": 17.970884323120117,
+          "p90": 32.164649963378906
+        },
+        "limit_disagreement_share": 3.536730716859949e-06,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      },
+      "diagnostic_whole_tile": {
+        "domain_pixels": 10227204,
+        "compared_pixels": 10227204,
+        "coverage_share": 1.0,
+        "difference_deg": {
+          "median": -0.00244101516692119,
+          "mean": -0.020277278306808217,
+          "rms": 0.4651477791993188,
+          "p95_abs": 0.952640702716706,
+          "p99_abs": 1.8331485404157546,
+          "max_abs": 20.624756326733703
+        },
+        "ours_deg": {
+          "median": 20.5604061936485,
+          "p90": 33.09475175829689
+        },
+        "published_deg": {
+          "median": 20.568425178527832,
+          "p90": 33.16442108154297
+        },
+        "limit_disagreement_share": 0.005770981003214564,
+        "checks": {
+          "S2": true,
+          "S3": true,
+          "S4": true,
+          "S5": true
+        }
+      }
+    }
+  }
+}
