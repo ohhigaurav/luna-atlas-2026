@@ -1,0 +1,40 @@
+{
+  "output": "luna_atlas_demo.mp4",
+  "max_seconds": 30,
+  "title": {
+    "text": "Luna Atlas",
+    "sub": "When can a lander at the lunar south pole see the Sun and Earth?",
+    "seconds": 2.5
+  },
+  "clips": [
+    {
+      "file": "shot1.mkv",
+      "start": 1.0,
+      "end": 7.0,
+      "caption": "Pick a landing site: Moon, south polar region, site. Real terrain, real Sun and Earth positions."
+    },
+    {
+      "file": "shot2.mkv",
+      "start": 1.0,
+      "end": 7.5,
+      "caption": "It searches up to a year of dates: the soonest landing, the most sunlight, the most Earth contact."
+    },
+    {
+      "file": "shot3.mkv",
+      "start": 1.0,
+      "end": 7.0,
+      "caption": "Stand at the site in 3D: Sun, shadows and battery through the mission."
+    },
+    {
+      "file": "shot4.mkv",
+      "start": 1.0,
+      "end": 5.5,
+      "caption": "Check the landing ellipse: how much ground is under your lander's slope limit."
+    }
+  ],
+  "end": {
+    "text": "Computed live",
+    "sub": "Geometry checked against JPL Horizons (0.04 arcsec). Open source: link on the project page.",
+    "seconds": 2.5
+  }
+}
