@@ -855,3 +855,8 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .el-prog { height: 3px; margin-top: 6px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; } .el-prog i { display: block; height: 100%; background: var(--text); transition: width 0.4s; }
 .sc-range { margin: 0; font: 600 15px var(--font-ui); color: var(--text); }
 .sc-range .sc-best-at { display: block; font-weight: 500; font-size: 13.5px; color: var(--text-2); margin-top: 2px; }
+
+/* brand mark beside the name (8 Nov logo: docs/brand/) */
+.tb-brand .tb-name { display: flex; align-items: center; gap: 10px; }
+.tb-brand .tb-name img { width: 28px; height: 28px; flex: none; }
+.tb-brand small { margin-left: 38px; }

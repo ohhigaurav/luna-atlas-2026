@@ -411,7 +411,7 @@ export default function App() {
       <header className="la-topbar">
         <div className="tb-left">
         <button type="button" className="tb-brand" onClick={() => { setForecast(false); setComparing(false); globe.current?.flyHome(); }}>
-          Luna Atlas
+          <span className="tb-name"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />Luna Atlas</span>
           {live ? (
             <small title="Sun and Earth positions from NASA NAIF SPICE kernels (DE421 frame), computed on the server for each question you ask. Terrain: LOLA 5 m site maps where they exist, else the 240 m regional map. Each answer carries its kernel and DEM hashes.">
               Geometry: NAIF SPICE · DE421 · computed live
