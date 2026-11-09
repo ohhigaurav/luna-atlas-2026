@@ -5,6 +5,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/backend
 WORKDIR /app
 
+# The rasterio/GDAL wheels expect the system Expat library (libexpat.so.1); python:3.13-slim does not ship it,
+# and without it every terrain answer fails ("libexpat.so.1: cannot open shared object file").
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
