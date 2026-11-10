@@ -1,6 +1,6 @@
 # Luna Atlas deployment guide — 0.7.0-dev
 
-**For the Space Apps submission (live API on an Azure VM, app on Cloudflare Pages), follow an internal document (not published).** This page covers local and plain Docker use.
+**The Space Apps submission runs live on an AWS EC2 instance (https://13-54-224-119.sslip.io) with `deploy/compose.vm.yml`; the step-by-step VM guide in an internal document (not published) applies with an EC2 instance in place of the Azure VM and an sslip.io name as `LUNA_DOMAIN`.** This page covers local and plain Docker use.
 
 This release is an **engineering prototype** that can be run locally or packaged in Docker. It is not a scientifically validated mission-operations service. A publicly reachable URL is not supplied by this repository; you must deploy it into an account/environment you control after eligibility, security, licensing and scientific-release gates have been reviewed.
 
