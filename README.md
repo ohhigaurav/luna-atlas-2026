@@ -1,13 +1,54 @@
-# Lunar South Pole Mission Planner
+# Luna Atlas
 
-**Version:** `0.7.0.dev0` · **Target:** NASA Space Apps 2026 — Lunar Landing Site Navigator
+**When and where to land at the lunar south pole.** NASA Space Apps 2026, challenge "Lunar Landing Site
+Navigator".
 
-**Architecture:** Python science core + FastAPI + local-first, dependency-free HTML/CSS/JavaScript UI
-**Current status:** integrated software prototype; real-kernel and real-DEM validation are still required.
+**Live app:** https://13-54-224-119.sslip.io (every answer computed live on the server)
 
-The planner compares south-pole sites across a UTC interval and searches candidate landing dates against a mission profile. The interface has four views: **Compare**, **Landing-window finder**, **Assumptions & sources**, and **Export**. The UI uses the Luna Atlas field-guide design, with a simple four-step navigation model and responsive layout. The interface opens with a clearly labelled synthetic preview so charts are not blank on first launch. The UI renders server results; ephemerides, terrain horizons, event times and metrics are computed in the Python science core.
+Pick a site and a mission length. Luna Atlas tells you whether you can land, when the next landing window
+opens, and which date in the next year gives the most sunlight or the most Earth contact. You can stand on the
+site in 3D and watch the real Sun and Earth move over the real horizon, check a landing ellipse for sunlight
+and slope, and open the Evidence screen to see every scientific check behind the numbers.
 
-> **Scientific status:** do not describe the current build as NASA-validated, flight-ready, landing-safety certified, or as guaranteeing power/communications. All analysis outputs must carry their own kernel/DEM hashes and validation status. Research-reference locations are not official challenge sites.
+## How a number is made
+
+- **Sun and Earth positions:** NASA/JPL SPICE (NAIF), DE421 ephemeris and lunar orientation kernels.
+- **Horizon:** NASA LOLA terrain from Goddard PGDA, 5 m per pixel at two polar sites (Product 78) and 240 m
+  per pixel across 60–90°S (Product 90); 720 directions traced out to 200 km.
+- **Landing verdict:** five landing rules R1–R5 (`backend/lunar_core/landing.py`), shown with every answer.
+  They are design choices, not measured quantities.
+- **Architecture:** Python science core (FastAPI, SpiceyPy, NumPy, SciPy, rasterio, pyproj) computes;
+  the React + three.js app in `frontend/app` only draws.
+
+## Validation status
+
+Pass rules were fixed before each run; failures stay on record. Full table and limits:
+[`docs/SCIENCE_VALIDATION_STATUS.md`](docs/SCIENCE_VALIDATION_STATUS.md); evidence in `validation/evidence/`.
+
+| Check | Result |
+|---|---|
+| Sun/Earth geometry vs JPL Horizons | PASS, worst 0.041″ |
+| 7 real missions (Apollo 11/14/15, SLIM, Chandrayaan-3, Chang'e-4, Blue Ghost 1) | 6/7 PASS; Blue Ghost 1 FAIL kept (flat horizon, +2.4 h) |
+| Terrain shadows vs LRO WAC photos | PASS, 5/6 frames |
+| Sunlight, Earth visibility, permanent shadow vs Goddard PGDA 69 | PASS |
+| Forecast Earth layer vs production answers | PASS, 99.86% |
+| Slope vs PGDA published slope maps | PASS, p95 0.70° / 0.92° (limit 1.5°) |
+| Sky orientation tolerance | FAIL kept (frame later matched IAU to 0.001°) |
+
+> **Not claimed:** landing-safety certification, a guaranteed radio link, thermal survival, or exact
+> timing on a flat horizon. Results on 5 m and 240 m terrain differ and every answer says which it used.
+> Research-reference sites are labelled as not official challenge sites.
+
+Development began on 25 Oct 2026, before the hackathon (14–15 Nov), using public NASA data. Built with
+AI coding assistance (Claude, Anthropic); see the project page text in
+an internal document (not published) for data, AI use and references.
+
+---
+
+The rest of this README is the developer guide. Parts of it date from the October prototype (the four-screen
+app, still served at `/legacy`). Where it disagrees with the status above, the status above and
+`docs/SCIENCE_VALIDATION_STATUS.md` are current. The 3D app is documented in
+[`frontend/app/README.md`](frontend/app/README.md).
 
 ## 1. Run locally
 
