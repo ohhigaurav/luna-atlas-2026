@@ -14,3 +14,16 @@ Not an independent validation. No published power or irradiance time series for 
 | 2027-10-15 | reference-lola-site-004 | 5.0 m | 0.0 | 0 | 0.0 | 0 | 0 | — | P1:ok P5:ok |
 
 Details of every check are in the .json.
+
+## Notes added after the run (13 Nov, backend session; they change no result)
+
+- **Timestamp correction.** The rules file says `predeclared_utc: 2026-11-13T10:30:00Z`. That time was typed wrongly
+  (a guess, later than the real time). The git record is authoritative: the rules were committed in `94b8823` at
+  2026-11-13T09:59:47Z, approved in `2e4135a` at 10:02:13Z, and this run started at 10:06:32Z. The file is left
+  unchanged so its sha256 above still matches.
+- **Jan 2027 peak 1414.8 W/m², close to the 1416 bound.** It implies a Sun–Moon distance of 0.98081 AU: a new Moon
+  near Earth's perihelion (0.98329 − 0.00248 AU). Physically expected and inside the derived range (≥ 0.98057 AU).
+- **Jan and Aug Site 001 disc 65.9% both:** 65.943% vs 65.932%; the rows differ in every other field (coincidence).
+- **What the numbers show** (Site 001, 2 m panel, 5 m terrain): the first sunrise takes 15.8 h (Oct) to 37.7 h (Aug)
+  to clear the whole disc, and in Jan the Sun sets again with only 0.11% of the disc ever up. A flat panel gets
+  0.9–2.8% of what a vertical Sun-facing panel gets. Time steps are 30 min, so sunrise durations are ±0.5 h.

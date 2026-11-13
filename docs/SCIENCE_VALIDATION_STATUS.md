@@ -11,6 +11,7 @@ Each gate's pass rule was fixed before its run; FAILs stay recorded. Evidence is
 | Earth layer | Forecast Earth map vs the production answer at the same pixels | **PASS** 99.86% of 1,440 pixel-frames (100% of clear cases) | `earth_movie_2026-11-06.md` |
 | Sky orientation | Frame checks; Earth's sub-Moon point vs Horizons | **FAIL kept** (A3: our limit ignored the 18.6-year pole term; the frame matches IAU 2015 to 0.001°, checked after the fact). Earth's face: PASS, within 0.1° at 13 dates | `sky_orientation_2026-11-06.md` |
 | S slope | Our Horn slope vs PGDA's published slope maps, Sites 001/004, 1.5 km | **PASS**: median −0.002° / −0.004°, p95 0.70° / 0.92° (limit 1.5°) | `slope_check_2026-11-08.md` |
+| P sunlight power | Sunlight on a panel (W/m², before panel efficiency) vs the Goddard-checked disc visibility and physical bounds; Sites 001/004, 3 × 30 days. **Consistency check, not independent validation** | **PASS** 6/6 rows: full-disc peak 1341–1415 W/m² (bounds 1300–1416), mean / (1361 × disc) within the distance factor, flat panel ≤ 2.8% of vertical, Site 004 zero | `power_check_2026-11-13.md` |
 
 **Measured, no pass rule:** the app's "verify with NASA JPL" link at Apollo 11, 2027-01-13 17:00, Sun +0.1″ and Earth −0.2″ from Horizons, i.e. display rounding (`apollo11_verify_link_2026-11-08.md`); DEM quality at the horizon-controlling terrain (`dem_quality_2026-10-28.md`);
 PGDA clone check and observer-height sweep (`clone_check_and_mast_height_2026-10-28.md`); 0.25° vs 0.5°

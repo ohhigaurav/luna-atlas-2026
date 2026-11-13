@@ -33,6 +33,7 @@ Pass rules were fixed before each run; failures stay on record. Full table and l
 | Sunlight, Earth visibility, permanent shadow vs Goddard PGDA 69 | PASS |
 | Forecast Earth layer vs production answers | PASS, 99.86% |
 | Slope vs PGDA published slope maps | PASS, p95 0.70° / 0.92° (limit 1.5°) |
+| Sunlight on a panel: consistency with the checked disc visibility and physical bounds (not an independent validation) | PASS, 6/6 rows |
 | Sky orientation tolerance | FAIL kept (frame later matched IAU to 0.001°) |
 
 > **Not claimed:** landing-safety certification, a guaranteed radio link, thermal survival, or exact
@@ -242,7 +243,7 @@ validation/           approved-tolerance contract, golden CSV template, output e
 - The challenge's Resources (published 13 Nov 2026) contain no official site list, so the official catalogue is empty. The app uses reference sites from published sources, each with its citation and labelled as not official, plus any coordinates the user types or clicks.
 - Terrain: 5 m per pixel only inside the Product 78 Site 001 and Site 004 tiles; 240 m elsewhere in 60–90°S. Between 60° and about 66.6°S the 200 km horizon rays leave the regional map and those answers use a flat horizon, labelled as such. Answers on 5 m and 240 m terrain can differ by tens of percentage points; every answer states which it used.
 - Hosted: live on a cloud server in Docker (`deploy/`); the static answer bundle is only an automatic fallback and is labelled as precomputed.
-- No landing hazard certification, power/battery sizing, RF link budget, DSN schedule, thermal model or guaranteed comms uptime is claimed. Slopes and rocks smaller than about 10 m are below the terrain resolution.
+- No landing hazard certification, power-system or battery sizing (the app shows sunlight reaching a panel, before panel efficiency, not electrical output), RF link budget, DSN schedule, thermal model or guaranteed comms uptime is claimed. Slopes and rocks smaller than about 10 m are below the terrain resolution.
 - No committed `uv.lock` yet (see section 2).
 
 ## 10. Authoritative public references
