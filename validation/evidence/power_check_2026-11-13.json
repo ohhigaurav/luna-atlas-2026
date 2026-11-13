@@ -1,0 +1,263 @@
+{
+  "gate": "P (sunlight power, consistency and physical bounds)",
+  "verdict": "PASS",
+  "run_utc": "2026-11-13T10:06:32Z",
+  "commit": "2e4135ac919f5145aa7fd1b0e59a138d54a7a671",
+  "server": "https://13-54-224-119.sslip.io",
+  "api_version": "0.7.72.dev0",
+  "rules_sha256": "4f97326f5e5503e5e6e4ca4270ba87952c214680dda2d1077521e4f31287d700",
+  "rules_status": "approved_before_run",
+  "results": [
+    {
+      "at_utc": "2027-01-01T00:00:00Z",
+      "site": "reference-lola-site-001",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 65.94321313943,
+      "power": {
+        "mean_vertical_w_m2": 929.9132394626901,
+        "mean_horizontal_w_m2": 15.172732185221271,
+        "peak_vertical_w_m2": 1414.8264059244254,
+        "energy_vertical_kwh_m2": 669.5375326301958,
+        "partial_sun_percent": 5.755894590846047,
+        "first_sunrise": {
+          "sunrise_utc": "2027-01-27T12:09:32.437Z",
+          "full_disc_utc": null,
+          "to_full_disc_h": null,
+          "lower_bound": false,
+          "full_disc_reached": false,
+          "set_before_full_disc": true,
+          "peak_disc_percent": 0.1126564249754547,
+          "resolution_h": 0.5
+        },
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 1414.8"
+        ],
+        [
+          "P3",
+          true,
+          "ratio 1.0361"
+        ],
+        [
+          "P4",
+          true,
+          "flat/vertical 0.0163"
+        ],
+        [
+          "P6",
+          true,
+          "sunrise 2027-01-27T12:09:32.437Z, to full disc None"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "at_utc": "2027-01-01T00:00:00Z",
+      "site": "reference-lola-site-004",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 0.0,
+      "power": {
+        "mean_vertical_w_m2": 0.0,
+        "mean_horizontal_w_m2": 0.0,
+        "peak_vertical_w_m2": 0.0,
+        "energy_vertical_kwh_m2": 0.0,
+        "partial_sun_percent": 0.0,
+        "first_sunrise": null,
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 0.0"
+        ],
+        [
+          "P5",
+          true,
+          "no disc, no power"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "at_utc": "2027-08-01T00:00:00Z",
+      "site": "reference-lola-site-001",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 65.93185132030182,
+      "power": {
+        "mean_vertical_w_m2": 876.4196607385614,
+        "mean_horizontal_w_m2": 7.924787785474709,
+        "peak_vertical_w_m2": 1341.083245673295,
+        "energy_vertical_kwh_m2": 631.0221555763252,
+        "partial_sun_percent": 8.119361554476058,
+        "first_sunrise": {
+          "sunrise_utc": "2027-08-21T15:20:58.951Z",
+          "full_disc_utc": "2027-08-23T05:00:00.001Z",
+          "to_full_disc_h": 37.650291473633715,
+          "lower_bound": false,
+          "full_disc_reached": true,
+          "peak_disc_percent": 99.0675062438016,
+          "resolution_h": 0.5
+        },
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 1341.1"
+        ],
+        [
+          "P2",
+          true,
+          "peak 1341.1 with a full disc"
+        ],
+        [
+          "P3",
+          true,
+          "ratio 0.9767"
+        ],
+        [
+          "P4",
+          true,
+          "flat/vertical 0.0090"
+        ],
+        [
+          "P6",
+          true,
+          "sunrise 2027-08-21T15:20:58.951Z, to full disc 37.650291473633715"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "at_utc": "2027-08-01T00:00:00Z",
+      "site": "reference-lola-site-004",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 0.0,
+      "power": {
+        "mean_vertical_w_m2": 0.0,
+        "mean_horizontal_w_m2": 0.0,
+        "peak_vertical_w_m2": 0.0,
+        "energy_vertical_kwh_m2": 0.0,
+        "partial_sun_percent": 0.0,
+        "first_sunrise": null,
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 0.0"
+        ],
+        [
+          "P5",
+          true,
+          "no disc, no power"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "at_utc": "2027-10-15T00:00:00Z",
+      "site": "reference-lola-site-001",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 80.28233470155169,
+      "power": {
+        "mean_vertical_w_m2": 1107.5838988596527,
+        "mean_horizontal_w_m2": 31.393689582710525,
+        "peak_vertical_w_m2": 1386.5478535641214,
+        "energy_vertical_kwh_m2": 797.4604072847974,
+        "partial_sun_percent": 3.3980582524271843,
+        "first_sunrise": {
+          "sunrise_utc": "2027-10-16T19:12:15.194Z",
+          "full_disc_utc": "2027-10-17T11:00:00.000Z",
+          "to_full_disc_h": 15.795779440071847,
+          "lower_bound": false,
+          "full_disc_reached": true,
+          "peak_disc_percent": 99.77442536707292,
+          "resolution_h": 0.5
+        },
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 1386.5"
+        ],
+        [
+          "P2",
+          true,
+          "peak 1386.5 with a full disc"
+        ],
+        [
+          "P3",
+          true,
+          "ratio 1.0137"
+        ],
+        [
+          "P4",
+          true,
+          "flat/vertical 0.0283"
+        ],
+        [
+          "P6",
+          true,
+          "sunrise 2027-10-16T19:12:15.194Z, to full disc 15.795779440071847"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "at_utc": "2027-10-15T00:00:00Z",
+      "site": "reference-lola-site-004",
+      "terrain_m": 5.0,
+      "sun_disc_percent": 0.0,
+      "power": {
+        "mean_vertical_w_m2": 0.0,
+        "mean_horizontal_w_m2": 0.0,
+        "peak_vertical_w_m2": 0.0,
+        "energy_vertical_kwh_m2": 0.0,
+        "partial_sun_percent": 0.0,
+        "first_sunrise": null,
+        "solar_constant_w_m2": 1361.0,
+        "step_h": 0.5,
+        "definition": "sunlight reaching a panel 'panel_height_m' above the ground, before panel efficiency: 1361 W/m2 at 1 AU scaled by the Sun's distance, times the visible share of the disc, times cos(elevation) for a vertical panel facing the Sun or sin(elevation) for a flat one; sampled every coarse step",
+        "not_included": "cell efficiency, temperature, dust, batteries, light reflected by terrain, limb darkening"
+      },
+      "checks": [
+        [
+          "P1",
+          true,
+          "peak 0.0"
+        ],
+        [
+          "P5",
+          true,
+          "no disc, no power"
+        ]
+      ],
+      "ok": true
+    }
+  ]
+}
