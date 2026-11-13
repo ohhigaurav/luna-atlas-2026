@@ -59,13 +59,13 @@ export function originLabel(site: ReferenceSite): string {
   if (site.position_kind === 'target_region_centre') return `Planned target, region centre${from}`;
   return `Published site${from}`;
 }
-/** The rest of the story, one hover away: the source and that it is not the challenge's own list. */
+/** The rest of the story, one hover away: the source, and that the challenge published no site list. */
 export function originTitle(site: ReferenceSite): string {
   if (site.site_id.startsWith('point:')) return 'A point you picked on the map.';
   if (site.origin === 'official') return 'From the Space Apps 2026 challenge site list.';
   const src = sourceName(site);
   return `Coordinates from ${src ?? 'a published source'}${site.source_record ? ` (${site.source_record})` : ''}. `
-    + "Not from the challenge's own site list, which is released 13 Nov and marked \"Official challenge site\".";
+    + 'The challenge published no site list (Resources, 13 Nov 2026), so every site here comes from a published source.';
 }
 const MISSION_CHIPS = [1, 3, 5, 7, 10, 14];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

@@ -17,7 +17,7 @@ export type ReferenceSite = PinSite & {
   source_record?: string;
   terrain_status?: string;
   position_kind?: string;
-  /** "official" (challenge sites, from 13 Nov) or "reference"; from GET /api/site-index. */
+  /** "official" (challenge sites; none were published) or "reference"; from GET /api/site-index. */
   origin?: string;
   kind?: string;
   /** Our measured finding about this site, kept apart from the citation (docs/frontend_api.md). */
