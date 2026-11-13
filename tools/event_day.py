@@ -144,7 +144,7 @@ def report_markdown(rows: list[dict[str, Any]], compare: list[dict[str, Any]], m
     band = [r["name"] for r in rows if r.get("flat_fallback_band")]
     if band:
         lines += ["", f"Between 60° and 66.6°S ({', '.join(band)}): the terrain rays leave the 240 m map, so these get a "
-                  "flat horizon with a note (independent review #7, not fixed by decision). Say so if they come up."]
+                  "flat horizon with a note (known limit, not fixed). Say so if they come up."]
     for block in compare:
         lines += ["", f"## Polar sites side by side at {block['at_utc'][:16]} UTC (30 days)", "",
                   "| site | terrain | Sun now | next Sun event | Earth now | next Earth event | sunlit | Earth | both |",

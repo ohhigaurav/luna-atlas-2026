@@ -40,8 +40,8 @@ Pass rules were fixed before each run; failures stay on record. Full table and l
 > Research-reference sites are labelled as not official challenge sites.
 
 Development began on 25 Oct 2026, before the hackathon (14–15 Nov), using public NASA data. Built with
-AI coding assistance (Claude, Anthropic); see the project page text in
-an internal document (not published) for data, AI use and references.
+AI coding assistance (Claude, Anthropic). Data sources, AI use and references are listed on the Space Apps
+project page.
 
 ---
 

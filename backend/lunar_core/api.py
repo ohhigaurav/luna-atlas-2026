@@ -45,7 +45,7 @@ KERNEL_MANIFEST_PATH = PROJECT_ROOT / "data" / "manifests" / "kernels.json"
 DEM_MANIFEST_PATH = PROJECT_ROOT / "data" / "dems" / "manifest.json"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 # Built 3D app (frontend/app, `npm run build`; scripts/run_local.sh builds it). It is the only app at /.
-# The legacy four-screen app is frozen at /legacy (decision 3 Nov, an internal document (not published)).
+# The legacy four-screen app is kept at /legacy.
 FRONTEND_APP_DIST = FRONTEND_DIR / "app" / "dist"
 
 app = FastAPI(
