@@ -5,10 +5,13 @@
 **Difficulty:** Advanced, Intermediate
 **Subjects:** Human Exploration, Moon, Software, Space Exploration
 **Captured:** 2026-11-01, text copied from the challenge page's Details tab by the team and pasted unedited below.
-**Resources tab:** not yet available; scheduled for 13 Nov 2026 (D-02). The page says "More resources may be added before the hackathon begins."
+**Resources tab (published 13 Nov 2026, read 13 Nov):** NASA Data & Resources: Quickmap (LROC, Arizona State
+University), Moon Trek (NASA), the JPL Horizons System; Space Agency Partner: CSA Moon Exploration. **No list of
+official landing sites was published**, so the app's curated site list (below) stands as our choice, as the
+statement invites ("a curated list of notable landing sites … as well as the ability to input custom lunar
+coordinates").
 
-This is the authoritative scope document until the Resources tab is published. Where it conflicts with
-older PRD assumptions, this text wins (D-01).
+This is the authoritative scope document. Where it conflicts with older planning assumptions, this text wins.
 
 ---
 
@@ -74,15 +77,15 @@ For data and resources related to this challenge, refer to the Resources tab at 
 
 ## Scope consequences for Luna Atlas (our notes, not challenge text)
 
-| Statement item | Current state in repo | Gap |
-|---|---|---|
-| Curated list: Apollo, CLPS targets, other commercial, other countries | 7 south-polar literature points only | Global stand-in list needed (D-21) |
-| Custom lunar coordinates | **Not supported:** `AnalysisRequest`/`FinderRequest` take catalogue `site_ids` only | Needs a custom-site input with its own provenance label; DEM coverage is only 60–90° S, elsewhere terrain fails closed (D-22) |
-| Side-by-side comparison | Compare flow exists | — |
-| Date/time flexibility, lunar days/seasons | Analysis window + landing-window finder | — |
-| Sun/Earth position vs horizon | Horizon profile + SPICE az/el (Gate B passed) | — |
-| Time remaining before sunset/Earthset | Derivable from event windows | Not a headline metric in UI yet |
-| Solar elevation, sunlight duration, Earth visibility windows | Metrics module | Solar elevation not prominent |
-| 2D/3D, animation/timeline | 2D UI | Timeline/animation not built |
-| Libration / orbital variation | Inherent in SPICE geometry | Explain in UI/educational copy |
-| Why small changes matter | Location scan (0.7.3) | Not surfaced in UI |
+| Statement item | How Luna Atlas covers it (13 Nov) |
+|---|---|
+| Curated list: Apollo, CLPS targets, other commercial, other countries | 25 sites: Apollo 11, 12, 14, 15, 16, 17; CLPS IM-1, Blue Ghost 1, IM-2, IM-3 target, CP-12 target; Chang'e 3, 4, 5, 6, Chandrayaan-3, SLIM, Luna 24; 7 published south-pole reference points. Each with its source |
+| Custom lunar coordinates | Type coordinates in the command bar (Ctrl K): landing windows at that point (240 m terrain south of 60°S, flat horizon elsewhere, labelled); compare also takes points |
+| Side-by-side comparison | Compare 2–6 sites or points for the same dates |
+| Date/time flexibility, lunar days/seasons | Date bar; best landing date up to a year ahead (soonest, most sunlight, most Earth contact) |
+| Sun/Earth position vs horizon | "Stand here in 3D" with the terrain horizon; Sun and Earth height above the local horizon on every answer |
+| Time remaining before sunset/Earthset | Compare shows time to sunset/sunrise and Earthset/Earthrise |
+| Solar elevation, sunlight duration, Earth visibility windows | Site card and compare: Sun height at touchdown, sunlight share, Earth contact, longest darkness |
+| 2D/3D, animation/timeline | 3D Moon with three zoom levels, polar forecast movie, mission playback |
+| Libration / orbital variation | Inherent in the SPICE geometry (DE421 and lunar orientation kernels) |
+| Why small changes matter | Landing ellipse: ~45 points around the target, coloured by sunlight and slope |
