@@ -79,6 +79,8 @@ export const GODDARD = {
 export const MORE_CHECKS: Array<{ name: string; verdict: 'PASS' | 'FAIL' | 'OPEN'; text: string; file: string }> = [
   { name: 'Slope (Gate S)', verdict: 'PASS', file: 'validation/evidence/slope_check_2026-11-08.md',
     text: "Our slope of the 5 m terrain matches NASA's published slope maps (PGDA) at Sites 001 and 004: 95% of pixels within 0.70° / 0.92° (limit 1.5°), median difference under 0.01°. Rule fixed the day before the run." },
+  { name: 'Sunlight on a panel (Gate P)', verdict: 'PASS', file: 'validation/evidence/power_check_2026-11-13.md',
+    text: "Sunlight reaching a panel (before panel efficiency) agrees with the Goddard-checked Sun visibility and stays inside physical limits at Sites 001 and 004, 3 × 30 days. A consistency check, not an independent validation. At Site 001 the first sunrise takes 15.8–37.7 h to clear the whole Sun; a flat panel gets under 3% of a vertical one." },
   { name: 'Average sunlight and Earth (Gate E)', verdict: 'PASS', file: 'validation/evidence/goddard_maps_2026-11-05.md',
     text: "vs NASA Goddard's south-pole maps over 18.6 years: Sun median gap −0.016, Earth −0.045 (Earth reads a little low, cause open), permanent shadow 94% agreement. Brightest ridges (> 0.6) not tested." },
   { name: 'Observed illumination (LROC WAC)', verdict: 'OPEN', file: 'validation/evidence/wac_illumination_2026-11-01.md',
