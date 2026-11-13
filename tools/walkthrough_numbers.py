@@ -47,6 +47,14 @@ def days(h: Any) -> str:
     return "-" if h is None else f"{float(h) / 24:.1f} d"
 
 
+def dh(h: Any) -> str:
+    """Hours as the app shows them: "11 d 19 h" (rounded to the hour)."""
+    if h is None or h == "-":
+        return "-"
+    n = round(float(h))
+    return f"{n // 24} d {n % 24} h" if n >= 24 else f"{n} h"
+
+
 def terrain(t: Any) -> str:
     r = (t or {}).get("finest_resolution_m")
     return "flat horizon" if r is None else f"{float(r):g} m terrain"
@@ -99,7 +107,8 @@ def main() -> int:
         print(f"   {row.get('key')}: {terrain(row.get('terrain'))}; sunlit {pct(p.get('sunlit_percent'))}, "
               f"Earth {pct(p.get('earth_percent'))}, both {pct(p.get('both_percent'))}, "
               f"longest darkness {p.get('longest_darkness_h', 0):.0f} h{lb}; "
-              f"next {sn.get('event', '-')} in {sn.get('in_h', '-')} h, next {en.get('event', '-')} in {en.get('in_h', '-')} h")
+              f"next {sn.get('event', '-')} in {dh(sn.get('in_h'))}{' or more' if sn.get('lower_bound') else ''}, "
+              f"next {en.get('event', '-')} in {dh(en.get('in_h'))}{' or more' if en.get('lower_bound') else ''}")
 
     for sid in (SITE_001, SITE_004):
         sl, s = call(a.base, "/api/slope", {"site_id": sid, "semi_major_m": 250, "slope_limit_deg": 8})
