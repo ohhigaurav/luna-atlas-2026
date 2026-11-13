@@ -78,7 +78,7 @@ The initial image build needs access to the Python package registry. Kernel and 
 ./scripts/verify_project.sh
 ```
 
-The portable verification script runs compilation, tests, JavaScript syntax and catalogue validation. This checkout currently passes 119 tests (run the script locally to reproduce). It runs Ruff and mypy when installed and reports missing tools as **SKIPPED**, not as passes. In the project environment, the individual CI-equivalent commands are `uv run pytest -q`, `uv run ruff check backend tests tools`, and `uv run mypy backend/lunar_core`.
+The portable verification script runs compilation, tests, JavaScript syntax and catalogue validation. On 13 Nov 2026 (0.7.69) 409 tests passed in an environment without FastAPI and rasterio (the API and raster test modules need them and are skipped there); with them installed, 426 passed on 8 Nov (0.7.42). It runs Ruff and mypy when installed and reports missing tools as **SKIPPED**, not as passes. In the project environment, the individual CI-equivalent commands are `uv run pytest -q`, `uv run ruff check backend tests tools`, and `uv run mypy backend/lunar_core`.
 
 The test suite uses synthetic fixtures for numerical edge cases and mocked SPICE calls. Passing tests establish correctness for those fixtures; they do not substitute for JPL Horizons golden tests or real DEM review. Ruff and mypy are enforced in CI; run both locally before merging. A committed `uv.lock` is required for release reproducibility; this checkout does not include one because lock resolution could not be completed in the offline build container. Generate and review it with `uv lock` on a registry-connected machine, commit it, and use `uv sync --locked` for the release build.
 
@@ -195,11 +195,11 @@ Replaying a saved scenario requires the same code commit, data/kernel/DEM hashes
 - **Terrain horizon:** apparent elevation is calculated along spherical surface rays; per-azimuth controlling range and coverage are retained. Missing/uncovered data means incomplete coverage.
 - **Sun margin:** `g_sun = elevation_sun + asin(R_sun / range_sun) - H_sun(azimuth_sun)`.
 - **Earth-centre-clear margin:** `g_dte = elevation_earth - H_earth(azimuth_earth) - clearance`. This means geometric line of sight to Earth's centre under the specified rule, not a link budget or communications availability.
-- **Events:** coarse sign-change bracketing + Brent refinement + a local-extremum/grazing diagnostic. Numerical root tolerance is not a completeness proof. A certified maximum margin-rate bound/adaptive scheme is still required before claiming that no short window can be missed.
+- **Events:** coarse sign-change bracketing + Brent refinement + a local-extremum/grazing diagnostic. Discovery is certified with a rate bound built from SPICE azimuth/elevation rates and the local horizon slope: every coarse step the bound cannot clear is bisected, so no visible or hidden interval longer than the event tolerance is missed under the per-step rate assumption. Shorter grazes are listed per run, and each run reports `event_precision.discovery_certified`.
 - **Metrics:** integrate intervals derived from refined windows; truncated interval-edge outages are lower bounds (`>=`). Finder candidates clip those same windows to each mission interval.
 - **Comparison:** hard constraints first; never create a universal “best site” score without visible weights and sensitivity analysis.
 
-## 7. Independent validation, required before public scientific claims
+## 7. Validation gates (current status: `docs/SCIENCE_VALIDATION_STATUS.md`)
 
 1. **Site and terrain data gate:** source records, coordinate/latitude conventions, original files, CRS round-trip tests, vertical-datum review and per-site coverage map.
 2. **SPICE geometry gate:** pin dependencies/kernels and record hashes; test at ≥3 epochs on ≥2 sites including near-horizon cases. Save full JPL Horizons query and raw response; normalize output to `validation/templates/horizons_reference_template.csv`.
@@ -216,14 +216,15 @@ uv run python tools/compare_horizons.py \
   --tolerances validation/horizons_tolerances.json
 ```
 
-The comparison has deliberately not been run in this starter environment: no actual SPICE kernels, official candidate sites or verified site DEMs are bundled. Never choose tolerances after looking at the observed errors.
+This comparison was run on 28 Oct 2026 (Gate B): **PASS**, worst differences 0.021″ azimuth, 0.041″ elevation and 0.011 km range against 1″ / 1″ / 1 km tolerances approved and committed before the run. Evidence: `validation/evidence/gate_b_geometry_2026-10-28.md`, the raw Horizons responses in `validation/evidence/horizons_raw/` and the `horizons_comparison_*.json` files. The status of every gate, PASS or FAIL, is in `docs/SCIENCE_VALIDATION_STATUS.md`. Never choose tolerances after looking at the observed errors.
 
 ## 8. Repository map
 
 ```text
 backend/lunar_core/   science core, API models, SPICE/DEM adapters, finder, metrics, exports
-frontend/             four-screen self-contained web app (no remote JS/fonts)
-data/catalogue/       official candidate sites (initially empty, populated by importer)
+frontend/app/         the Luna Atlas 3D app (React + three.js); it only draws, the API computes
+frontend/             October four-screen prototype, still served at /legacy
+data/catalogue/       official challenge sites (empty: the challenge published no site list on 13 Nov 2026)
 data/reference/       literature reference points; never merged into the official catalogue
 data/manifests/       pinned SPICE kernel hashes and ordered load set
 data/dems/            DEM asset/provenance manifest and metadata notes
@@ -235,13 +236,14 @@ validation/           approved-tolerance contract, golden CSV template, output e
  docs/                 architecture, modeling contract, release gates, public copy and demo runbook
 ```
 
-## 9. Known limits / current delivery status
+## 9. Known limits / current status (13 Nov 2026)
 
-- Actual NAIF kernels have not been downloaded in this development container, and no SPICE geometry comparison against JPL Horizons has been executed.
-- Official challenge candidate data and per-site DEM assets are not bundled; site records and assets must be imported with provenance.
-- The science core and UI/API are integrated, but the product remains a **prototype pending independent scientific validation**; CI lint/type checks must be green before release.
-- There is no public GitHub remote or hosted deployment configured by this repository; these are release actions, not completed artifacts.
-- No landing hazard certification, power/battery sizing, RF link budget, DSN schedule, thermal model or guaranteed comms uptime is claimed.
+- Validation: see the table at the top and `docs/SCIENCE_VALIDATION_STATUS.md`. Two FAILs are kept on record (Blue Ghost 1 sunset on a flat horizon; the sky-orientation tolerance).
+- The challenge's Resources (published 13 Nov 2026) contain no official site list, so the official catalogue is empty. The app uses reference sites from published sources, each with its citation and labelled as not official, plus any coordinates the user types or clicks.
+- Terrain: 5 m per pixel only inside the Product 78 Site 001 and Site 004 tiles; 240 m elsewhere in 60–90°S. Between 60° and about 66.6°S the 200 km horizon rays leave the regional map and those answers use a flat horizon, labelled as such. Answers on 5 m and 240 m terrain can differ by tens of percentage points; every answer states which it used.
+- Hosted: live on a cloud server in Docker (`deploy/`); the static answer bundle is only an automatic fallback and is labelled as precomputed.
+- No landing hazard certification, power/battery sizing, RF link budget, DSN schedule, thermal model or guaranteed comms uptime is claimed. Slopes and rocks smaller than about 10 m are below the terrain resolution.
+- No committed `uv.lock` yet (see section 2).
 
 ## 10. Authoritative public references
 
@@ -256,11 +258,4 @@ validation/           approved-tolerance contract, golden CSV template, output e
 
 Exact retrieval timestamps, raw filenames, file sizes, hashes and product-specific citation metadata must be recorded when the official data are staged. See `NOTICE.md` and `data/dems/manifest.json`.
 
-
-## 6. Luna Atlas UI refresh (0.7.0-dev)
-
-The front end has been redesigned as a lunar field atlas rather than a dense operations console. The default journey is: **Compare places → Pick a date → Data & science → Saved results**. Visual language uses paper/stone surfaces, a dark navigation rail, amber for the Sun, teal for Earth, larger form labels, responsive layouts and no external font/CDN dependency. Existing API contracts and IDs used by the frontend are preserved, and UTC conversion is stated beside the date controls.
-
-The data-source register now also links NASA PGDA Product 104, a 5 m/pixel shape-from-shading product for 13 earlier Artemis III candidate regions. It is a supplemental dataset, not the authority for the 2026 challenge site catalogue. The UI also flags a key scientific caveat from Zhong et al. (2026): one Chang’e-7 region study found 5 m and 20 m DEMs overestimated cumulative illumination relative to a 1 m baseline. This is a reason to run site-specific resolution sensitivity analysis—not a correction factor the app applies. The build environment used for this release had no outbound DNS/network access; no new kernel or DEM binaries were downloaded into this archive. Run `./scripts/bootstrap_public_reference.sh` from an internet-connected machine when appropriate. The official 2026 challenge catalogue remains empty until the official source file is released and imported.
-
-See an internal document (not published), [`docs/SCIENCE_VALIDATION_STATUS.md`](docs/SCIENCE_VALIDATION_STATUS.md), and an internal document (not published) for the design specification, current scientific gates, source register and validation matrix. For local/Docker deployment and release-blocking gates, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). The current validation scoreboard (every gate, PASS and FAIL, with its evidence file) is [`docs/SCIENCE_VALIDATION_STATUS.md`](docs/SCIENCE_VALIDATION_STATUS.md).
+For local/Docker deployment see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). The current validation scoreboard (every gate, PASS and FAIL, with its evidence file) is [`docs/SCIENCE_VALIDATION_STATUS.md`](docs/SCIENCE_VALIDATION_STATUS.md).

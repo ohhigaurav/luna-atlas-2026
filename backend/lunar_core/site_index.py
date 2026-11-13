@@ -1,8 +1,9 @@
 """One list of every site the app shows: official challenge sites first, then reference points.
 
-Until 13 Nov the official catalogue is empty and the app shows reference points only. After
-``tools/import_official_sites.py`` writes ``data/catalogue/sites.json``, the official sites must
-appear without any frontend change beyond reading this list (an internal document (not published)). Each entry
+The challenge's Resources (13 Nov 2026) contain no site list, so the official catalogue is empty
+and the app shows reference points only. If a list is ever imported with
+``tools/import_official_sites.py`` (writes ``data/catalogue/sites.json``), the official sites
+appear without any frontend change beyond reading this list. Each entry
 keeps its own origin, so the app can say "Official challenge site" or "Reference point, not
 official", and so official and reference records can never be confused.
 """

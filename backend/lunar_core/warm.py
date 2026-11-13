@@ -37,7 +37,7 @@ def warm_once(day: str) -> tuple[int, int]:
     from lunar_core.landing import run_landing
     from lunar_core.references import load_reference_catalogue
 
-    # Official challenge sites first (from 13 Nov), then reference points; flat-horizon sites
+    # Official challenge sites first (none were published), then reference points; flat-horizon sites
     # before polar terrain sites within each group.
     official = [s for s in load_default_catalogue().sites if s.latitude_deg is not None and s.longitude_deg is not None]
     sites: list[Any] = (sorted(official, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG)

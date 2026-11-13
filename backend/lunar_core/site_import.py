@@ -1,6 +1,8 @@
 """Format-tolerant, fail-closed parsing of lunar site lists.
 
-The official challenge site list will only be published on 13 Nov 2026 and its format is unknown.
+Written before 13 Nov 2026, when an official challenge site list was expected in an unknown format.
+The Resources published that day contain no site list, so this importer has not been used for the
+submission; it stays for any list published later.
 This module reads the plausible formats (CSV/TSV/semicolon text, XLSX, JSON, GeoJSON, KML) into
 plain rows, finds the id/name/latitude/longitude columns through a fixed alias table, and parses
 coordinates written as signed decimals, decimals with a hemisphere letter, or degrees-minutes-seconds.

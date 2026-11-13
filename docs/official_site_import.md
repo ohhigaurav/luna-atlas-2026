@@ -1,5 +1,10 @@
 # Importing the official site list (13 Nov 2026)
 
+> **Status, 13 Nov 2026:** the challenge's Resources tab was published with links to Quickmap, Moon
+> Trek, JPL Horizons and the CSA Moon Exploration page, and **no site list**. Nothing was imported;
+> the app uses cited reference sites and user-entered coordinates. The procedure below is kept for
+> any list published later.
+
 The Resources tab of "10 – CLPS Lunar Landing Site Navigator" is scheduled for 13 Nov 2026 (D-02).
 Its site-list format is unknown. This is the procedure for getting it into
 `data/catalogue/sites.json` without guessing.
