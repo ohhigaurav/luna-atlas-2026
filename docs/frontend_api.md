@@ -194,7 +194,15 @@ repeated questions are instant. Response:
    "earth_next": {"up": true,  "event": "earthset", "utc": "...", "in_h": 330.0, "lower_bound": false},
    "period": {"sunlit_percent": 98.0, "earth_percent": 47.0, "both_percent": 46.0,
               "longest_darkness_h": 12.0, "longest_darkness_lower_bound": false,
-              "longest_earth_gap_h": 360.0, "longest_earth_gap_lower_bound": true},
+              "longest_earth_gap_h": 360.0, "longest_earth_gap_lower_bound": true,
+              "sun_disc_percent": 91.2,
+              "power": {"mean_vertical_w_m2": 1201.0, "mean_horizontal_w_m2": 31.0,
+                        "peak_vertical_w_m2": 1318.4, "energy_vertical_kwh_m2": 865.0,
+                        "partial_sun_percent": 14.0, "step_h": 0.5, "solar_constant_w_m2": 1361.0,
+                        "first_sunrise": {"sunrise_utc": "...", "full_disc_utc": "...", "to_full_disc_h": 9.5,
+                                          "lower_bound": false, "full_disc_reached": true,
+                                          "peak_disc_percent": 100.0, "resolution_h": 0.5},
+                        "definition": "...", "not_included": "..."}},
    "limits_all_pass": false,
    "limits": [{"key": "darkness", "label": "Longest darkness", "value_h": 310.0, "limit_h": 50.0,
                "text": "12 d 22 h", "lower_bound": false, "status": "fail"}, ...],
@@ -208,6 +216,16 @@ repeated questions are instant. Response:
 - `none_in_period: true` means it never rises in the period.
 - `leaders` names the best key per metric; ties are listed together. There is no combined score.
   Highlight the leader's cell in each row.
+- **Sunlight power (0.7.72)** — `period.power`, missing or `null` in older static answers (hide the row then).
+  The sunlight reaching a panel at `panel_height_m`, **before panel efficiency** (W/m²):
+  `mean_vertical_w_m2` for a vertical panel turned to the Sun (how polar landers mount panels) is the
+  headline; `mean_horizontal_w_m2` (flat panel) shows why the Sun's height matters: at the pole it is a few
+  percent of the vertical one. `energy_vertical_kwh_m2` is per m² over the analysed days.
+  `partial_sun_percent` is the share of time only part of the Sun's disc is above the horizon.
+  `first_sunrise`: the first sunrise inside the period (null if none, or if the Sun was already up) and how
+  long until the whole disc is clear (`to_full_disc_h`, accurate to `resolution_h`; "at least" when
+  `lower_bound`; `set_before_full_disc: true` = the Sun set again first). Labels must say "sunlight on a
+  panel, before panel efficiency" and never "power output". Leader key: `most_power`.
 - Changing the date or a place means asking again.
 
 ## `POST /api/check`

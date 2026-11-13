@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from lunar_core import analysis_service, check, custom_point
+from lunar_core import analysis_service, check, custom_point, power
 from lunar_core.api_models import CheckRequest, CompareRequest, PlaceRef
 
 SECONDS_PER_HOUR = 3600.0
@@ -79,6 +79,8 @@ def _row(result: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
         "period": {
             "sunlit_percent": float(m["sunlit_percent"]),
             "sun_disc_percent": check.sun_disc_percent(site.get("series") or []),
+            # Sunlight power on a panel and the first sunrise's climb to a full disc (power.py).
+            "power": power.summarise(site.get("series") or [], site.get("sun_windows") or []),
             "earth_percent": float(m["dte_clear_percent"]),
             "both_percent": float(m["both_percent"]),
             "longest_darkness_h": float(m["longest_darkness"]["duration_s"]) / SECONDS_PER_HOUR,
@@ -116,6 +118,8 @@ def leaders(rows: list[dict[str, Any]]) -> dict[str, list[str]]:
         # Disc-averaged sunlight (what a panel gets) when present; "any part of the Sun" otherwise.
         "most_sunlight": best({k: (r["period"]["sun_disc_percent"] if r["period"].get("sun_disc_percent") is not None
                                    else r["period"]["sunlit_percent"]) for k, r in keyed.items()}),
+        "most_power": best({k: r["period"]["power"]["mean_vertical_w_m2"] for k, r in keyed.items()
+                            if r["period"].get("power")}),
         "most_earth": best({k: r["period"]["earth_percent"] for k, r in keyed.items()}),
         "most_both": best({k: r["period"]["both_percent"] for k, r in keyed.items()}),
         "shortest_darkness": best({k: r["period"]["longest_darkness_h"] for k, r in keyed.items()}, higher=False),

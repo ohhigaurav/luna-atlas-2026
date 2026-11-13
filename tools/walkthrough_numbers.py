@@ -109,6 +109,17 @@ def main() -> int:
               f"longest darkness {p.get('longest_darkness_h', 0):.0f} h{lb}; "
               f"next {sn.get('event', '-')} in {dh(sn.get('in_h'))}{' or more' if sn.get('lower_bound') else ''}, "
               f"next {en.get('event', '-')} in {dh(en.get('in_h'))}{' or more' if en.get('lower_bound') else ''}")
+        pw = p.get("power")
+        if pw:
+            fr = pw.get("first_sunrise")
+            rise = "no sunrise in the period" if not fr else (
+                f"first sunrise {str(fr['sunrise_utc'])[:16]}Z: Sun set again before a full disc"
+                if fr.get("set_before_full_disc") else
+                f"first sunrise {str(fr['sunrise_utc'])[:16]}Z: full disc after {'at least ' if fr['lower_bound'] else ''}"
+                f"{dh(fr['to_full_disc_h'])}")
+            print(f"      power: {pw['mean_vertical_w_m2']:.0f} W/m2 average on a vertical panel "
+                  f"({pw['mean_horizontal_w_m2']:.0f} flat), {pw['energy_vertical_kwh_m2']:.0f} kWh/m2 in 30 days, "
+                  f"partial Sun {pw['partial_sun_percent']:.0f}% of the time; {rise}")
 
     for sid in (SITE_001, SITE_004):
         sl, s = call(a.base, "/api/slope", {"site_id": sid, "semi_major_m": 250, "slope_limit_deg": 8})

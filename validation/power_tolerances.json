@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "gate": "P (sunlight power, consistency and physical bounds)",
+  "status": "proposed",
+  "predeclared_utc": "2026-11-13T10:30:00Z",
+  "proposed_by": "Claude (backend session), 2026-11-13, after the team chose the power metric and before any real-data power output existed",
+  "approved_by": null,
+  "approval_rule": "The team may change any number below before the first run of tools/power_check.py. After that run the numbers are frozen: a later change is a new gate, and the first result stays in validation/evidence/.",
+  "what_this_is_not": "Not an independent validation. No published power or irradiance time series for these points is compared. The disc visibility it is built on passed Gate E (NASA Goddard PGDA 69 maps); this gate checks that the power layer is consistent with it and stays inside physical bounds on real data.",
+  "method_under_test": "backend/lunar_core/power.py: E = 1361 W/m2 x (1 AU / r)^2 x visible disc fraction x cos(el) (vertical Sun-facing panel) or max(0, sin el) (flat panel), per 30 min step of the /api/compare run",
+  "requests": {
+    "endpoint": "POST /api/compare",
+    "places": ["reference-lola-site-001", "reference-lola-site-004"],
+    "at_utc": ["2027-01-01T00:00:00Z", "2027-08-01T00:00:00Z", "2027-10-15T00:00:00Z"],
+    "days": 30,
+    "panel_height_m": 2
+  },
+  "derivation_of_bounds": "Earth-Sun distance 0.98329-1.01671 AU, plus or minus the Moon's distance from Earth (at most 0.00272 AU): Moon-Sun 0.98057-1.01943 AU, so a full disc delivers 1361/1.01943^2 = 1309.6 to 1361/0.98057^2 = 1415.5 W/m2. The highest Sun elevation at latitude phi is (90 - |phi|) + 1.54 deg (lunar axial tilt to the ecliptic), so at 89 deg S or further south it is below 2.6 deg: cos(el) >= 0.998 and tan(el) <= 0.046.",
+  "criteria": {
+    "P1_peak_vertical_max_w_m2": 1416,
+    "P2_peak_vertical_min_w_m2_when_full_disc_reached": 1300,
+    "P3_mean_vertical_over_1361_x_disc_fraction": [0.955, 1.045],
+    "P3_applies_when_sun_disc_percent_above": 1.0,
+    "P4_mean_horizontal_over_mean_vertical_max": 0.06,
+    "P5_zero_disc_gives_zero_power": true,
+    "P6_first_sunrise_inside_period_and_positive_duration": true
+  },
+  "verdict": "PASS only if every criterion holds for every row of every request. A failure is recorded, not tuned."
+}
