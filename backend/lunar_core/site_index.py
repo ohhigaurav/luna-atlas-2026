@@ -70,6 +70,6 @@ def build_site_index(official: Any, reference: Any, notes: dict[str, dict[str, A
         "reference_count": sum(1 for s in sites if s["origin"] == "reference"),
         "unplaced_official": unplaced,
         "sites": sites,
-        "note": ("Official challenge sites come first; reference points are published landmarks and missions, "
-                 "not official challenge coordinates."),
+        "note": ("Official challenge sites, if any, come first. Reference points are published landmarks and "
+                 "missions, each with its source; the challenge published no site list (Resources, 13 Nov 2026)."),
     }

@@ -149,7 +149,7 @@ def summarise(run: dict[str, Any], *, height_m: float, horizon_note: str | None,
                        "limit_pct": constraints.min_sunlit_fraction * 100.0, "text": _pct(sun_pct),
                        "status": "pass" if ok else "fail"})
 
-    caveats = ["Reference site from published sources, not an official challenge coordinate."
+    caveats = ["Reference site: coordinates from a published source (the challenge published no site list)."
                if site["site"].get("origin") == "reference" else None,
                "A point you picked, not a catalogue site." if site["site"].get("origin") == "custom" else None,
                custom_point.resolution_caveat(site) if terrain != "flat" else None,

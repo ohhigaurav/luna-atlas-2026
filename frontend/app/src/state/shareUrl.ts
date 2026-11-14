@@ -12,6 +12,8 @@ export type ShareState = {
   missionDays: number | null;
   cmp: string[];
   view: View | null;
+  /** ?tour=plan or ?tour=pole starts that tour chapter (a link for the submission or the video). */
+  tour?: 'plan' | 'pole' | null;
 };
 
 const VIEWS: View[] = ['compare', 'evidence'];
@@ -29,6 +31,7 @@ export function encodeShare(s: ShareState): string {
   if (s.missionDays !== null) p.set('m', String(s.missionDays));
   if (s.cmp.length) p.set('cmp', s.cmp.slice(0, MAX_CMP).join(';'));
   if (s.view) p.set('view', s.view);
+  if (s.tour) p.set('tour', s.tour);
   // URLSearchParams escapes ':', ',' and ';'; all are legal in a query, so keep links readable.
   const q = p.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',').replace(/%3B/gi, ';');
   return q ? `?${q}` : '';
@@ -42,6 +45,7 @@ export function decodeShare(search: string): ShareState {
   const t = tRaw ? Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(tRaw) ? tRaw : `${tRaw}Z`) : NaN;
   const m = Number(p.get('m'));
   const view = p.get('view') as View | null;
+  const tour = p.get('tour');
   const cmp = [...new Set((p.get('cmp') ?? '').split(';').map((x) => x.trim()).filter(Boolean))].slice(0, MAX_CMP);
   return {
     siteId: site,
@@ -49,10 +53,11 @@ export function decodeShare(search: string): ShareState {
     missionDays: Number.isInteger(m) && m >= 1 && m <= 14 ? m : null,
     cmp,
     view: view && VIEWS.includes(view) ? view : null,
+    tour: tour === 'plan' || tour === 'pole' ? tour : null,
   };
 }
 
 /** Does the link ask for anything? (Then the first-visit tour waits for the Tour button.) */
 export function hasShare(s: ShareState): boolean {
-  return !!(s.siteId || s.ms !== null || s.cmp.length || s.view);
+  return !!(s.siteId || s.ms !== null || s.cmp.length || s.view || s.tour);
 }

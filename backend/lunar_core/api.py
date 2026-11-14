@@ -292,7 +292,7 @@ def assumptions() -> dict[str, Any]:
         "non_claims": [
             "No landing-safety certification, slope/hazard map, thermal model, power/battery sizing, RF link budget, DSN schedule or comms-uptime guarantee.",
             "A flat horizon is an explicitly approximate model and is never presented as terrain-verified.",
-            "Published research reference points are not official challenge coordinates or landing ellipses.",
+            "Reference points come from published sources (the challenge published no site list); they are points, not landing ellipses.",
             "Numerical convergence does not quantify physical/model uncertainty."
         ],
     }

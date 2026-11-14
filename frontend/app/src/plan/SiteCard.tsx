@@ -198,7 +198,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
           <i className={`sc-ico earth${(earth ? earth.up : now?.earthUp) ? '' : ' off'}`} aria-hidden="true" />
           <div>
             {earth ? (
-              <><b>{earth.up ? `Earth in view, ${earth.elevation_deg.toFixed(1)}° up` : 'Earth hidden: no radio link'}</b><span>{cap(nextText(row!.earth_next, 30))}</span></>
+              <><b>{earth.up ? `Earth in view, ${earth.elevation_deg.toFixed(1)}° up` : 'Earth hidden: no direct line of sight'}</b><span>{cap(nextText(row!.earth_next, 30))}</span></>
             ) : now ? (
               <><b>{now.earthUp ? 'Earth in view' : 'Earth hidden'}</b><span>{now.earthNextMs ? `${now.earthUp ? 'Earthset' : 'Earthrise'} in ${spanText(now.earthNextMs - cursorMs)}` : ''} (estimate, flat ground)</span></>
             ) : null}

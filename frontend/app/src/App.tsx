@@ -459,6 +459,7 @@ export default function App() {
   useEffect(() => {
     if (linkApplied || !introDone || !data) return;
     const l = link.current;
+    if (l.tour) { setLinkApplied(true); startTour(l.tour); return; }
     const xs = l.cmp.map(siteFromId).filter((x): x is ReferenceSite => !!x);
     if (xs.length) setCmp(xs);
     const s = l.siteId ? siteFromId(l.siteId) : null;

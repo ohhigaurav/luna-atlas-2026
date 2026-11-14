@@ -175,7 +175,7 @@ def main() -> int:
         "runs": dict(sorted(runs.items())),
         "notes": notes,
         "disclaimer": ("Precomputed results for the window above. Run the project locally for other dates, "
-                       "custom points or settings. Reference sites are not official challenge coordinates."),
+                       "custom points or settings. Reference sites come from published sources; the challenge published no site list."),
     }
     write_json_atomic(manifest_path, manifest)
     size_mb = sum(p.stat().st_size for p in out.rglob("*.json")) / 1e6

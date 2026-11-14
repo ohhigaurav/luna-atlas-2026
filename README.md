@@ -10,6 +10,16 @@ opens, and which date in the next year gives the most sunlight or the most Earth
 site in 3D and watch the real Sun and Earth move over the real horizon, check a landing ellipse for sunlight
 and slope, and open the Evidence screen to see every scientific check behind the numbers.
 
+Also in the app: sunlight on a solar panel (W/m², before panel efficiency) and how long the polar sunrise
+takes; a sky chart of each site's skyline with the Sun's and Earth's paths over 30 days; "Launch slipped?"
+for the soonest window here and nearby after a delay; a guided tour; and links that open any view.
+
+Try it:
+[guided tour](https://13-54-224-119.sslip.io/?tour=plan) ·
+[Site 001 on its sunniest 2027 landing date](https://13-54-224-119.sslip.io/?site=reference-lola-site-001&t=2027-10-20T20:30Z) ·
+[three south-pole sites compared](https://13-54-224-119.sslip.io/?t=2027-08-01T00:00Z&cmp=reference-lola-site-001;reference-lola-site-004;reference-malapert-massif&view=compare) ·
+[the evidence](https://13-54-224-119.sslip.io/?view=evidence)
+
 ## How a number is made
 
 - **Sun and Earth positions:** NASA/JPL SPICE (NAIF), DE421 ephemeris and lunar orientation kernels.
@@ -38,7 +48,7 @@ Pass rules were fixed before each run; failures stay on record. Full table and l
 
 > **Not claimed:** landing-safety certification, a guaranteed radio link, thermal survival, or exact
 > timing on a flat horizon. Results on 5 m and 240 m terrain differ and every answer says which it used.
-> Research-reference sites are labelled as not official challenge sites.
+> The challenge published no site list, so every site comes from a published source and says which.
 
 Development began on 25 Oct 2026, before the hackathon (14–15 Nov), using public NASA data. Built with
 AI coding assistance (Claude, Anthropic). Data sources, AI use and references are listed on the Space Apps

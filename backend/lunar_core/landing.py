@@ -378,7 +378,7 @@ def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str,
             result[k]["verify"] = _verify(result[k]["best_touchdown_utc"])
     if result["closest_miss"] is not None:
         result["closest_miss"]["verify"] = _verify(result["closest_miss"]["touchdown_utc"])
-    caveats = ["Reference site from published sources, not an official challenge coordinate."
+    caveats = ["Reference site: coordinates from a published source (the challenge published no site list)."
                if site.get("origin") == "reference" else None,
                "A point you picked, not a catalogue site." if site.get("origin") == "custom" else None,
                custom_point.resolution_caveat(results[0]) if mode == "terrain" else None,
