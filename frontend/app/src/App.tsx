@@ -453,14 +453,14 @@ export default function App() {
           {hello ? (
             <>
               <h1>When can you land on the Moon?</h1>
-              <p>Pick a date at the top, then tap a site. Luna Atlas tells you if the Sun stays up for the mission and Earth is in view for the radio link.</p>
+              <p>Pick a date at the top, then tap a site. Luna Atlas tells you if the Sun stays up for the mission and Earth is in view.</p>
               <button type="button" className="la-btn" onClick={() => setHello(false)}>Got it</button>
             </>
           ) : null}
           <p className="hl-banner">
             {data.index.official_count > 0
               ? 'Official challenge sites first; reference points below.'
-              : 'Sites are reference points from published sources, not official challenge coordinates.'}
+              : 'The challenge published no site list, so every site here comes from a published source.'}
           </p>
           <PinKey sites={data.sites} states={states} outlook={outlook} fresh={fresh} anchor={outlookAnchor} live={asks} cursorMs={cursorMs} onPick={pick} />
           {asks && checked < data.sites.length && (

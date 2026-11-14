@@ -2,7 +2,7 @@
 // and over the next days, from POST /api/compare. One row per metric, the leader's cell marked
 // (no combined score), each column's own horizon with the Sun and Earth at that moment.
 import { useEffect, useState, type ReactNode } from 'react';
-import { nextText, type BodyNow, type CompareRow } from '../api/compare';
+import { nextText, powerMain, powerSub, sunriseText, type BodyNow, type CompareRow } from '../api/compare';
 import { useCompare } from './useCompare';
 import { fetchRun, type LimitCheck, type SavedRun } from '../api/plan';
 import type { ReferenceSite } from '../data/source';
@@ -41,7 +41,7 @@ const hours = (h: number, lower: boolean) => {
   return `${lower ? '≥ ' : ''}${d ? `${d} d ${hh} h` : `${Math.round(h)} h`}`;
 };
 
-type Metric = { label: string; hint?: string; leader?: string; cell: (r: CompareRow, days: number) => { main: string; sub?: ReactNode; tone?: string } };
+type Metric = { label: string; hint?: string; leader?: string; power?: boolean; cell: (r: CompareRow, days: number) => { main: string; sub?: ReactNode; tone?: string } };
 
 const LIMIT_NAME: Record<string, string> = { darkness: 'Darkness', earth_gap: 'No Earth', joint_outage: 'No Sun and no Earth', sunlit: 'Sunlight' };
 const hShort = (h: number) => (h > 72 && h % 24 === 0 ? `${h / 24}\u00a0d` : `${+h.toFixed(1)}\u00a0h`);
@@ -74,6 +74,11 @@ const METRICS: Metric[] = [
     cell: (r) => (r.period.sun_disc_percent != null
       ? { main: `${r.period.sun_disc_percent.toFixed(0)}%`, sub: `any part of the Sun: ${r.period.sunlit_percent.toFixed(0)}%` }
       : { main: `${r.period.sunlit_percent.toFixed(0)}%`, sub: 'any part of the Sun' }) },
+  // Backend 0.7.72 (power.py, Gate P): sunlight on a panel, before panel efficiency. Never "power output".
+  { label: 'Sunlight on a panel', power: true, hint: 'before panel efficiency; vertical panel facing the Sun, average over the period', leader: 'most_power',
+    cell: (r, d) => { const p = r.period.power; return p ? { main: powerMain(p)!, sub: <>{powerSub(p, d)}<br />only part of the disc up {p.partial_sun_percent.toFixed(0)}% of the time</>, tone: 'sun' } : { main: '—', sub: 'not in this answer', tone: 'dim' }; } },
+  { label: 'First sunrise to full Sun', power: true, hint: 'time for the whole disc to clear the horizon (Moon: slow at the poles)',
+    cell: (r) => sunriseText(r.period.power) ?? { main: '—', sub: 'not in this answer', tone: 'dim' } },
   { label: 'Earth in view', leader: 'most_earth', cell: (r) => ({ main: `${r.period.earth_percent.toFixed(0)}%` }) },
   { label: 'Sunlit and Earth', hint: 'can work and talk', leader: 'most_both', cell: (r) => ({ main: `${r.period.both_percent.toFixed(0)}%` }) },
   { label: 'Longest darkness', leader: 'shortest_darkness',
@@ -269,7 +274,7 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
               </div>
             );
           })}
-          {METRICS.map((m) => (
+          {METRICS.filter((m) => !m.power || shown.rows.some((row) => row.period.power)).map((m) => (
             <div key={m.label} className="c-row" role="row">
               <div className="c-label" role="rowheader">{m.label}{m.hint && <small>{m.hint}</small>}</div>
               {shown.rows.map((row) => {

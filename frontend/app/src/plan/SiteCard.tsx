@@ -3,7 +3,7 @@
 // the pole). Sun and Earth at that moment: /api/compare for this one place (terrain), with the
 // flat-ground estimate shown, labelled, until it arrives.
 import { useEffect, useState, type ReactNode } from 'react';
-import { nextText } from '../api/compare';
+import { nextText, powerMain, powerSub, sunriseSentence } from '../api/compare';
 import { useCompare } from '../compare/useCompare';
 import type { ReferenceSite } from '../data/source';
 import { terrainText } from '../state/terrain';
@@ -122,6 +122,8 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
   } else verdict = null;
 
   const sun = row ? row.now.sun : null, earth = row ? row.now.earth : null;
+  // Sunlight on a panel (backend 0.7.72); absent in older static answers, then the line is hidden.
+  const power = row?.period.power ?? null, rise = sunriseSentence(power);
   // Start the 3D mission inside a landing window, never silently in the dark (handoff B).
   const stand = () => {
     if (answer?.kind === 'window' && open) onStand(cursorMs);
@@ -193,7 +195,13 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
           </div>
         </div>
         {row && <p className="sc-month">Next 30 days ({terrain}): sunlight {(row.period.sun_disc_percent ?? row.period.sunlit_percent).toFixed(0)}%{row.period.sun_disc_percent != null ? ` (any part of the Sun ${row.period.sunlit_percent.toFixed(0)}%)` : ''}, Earth in view {row.period.earth_percent.toFixed(0)}%, longest night {spanText(row.period.longest_darkness_h * 3600e3)}{row.period.longest_darkness_lower_bound ? '+' : ''}.</p>}
-        {cmp.s === 'loading' && !row && <p className="sc-month dim">Working out the real horizon here…</p>}
+        {power && (
+          <p className="sc-month" title={[power.definition, power.not_included && `Not included: ${power.not_included}.`].filter(Boolean).join('. ') || undefined}>
+            Sunlight on a panel, before panel efficiency: <b>{powerMain(power)}</b> average on a vertical panel facing the Sun ({powerSub(power, 30)}).
+            {rise && <> {rise}</>}
+          </p>
+        )}
+        {cmp.s === 'loading' && !row &&<p className="sc-month dim">Working out the real horizon here…</p>}
       </div>
 
       <div className="sc-actions">
