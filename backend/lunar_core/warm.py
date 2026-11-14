@@ -40,14 +40,17 @@ def warm_once(day: str) -> tuple[int, int]:
     # Official challenge sites first (none were published), then reference points; flat-horizon sites
     # before polar terrain sites within each group.
     official = [s for s in load_default_catalogue().sites if s.latitude_deg is not None and s.longitude_deg is not None]
-    sites: list[Any] = (sorted(official, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG)
-                        + sorted(load_reference_catalogue().sites, key=lambda s: s.latitude_deg <= POLAR_LIMIT_DEG))
+    def polar(s: Any) -> bool:
+        return s.latitude_deg is not None and s.latitude_deg <= POLAR_LIMIT_DEG
+
+    sites: list[Any] = sorted(official, key=polar) + sorted(load_reference_catalogue().sites, key=polar)
     done = failed = 0
     for i, site in enumerate(sites, 1):
         started = time.monotonic()
         try:
-            r = run_landing(LandingRequest(site_id=site.site_id, search_start_utc=day, search_days=SEARCH_DAYS,
-                                           mission_days=MISSION_DAYS, max_sun_elevation_deg=MAX_SUN_DEG))
+            r = run_landing(LandingRequest.model_validate(
+                {"site_id": site.site_id, "search_start_utc": day, "search_days": SEARCH_DAYS,
+                 "mission_days": MISSION_DAYS, "max_sun_elevation_deg": MAX_SUN_DEG}))
             done += 1
             log.warning("warm %s %d/%d %s: %s in %.1f s", day[:10], i, len(sites), site.site_id,
                         "cached" if r.get("cache_hit") else f"{r.get('opportunity_count', 0)} windows", time.monotonic() - started)

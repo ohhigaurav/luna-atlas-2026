@@ -23,10 +23,10 @@ import math
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
-from lunar_core.api_models import AnalysisRequest, CheckRequest, MissionConstraints
+from lunar_core.api_models import AnalysisRequest, CheckRequest, HorizonMode, MissionConstraints
 from lunar_core.provenance import sha256_file
 from lunar_core.sky_geometry import SUN_RADIUS_KM
 
@@ -211,7 +211,8 @@ def _analysis_request(request: CheckRequest, mode: str, site_id: str) -> Analysi
     return AnalysisRequest(
         site_ids=[site_id], start_utc=request.start_utc, end_utc=end,
         coarse_step_min=COARSE_STEP_MIN, event_tolerance_s=EVENT_TOLERANCE_S,
-        sun_observer_height_m=request.panel_height_m, antenna_height_m=ANTENNA_HEIGHT_M, horizon_mode=mode,
+        sun_observer_height_m=request.panel_height_m, antenna_height_m=ANTENNA_HEIGHT_M,
+        horizon_mode=cast(HorizonMode, mode),
     )
 
 

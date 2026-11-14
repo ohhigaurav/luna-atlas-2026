@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -209,18 +209,23 @@ class SkyGeometryResponse(BaseModel):
     series: SkySeriesModel
 
 
-def _site_or_point(model: Any) -> Any:
+_M = TypeVar("_M")
+HorizonMode = Literal["flat", "terrain"]
+
+
+def _site_or_point(model: _M) -> _M:
     """Exactly one of site_id, or latitude_deg + longitude_deg (lunar_core.custom_point)."""
-    has_site = model.site_id is not None
-    has_point = model.latitude_deg is not None or model.longitude_deg is not None
+    m: Any = model
+    has_site = m.site_id is not None
+    has_point = m.latitude_deg is not None or m.longitude_deg is not None
     if has_site == has_point:
         raise ValueError("give either site_id or latitude_deg and longitude_deg, not both or neither")
-    if has_point and (model.latitude_deg is None or model.longitude_deg is None):
+    if has_point and (m.latitude_deg is None or m.longitude_deg is None):
         raise ValueError("a point needs both latitude_deg and longitude_deg")
-    if has_point and abs(model.latitude_deg) > POLE_EXCLUSION_LAT_DEG:
+    if has_point and abs(m.latitude_deg) > POLE_EXCLUSION_LAT_DEG:
         raise ValueError(f"the exact pole has no north or east, so terrain directions are undefined there; "
                          f"pick a point at least {90 - POLE_EXCLUSION_LAT_DEG:g} deg (~15 m) away, e.g. "
-                         f"{-POLE_EXCLUSION_LAT_DEG if model.latitude_deg < 0 else POLE_EXCLUSION_LAT_DEG:g}")
+                         f"{-POLE_EXCLUSION_LAT_DEG if m.latitude_deg < 0 else POLE_EXCLUSION_LAT_DEG:g}")
     return model
 
 

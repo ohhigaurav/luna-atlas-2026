@@ -43,7 +43,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal
 
 from lunar_core import __version__, analysis_service, cache_keys, custom_point, verify
 from lunar_core.api_models import AnalysisRequest, LandingRequest
@@ -195,22 +195,23 @@ def evaluate(samples: Sequence[Sample], sun: Sequence[Window], earth: Sequence[W
     fail_counts = {k: sum(1 for r in rows if not r["checks"][k]) for k in RULE_TEXT}
     closest = None
     if not opportunities and rows:
-        best = max(rows, key=lambda r: (sum(r["checks"].values()), r["left_s"]))
+        near = max(rows, key=lambda r: (sum(r["checks"].values()), r["left_s"]))
         closest = {
-            "touchdown_utc": best["s"].utc,
-            "failed_rules": [k for k, ok in best["checks"].items() if not ok],
-            "daylight_after_h": best["left_s"] / 3600.0,
+            "touchdown_utc": near["s"].utc,
+            "failed_rules": [k for k, ok in near["checks"].items() if not ok],
+            "daylight_after_h": near["left_s"] / 3600.0,
             "daylight_needed_h": need_s / 3600.0,
-            "sun_elevation_deg": best["s"].sun_el_deg,
-            "sun_above_horizon_deg": _clearance(best["s"]),
-            "earth_up": best["s"].earth_up,
+            "sun_elevation_deg": near["s"].sun_el_deg,
+            "sun_above_horizon_deg": _clearance(near["s"]),
+            "earth_up": near["s"].earth_up,
         }
     longest = max(sun, key=lambda w: w.end_s - w.start_s, default=None)
     # Over ALL windows in the search, not only the first MAX_OPPORTUNITIES listed.
-    best = max(opportunities, key=lambda o: (o["daylight_after_best_h"], o["earth_in_view_during_mission_pct"]),
-               default=None)  # max keeps the first of equals, i.e. the earliest
-    best_earth = max(opportunities, key=lambda o: (o["earth_in_view_during_mission_pct"], o["daylight_after_best_h"]),
-                     default=None)
+    # max keeps the first of equals, i.e. the earliest
+    best = (max(opportunities, key=lambda o: (o["daylight_after_best_h"], o["earth_in_view_during_mission_pct"]))
+            if opportunities else None)
+    best_earth = (max(opportunities, key=lambda o: (o["earth_in_view_during_mission_pct"], o["daylight_after_best_h"]))
+                  if opportunities else None)
     return {
         "soonest": dict(opportunities[0]) if opportunities else None,
         "best": None if best is None else {**best, "rank": opportunities.index(best) + 1},
@@ -322,13 +323,13 @@ def run_landing(request: LandingRequest) -> dict[str, Any]:
 
 def _compute_landing(request: LandingRequest, site: dict[str, Any]) -> dict[str, Any]:
     started = time.monotonic()
-    mode = "terrain" if float(site["latitude_deg"]) <= POLAR_LIMIT_DEG else "flat"
+    mode: Literal["flat", "terrain"] = "terrain" if float(site["latitude_deg"]) <= POLAR_LIMIT_DEG else "flat"
     note = None
     end = request.search_start_utc + timedelta(days=request.search_days + math.ceil(request.mission_days) + 1)
 
     extra = {site["site_id"]: site} if site.get("origin") == "custom" else None
 
-    def chunks(m: str) -> list[dict[str, Any]]:
+    def chunks(m: Literal["flat", "terrain"]) -> list[dict[str, Any]]:
         out, cursor = [], request.search_start_utc
         while cursor < end:
             stop = min(end, cursor + timedelta(days=CHUNK_DAYS))

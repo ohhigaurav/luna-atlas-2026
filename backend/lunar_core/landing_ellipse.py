@@ -70,7 +70,7 @@ def risk_summary(points: list[dict[str, Any]], centre_first: bool = True) -> dic
     n = len(sun)
 
     def pct(q: float) -> float:
-        return sun[min(n - 1, max(0, round(q * (n - 1))))]
+        return float(sun[min(n - 1, max(0, round(q * (n - 1))))])
 
     best = max(ok, key=lambda p: (p["sunlit_percent"], p["dte_clear_percent"]))
     worst = min(ok, key=lambda p: (p["sunlit_percent"], p["dte_clear_percent"]))

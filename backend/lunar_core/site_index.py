@@ -22,7 +22,7 @@ def load_site_notes(path: Path = SITE_NOTES) -> dict[str, dict[str, Any]]:
     """Our analysis notes per site ID (data/reference/site_notes.json), kept apart from the citations."""
     if not path.is_file():
         return {}
-    notes = json.loads(path.read_text(encoding="utf-8")).get("notes", {})
+    notes: dict[str, dict[str, Any]] = json.loads(path.read_text(encoding="utf-8")).get("notes", {})
     for site_id, note in notes.items():
         if not note.get("text") or not note.get("evidence"):
             raise ValueError(f"site note for {site_id} needs text and evidence")
