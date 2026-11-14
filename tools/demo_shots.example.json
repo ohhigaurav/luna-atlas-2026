@@ -11,31 +11,31 @@
       "file": "shot1.mkv",
       "start": 1.0,
       "end": 5.0,
-      "caption": "Moon weather: at the south pole the Sun stays within about 1.5° of the horizon."
+      "caption": "Pick a site and a date: can you land, and when do sunset and Earthset come?"
     },
     {
       "file": "shot2.mkv",
       "start": 1.0,
       "end": 5.0,
-      "caption": "Pick a site and a date: can you land, and when do sunset and Earthset come?"
+      "caption": "Stand at the site: the Sun and Earth against the real skyline, through the mission."
     },
     {
       "file": "shot3.mkv",
       "start": 1.0,
       "end": 5.5,
-      "caption": "Compare sites side by side: Sun, Earth, time to sunset, sunlight on a panel (before panel efficiency)."
+      "caption": "Compare sites side by side: sunlight on a panel (before panel efficiency) and Earth in view."
     },
     {
       "file": "shot4.mkv",
       "start": 1.0,
-      "end": 4.5,
-      "caption": "A year of dates in one search: soonest, most sunlight, most Earth."
+      "end": 5.0,
+      "caption": "Launch slipped? The next landing window here, and at the nearest sites."
     },
     {
       "file": "shot5.mkv",
       "start": 1.0,
       "end": 5.5,
-      "caption": "Published points can mislead: Malapert's sees no Earth, its crest 10.7 km east 70% (Nov 2026)."
+      "caption": "Small moves matter: Malapert's point sees no Earth; the crest 10.7 km east, 70% (Nov 2026)."
     },
     {
       "file": "shot6.mkv",
@@ -46,7 +46,7 @@
   ],
   "end": {
     "text": "Computed live, open source",
-    "sub": "JPL Horizons agreement 0.04 arcsec · 6 of 7 real landings",
+    "sub": "Also: Moon weather, best dates, sky chart, landing ellipse, tour · JPL Horizons agreement 0.04 arcsec",
     "seconds": 2.0
   }
 }
