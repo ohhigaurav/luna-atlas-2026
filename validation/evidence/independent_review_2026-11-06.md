@@ -1,4 +1,4 @@
-# Independent review, 2026-11-06
+# Design review by a fresh AI agent, 2026-11-06
 
 Requested by the team ("any independent NASA engineer type"). A fresh agent with no access to how
 the project was built reviewed the repository at `cb9f696`, read-only, as a hostile design review

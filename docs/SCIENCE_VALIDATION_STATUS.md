@@ -15,11 +15,11 @@ Each gate's pass rule was fixed before its run; FAILs stay recorded. Evidence is
 
 **Measured, no pass rule:** the app's "verify with NASA JPL" link at Apollo 11, 2027-01-13 17:00, Sun +0.1″ and Earth −0.2″ from Horizons, i.e. display rounding (`apollo11_verify_link_2026-11-08.md`); DEM quality at the horizon-controlling terrain (`dem_quality_2026-10-28.md`);
 PGDA clone check and observer-height sweep (`clone_check_and_mast_height_2026-10-28.md`); 0.25° vs 0.5°
-azimuth bins, 0.00-point difference at Sites 001/004 (independent review #10); 5 m vs 240 m terrain
+azimuth bins, 0.00-point difference at Sites 001/004 (design review #10); 5 m vs 240 m terrain
 at Site 001, 69% vs 100% sunlight (`resolution_site001_2026-11-06.md`); the Malapert published point
 sits on the hidden flank (`malapert_earth_2026-11-06.md`).
 
-**Independent review** (`independent_review_2026-11-06.md`, hostile design review, 11 findings):
+**Design review by a fresh AI agent** (`independent_review_2026-11-06.md`: no access to how the project was built, asked to act as a hostile flight-dynamics reviewer; 11 findings):
 9 fixed, 1 measured (#10), 1 deliberately not fixed (#7, below).
 
 ## Not established — say so wherever it matters

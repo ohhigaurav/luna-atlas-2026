@@ -3,38 +3,44 @@
   "max_seconds": 30,
   "title": {
     "text": "Luna Atlas",
-    "sub": "When can a lander at the lunar south pole see the Sun and Earth?",
-    "seconds": 2.5
+    "sub": "Where and when to land at the lunar south pole, checked against NASA data",
+    "seconds": 2.0
   },
   "clips": [
     {
       "file": "shot1.mkv",
       "start": 1.0,
-      "end": 7.0,
-      "caption": "Pick a site and a date. Real LOLA terrain, real Sun and Earth positions (NASA SPICE), time to sunset and Earthset."
+      "end": 5.5,
+      "caption": "Moon weather: a month of light and shadow at the south pole, where the Sun stays within about 1.5° of the horizon."
     },
     {
       "file": "shot2.mkv",
       "start": 1.0,
-      "end": 7.5,
-      "caption": "It searches up to a year of dates: the soonest landing, the most sunlight, the most Earth contact."
+      "end": 5.5,
+      "caption": "Pick a site and a date: real terrain, real Sun and Earth, time to sunset and Earthset."
     },
     {
       "file": "shot3.mkv",
       "start": 1.0,
-      "end": 7.0,
-      "caption": "Stand at the site in 3D: the real skyline, the Sun and the shadows through the mission."
+      "end": 5.5,
+      "caption": "A year of dates in one search: 24 Aug 2027 gives 41% Earth contact, 20 Oct the most sunlight."
     },
     {
       "file": "shot4.mkv",
       "start": 1.0,
-      "end": 5.5,
-      "caption": "Compare sites side by side: Sun and Earth now, time to sunset and Earthset, sunlight on a panel (before panel efficiency)."
+      "end": 6.5,
+      "caption": "Published coordinates can be the wrong spot: Malapert's point sees no Earth, the crest 10.7 km east 70% (Nov 2026)."
+    },
+    {
+      "file": "shot5.mkv",
+      "start": 1.0,
+      "end": 6.5,
+      "caption": "Our shadows against NASA's LRO photos: 5 of 6 frames match, with the pass rule fixed before the run."
     }
   ],
   "end": {
-    "text": "Computed live",
-    "sub": "Also: sky chart, landing ellipse, launch-slip check, guided tour. Geometry checked against JPL Horizons (0.04 arcsec).",
+    "text": "Computed live, open source",
+    "sub": "JPL Horizons agreement 0.04 arcsec · 6 of 7 real landings",
     "seconds": 2.5
   }
 }
