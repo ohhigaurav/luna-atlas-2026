@@ -1,7 +1,7 @@
 # Luna Atlas
 
-**When and where to land at the lunar south pole.** NASA Space Apps 2026, challenge "Lunar Landing Site
-Navigator".
+**When and where to land at the lunar south pole.** NASA Space Apps 2026, challenge "CLPS Lunar Landing
+Site Navigator".
 
 **Live app:** https://13-54-224-119.sslip.io (every answer computed live on the server)
 
@@ -48,6 +48,8 @@ Pass rules were fixed before each run; failures stay on record. Full table and l
 
 > **Not claimed:** landing-safety certification, a guaranteed radio link, thermal survival, or exact
 > timing on a flat horizon. Results on 5 m and 240 m terrain differ and every answer says which it used.
+> None of the real-landing checks is at the south pole (the nearest is Chandrayaan-3, 69°S); the polar checks
+> are the LRO photos, the Goddard maps and the slope maps.
 > The challenge published no site list, so every site comes from a published source and says which.
 
 Development began on 25 Oct 2026, before the hackathon (14–15 Nov), using public NASA data. Built with
@@ -258,7 +260,7 @@ validation/           approved-tolerance contract, golden CSV template, output e
 
 ## 10. Authoritative public references
 
-- NASA Space Apps 2026 — [Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
+- NASA Space Apps 2026 — [CLPS Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
 - NASA PGDA — [High-Resolution LOLA Topography for Lunar South Pole Sites, Product 78](https://pgda.gsfc.nasa.gov/products/78) and [South Pole Landing Site LOLA DEM downloads](https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/).
 - NASA PGDA — [A New View of the Lunar South Pole from LOLA, Product 90](https://pgda.gsfc.nasa.gov/products/90).
 - NASA PGDA — [Lunar Polar Illumination, Product 69](https://pgda.gsfc.nasa.gov/products/69).

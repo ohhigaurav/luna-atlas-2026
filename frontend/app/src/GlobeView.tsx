@@ -68,6 +68,17 @@ function maxTextureSize(): number {
   }
 }
 
+/**
+ * A light first look while the full maps download (about 63 MB with the polar caps): the 4k colour
+ * map and the 2 MB 4 px/deg relief, swapped for the full set when it arrives. Skipped when the set
+ * is already that small. A missing preview file only means waiting for the full maps, as before.
+ */
+function previewOf(set: TextureSet): { color: string; heights: { url: string; width: number; height: number } } | undefined {
+  if (set.heights.width <= 1440) return undefined;
+  const small = [...set.moon_color].sort((a, b) => a.width - b.width)[0];
+  return { color: `${T}${small.file}`, heights: { url: `${T}lola_4ppd_f16.bin`, width: 1440, height: 720 } };
+}
+
 /** The largest colour map this GPU can hold (8k is sharp to ~20 px per degree). */
 function pickColor(set: TextureSet): string {
   const max = maxTextureSize();
@@ -78,6 +89,8 @@ function pickColor(set: TextureSet): string {
 export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIntroDone, onError, handle }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<GlobeEngine | null>(null);
+  // No WebGL (or it failed to start): no globe, but picking a site still opens its card.
+  const no3d = useRef(false);
   // Calls that arrive before the engine exists (textures still loading) are replayed on creation.
   const pending = useRef<{ insets?: [number, number]; grid?: boolean; states?: Record<string, string>; notes?: Record<string, string>; pickOnly?: ((s: PinSite) => void) | null }>({});
   const cb = useRef({ onSelect, onIntroDone, onError });
@@ -87,8 +100,8 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
   useEffect(() => { skyRef.current = { sky, times: sampleTimesMs(sky) }; }, [sky]);
 
   useImperativeHandle(handle, () => ({
-    flyToSite: (s) => engine.current?.flyToSite(s),
-    flyHome: () => engine.current?.flyHome(),
+    flyToSite: (s) => { if (engine.current) engine.current.flyToSite(s); else if (no3d.current) cb.current.onSelect(s); },
+    flyHome: () => { if (engine.current) engine.current.flyHome(); else if (no3d.current) cb.current.onSelect(null); },
     skipIntro: () => engine.current?.skip(),
     viewFromEarth: () => engine.current?.viewFromEarth(),
     screenOf: (s) => engine.current?.screenOf(s) ?? null,
@@ -113,6 +126,7 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     };
     loadTextureSet().then((set) => {
       if (cancelled) return;
+      try {
       engine.current = new GlobeEngine(el, {
         sites,
         sky: sample,
@@ -125,11 +139,20 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
             ? { south: `${T}${set.caps.south}`, north: `${T}${set.caps.north}`, size: set.caps.size, latDeg: set.caps.lat }
             : undefined,
           earthDay: set.earth ? `${T}${set.earth}` : undefined,
+          moonPreview: previewOf(set),
         },
         onSelect: (s) => cb.current.onSelect(s),
         onIntroDone: () => cb.current.onIntroDone(),
         onError: (m) => cb.current.onError(m),
       });
+      } catch (e) {
+        // Old GPU, WebGL switched off, or a remote desktop: say so, and keep everything else usable.
+        no3d.current = true;
+        cb.current.onError(`The 3D Moon could not start in this browser (${(e as Error).message || 'WebGL unavailable'}). `
+          + 'Everything else works: open sites with Search (Ctrl K) or Compare sites.');
+        cb.current.onIntroDone();
+        return;
+      }
       const q = pending.current;
       if (q.insets) engine.current.setInsets(q.insets[0], q.insets[1]);
       if (q.grid !== undefined) engine.current.setGrid(q.grid);

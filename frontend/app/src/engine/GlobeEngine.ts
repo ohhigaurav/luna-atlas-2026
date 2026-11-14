@@ -34,6 +34,8 @@ export type EngineOptions = {
     /** Polar stereographic height caps (lola_to_f16.py --caps); removes radial streaks near the poles. */
     moonCaps?: { south: string; north: string; size: number; latDeg: number };
     earthDay?: string;
+    /** Small maps shown first, then replaced by the full ones (GlobeView.previewOf). */
+    moonPreview?: { color: string; heights: { url: string; width: number; height: number } };
   };
   reducedMotion?: boolean;
   /** 1 = true LOLA relief. Anything else must be labelled on screen. */
@@ -144,6 +146,35 @@ export class GlobeEngine {
 
   private async loadTextures(): Promise<void> {
     const t = this.opts.textures;
+    // Small maps first (a few MB), so the Moon and the opening appear quickly on a slow link; the
+    // full maps download after them and replace them. Without preview files: as before.
+    let shown = false;
+    if (t.moonPreview) {
+      try {
+        const [color, heights] = await Promise.all([
+          new THREE.TextureLoader().loadAsync(t.moonPreview.color),
+          loadLolaHeights(t.moonPreview.heights.url, t.moonPreview.heights.width, t.moonPreview.heights.height),
+        ]);
+        if (this.disposed) return;
+        this.setMoonMaps(color, heights, null);
+        shown = true;
+      } catch { /* no preview files: wait for the full maps, as before */ }
+    }
+    const full = this.loadFullMaps();
+    if (!shown) {
+      const ok = await full;
+      if (!ok) this.opts.onError?.('Moon maps failed to load. Run "npm run textures".');
+    } else {
+      full.then((ok) => { if (!ok) console.warn('Full Moon maps failed to load; showing the low-resolution maps.'); });
+    }
+    if (t.earthDay) {
+      new THREE.TextureLoader().loadAsync(t.earthDay).then((m) => { if (!this.disposed) this.earth.setMap(m); }, () => { /* plain Earth is fine */ });
+    }
+  }
+
+  /** The full colour map, 16 px/deg relief and polar caps; true when they are on the Moon. */
+  private async loadFullMaps(): Promise<boolean> {
+    const t = this.opts.textures;
     try {
       const capsP = t.moonCaps
         ? Promise.all([
@@ -157,24 +188,37 @@ export class GlobeEngine {
         capsP,
       ]);
       if (caps) for (const c of caps) { c.wrapS = c.wrapT = THREE.ClampToEdgeWrapping; c.needsUpdate = true; }
-      if (this.disposed) return;
-      color.colorSpace = THREE.SRGBColorSpace;
-      color.wrapS = THREE.RepeatWrapping;
-      color.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-      const s = this.opts.sky(this.opts.cursorMs());
-      this.moonMat = createLunarMaterial({
-        colorMap: color, dispMap: heights, sunDirMe: s.sunDir, earthDirMe: s.earthDir, earthIllumFrac: s.earthIllumFrac,
-        caps: caps && t.moonCaps ? { south: caps[0], north: caps[1], latDeg: t.moonCaps.latDeg } : undefined,
-      });
-      this.moonMat.uniforms.heightScale.value = (this.opts.reliefExaggeration ?? 1) / MOON_RADIUS_KM;
-      (this.moon.material as THREE.Material).dispose();
-      this.moon.material = this.moonMat;
+      if (this.disposed) return true;
+      this.setMoonMaps(color, heights, caps);
+      return true;
     } catch (e) {
-      this.opts.onError?.(`Moon maps failed to load (${(e as Error).message}). Run "npm run textures".`);
+      console.warn('Moon maps:', (e as Error).message);
+      return false;
     }
-    if (t.earthDay) {
-      new THREE.TextureLoader().loadAsync(t.earthDay).then((m) => { if (!this.disposed) this.earth.setMap(m); }, () => { /* plain Earth is fine */ });
+  }
+
+  /** Puts maps on the Moon; when replacing earlier maps, the forecast drape and settings carry over. */
+  private setMoonMaps(color: THREE.Texture, heights: THREE.DataTexture, caps: THREE.DataTexture[] | null): void {
+    const t = this.opts.textures;
+    color.colorSpace = THREE.SRGBColorSpace;
+    color.wrapS = THREE.RepeatWrapping;
+    color.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    const s = this.opts.sky(this.opts.cursorMs());
+    const mat = createLunarMaterial({
+      colorMap: color, dispMap: heights, sunDirMe: s.sunDir, earthDirMe: s.earthDir, earthIllumFrac: s.earthIllumFrac,
+      caps: caps && t.moonCaps ? { south: caps[0], north: caps[1], latDeg: t.moonCaps.latDeg } : undefined,
+    });
+    mat.uniforms.heightScale.value = (this.opts.reliefExaggeration ?? 1) / MOON_RADIUS_KM;
+    const old = this.moonMat;
+    if (old) {
+      for (const k of ['reliefGain', 'earthshineGain', 'L', 'shadowSteps']) mat.uniforms[k].value = old.uniforms[k].value;
+      if (old.uniforms.fcOn.value) {
+        for (const k of ['fcOn', 'fcLitA', 'fcLitB', 'fcMix', 'fcEarth', 'fcEarthOn', 'fcBothOn', 'fcHalf']) mat.uniforms[k].value = old.uniforms[k].value;
+      }
     }
+    (this.moon.material as THREE.Material).dispose();
+    this.moon.material = mat;
+    this.moonMat = mat;
   }
 
   /** Skip whatever camera move is running (the opening or a flight) and land at its end. */
