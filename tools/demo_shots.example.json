@@ -3,8 +3,8 @@
   "max_seconds": 30,
   "title": {
     "text": "Luna Atlas",
-    "sub": "Where and when to land at the lunar south pole, checked against NASA data",
-    "seconds": 2.0,
+    "sub": "At the Moon's south pole, the Sun barely clears the hills.",
+    "seconds": 3.5,
     "file": "shot0.mkv",
     "start": 1.0
   },
@@ -12,44 +12,44 @@
     {
       "file": "shot1.mkv",
       "start": 1.0,
-      "end": 5.0,
-      "caption": "Pick a site and a date: can you land, and when do sunset and Earthset come?"
+      "end": 4.5,
+      "caption": "Luna Atlas tells you: can we land here, and when?"
     },
     {
       "file": "shot2.mkv",
       "start": 1.0,
-      "end": 5.0,
-      "caption": "Stand at the site: the Sun and Earth against the real skyline, through the mission."
+      "end": 4.5,
+      "caption": "Stand on the site: the Sun and Earth skim the real skyline."
     },
     {
       "file": "shot3.mkv",
       "start": 1.0,
-      "end": 5.5,
-      "caption": "Compare sites side by side: sunlight on a panel (before panel efficiency) and Earth in view."
+      "end": 4.0,
+      "caption": "Compare sites: sunlight on a panel, and Earth in view."
     },
     {
       "file": "shot4.mkv",
       "start": 1.0,
-      "end": 5.0,
-      "caption": "Launch slipped? The next landing window here, and at the nearest sites."
+      "end": 4.5,
+      "caption": "Launch slipped a month? It finds the next window, here or nearby."
     },
     {
       "file": "shot5.mkv",
       "start": 1.0,
       "end": 5.5,
-      "caption": "Small moves matter: Malapert's point sees no Earth; the crest 10.7 km east, 70% (Nov 2026)."
+      "caption": "Malapert's published point sees no Earth. 10.7 km east, Earth is in view 70% of the time."
     },
     {
       "file": "shot6.mkv",
       "start": 1.0,
-      "end": 5.5,
-      "caption": "Our shadows vs NASA's LRO photos: 5 of 6 frames match, pass rule fixed before the run."
+      "end": 4.5,
+      "caption": "Our shadows match 5 of 6 NASA LRO photos."
     }
   ],
   "end": {
-    "text": "Computed live, open source",
-    "sub": "Also: Moon weather, best dates, sky chart, landing ellipse, tour · JPL Horizons agreement 0.04 arcsec",
-    "seconds": 2.0,
+    "text": "Luna Atlas",
+    "sub": "Built on NASA data, and checked against it.",
+    "seconds": 4.0,
     "file": "shot7.mkv",
     "start": 1.0
   }
