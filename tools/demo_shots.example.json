@@ -10,37 +10,43 @@
     {
       "file": "shot1.mkv",
       "start": 1.0,
-      "end": 5.5,
-      "caption": "Moon weather: a month of light and shadow at the south pole, where the Sun stays within about 1.5° of the horizon."
+      "end": 5.0,
+      "caption": "Moon weather: at the south pole the Sun stays within about 1.5° of the horizon."
     },
     {
       "file": "shot2.mkv",
       "start": 1.0,
-      "end": 5.5,
-      "caption": "Pick a site and a date: real terrain, real Sun and Earth, time to sunset and Earthset."
+      "end": 5.0,
+      "caption": "Pick a site and a date: can you land, and when do sunset and Earthset come?"
     },
     {
       "file": "shot3.mkv",
       "start": 1.0,
       "end": 5.5,
-      "caption": "A year of dates in one search: 24 Aug 2027 gives 41% Earth contact, 20 Oct the most sunlight."
+      "caption": "Compare sites side by side: Sun, Earth, time to sunset, sunlight on a panel (before panel efficiency)."
     },
     {
       "file": "shot4.mkv",
       "start": 1.0,
-      "end": 6.5,
-      "caption": "Published coordinates can be the wrong spot: Malapert's point sees no Earth, the crest 10.7 km east 70% (Nov 2026)."
+      "end": 4.5,
+      "caption": "A year of dates in one search: soonest, most sunlight, most Earth."
     },
     {
       "file": "shot5.mkv",
       "start": 1.0,
-      "end": 6.5,
-      "caption": "Our shadows against NASA's LRO photos: 5 of 6 frames match, with the pass rule fixed before the run."
+      "end": 5.5,
+      "caption": "Published points can mislead: Malapert's sees no Earth, its crest 10.7 km east 70% (Nov 2026)."
+    },
+    {
+      "file": "shot6.mkv",
+      "start": 1.0,
+      "end": 5.5,
+      "caption": "Our shadows vs NASA's LRO photos: 5 of 6 frames match, pass rule fixed before the run."
     }
   ],
   "end": {
     "text": "Computed live, open source",
     "sub": "JPL Horizons agreement 0.04 arcsec · 6 of 7 real landings",
-    "seconds": 2.5
+    "seconds": 2.0
   }
 }
