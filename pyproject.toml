@@ -1,6 +1,6 @@
 [project]
 name = "lunar-south-pole-mission-planner"
-version = "0.7.95.dev0"
+version = "0.7.96.dev0"
 description = "Auditable lunar south-pole lighting and DTE mission planner science-core and local-first web application"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"

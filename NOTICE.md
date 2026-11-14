@@ -32,7 +32,7 @@ Luna Atlas's own code and text are MIT-licensed (`LICENSE`). Everything else it 
 | NASA SVS CGI Moon Kit, NASA Blue Marble | NASA imagery, free to use with credit | Moon and Earth textures (display only) |
 | NASA LOLA terrain (PGDA), NAIF kernels, LRO camera images (NASA/GSFC/Arizona State University) | NASA data, free to use with credit | Computation and validation |
 
-AI tools: Claude (Anthropic) assisted with code and documentation; the project logo was generated with ChatGPT (OpenAI) image generation and carries a visible "AI-generated" mark, as the Space Apps rules require.
+AI tools: Claude (Anthropic) assisted with code and documentation; the project logo (`docs/brand/luna-atlas-logo.png`) was generated with ChatGPT (OpenAI) image generation; the copy used on the Space Apps page, `docs/brand/luna-atlas-logo-ai-marked.png`, carries a visible "AI-generated (ChatGPT)" mark, as the Space Apps rules require. The small icon in the app (`favicon.svg`, header mark) is a simplified redraw of that logo.
 
 
 ## NASA data sources and attribution
