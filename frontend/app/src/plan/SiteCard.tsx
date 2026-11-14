@@ -8,6 +8,7 @@ import { useCompare } from '../compare/useCompare';
 import type { ReferenceSite } from '../data/source';
 import { terrainText } from '../state/terrain';
 import { BestDate } from './BestDate';
+import { SkyChart } from './SkyChart';
 import { staticIndex } from '../data/staticMode';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
@@ -212,7 +213,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
         <button type="button" className={`la-btn${inCompare ? ' on' : ''}`} aria-pressed={inCompare} onClick={onCompare}>{inCompare ? '✓ Comparing' : '+ Compare'}</button>
         <button type="button" className="la-btn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? 'Fewer details' : 'Details'}</button>
       </div>
-      {more && <div className="sc-details">{details}</div>}
+      {more && <div className="sc-details">{row && <SkyChart runId={row.run_id} days={30} terrain={terrain} />}{details}</div>}
     </aside>
   );
 }

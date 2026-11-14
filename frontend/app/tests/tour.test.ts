@@ -7,7 +7,7 @@ import { CHAPTERS, TOUR_DATE_UTC } from '../src/tour/steps';
 const repo = new URL('../../../', import.meta.url);
 const flat = (s: string) => s.replace(/\s+/g, ' ');
 const NOT_MEASURED: Record<string, string> = {
-  '001': 'site name', '004': 'site name',
+  '001': 'site name', '004': 'site name', '30 days': 'the period the sky chart draws (the card\'s 30-day answer)',
   '29.5': 'standard figure, linked to NASA on the step', '5 m': 'terrain map resolution label',
   '240 m': 'terrain map resolution label', 'Nov 2026': 'date of the Malapert run, in the quote\'s file',
   '2027': 'year of the Gate P runs, in the quote\'s file', 'Jan 2027': 'Gate P row date', 'Gate B': 'name', 'Gate S': 'name', 'Gate P': 'name',

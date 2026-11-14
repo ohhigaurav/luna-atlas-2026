@@ -883,3 +883,25 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-tour .tour-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .la-tour .tour-nav .la-spacer { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .la-tour .tour-spot { transition: none; } }
+
+/* sky chart (O3, O6, C7, C10): skyline panorama with the Sun's and Earth's tracks, Earth close up */
+.la-skychart { width: 100%; height: auto; display: block; margin: 8px 0; }
+.la-skychart.loop { max-width: 320px; margin: 8px auto; }
+.la-skychart .sk-ground { fill: #1c1b19; stroke: var(--text-2); stroke-width: 1; }
+.la-skychart .sk-grid { stroke: var(--line); stroke-width: 1; }
+.la-skychart .sk-level { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.la-skychart .sk-frame { fill: none; stroke: var(--line-2); }
+.la-skychart .sk-lab { font: 500 15px var(--font-ui); fill: var(--text-3); }
+.la-skychart.loop .sk-lab { font-size: 11px; }
+.la-skychart .sk-day { font: 600 14px var(--font-ui); fill: var(--text-2); }
+.la-skychart.loop .sk-day { font-size: 10px; }
+.la-skychart .sk-sun, .la-skychart .sk-earth { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.la-skychart.loop .sk-earth { stroke-width: 1.6; }
+.la-skychart .sk-sun { stroke: var(--sun); }
+.la-skychart .sk-earth { stroke: var(--earth); }
+.la-skychart .hid { opacity: 0.3; stroke-dasharray: 3 4; }
+.la-skychart .sk-tick { fill: var(--text); }
+.la-skychart .sk-disc { fill: var(--earth); fill-opacity: 0.35; stroke: var(--earth); }
+.la-skychart .sk-disc.hid { stroke-dasharray: 2 2; }
+.la-sky .sk-cap { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text-3); }
+.la-skychart .sk-lab, .la-skychart .sk-day { paint-order: stroke; stroke: #000; stroke-width: 4px; stroke-linejoin: round; }

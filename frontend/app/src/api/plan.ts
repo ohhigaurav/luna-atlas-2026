@@ -148,6 +148,8 @@ export type RunRow = {
   utc: string;
   sun_azimuth_deg: number; sun_elevation_deg: number; sun_horizon_deg: number; sun_visible_upper_limb: boolean;
   earth_azimuth_deg: number; earth_elevation_deg: number; earth_horizon_deg: number; earth_center_clear: boolean;
+  /** Distances (m); older saved runs may lack them. */
+  sun_range_m?: number; earth_range_m?: number;
 };
 export type HorizonBin = { azimuth_deg: number; elevation_deg: number | null; coverage_status?: string };
 export type SavedRun = {

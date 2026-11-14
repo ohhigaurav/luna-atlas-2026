@@ -103,8 +103,8 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: 'earth', title: 'Earth bobs on the horizon',
-        body: 'Earth does not cross the sky; it hangs over the near-side horizon and wobbles (libration). At Site 001 it moved between −7.5° and +6.2° from level in our Gate B run, so it is in view only part of each month. In view means line of sight, not a radio link.',
-        target: '.la-card .sc-now', action: { kind: 'site', siteId: SITE_001 },
+        body: 'Earth does not cross the sky; it hangs over the near-side horizon and wobbles (libration). At Site 001 it moved between −7.5° and +6.2° from level in our Gate B run, so it is in view only part of each month. This chart draws its track over 30 days at true scale. In view means line of sight, not a radio link.',
+        target: '[data-tour="sky-earth"]', action: { kind: 'site', siteId: SITE_001, details: true },
         sources: [{ file: 'validation/evidence/gate_b_geometry_2026-10-28.md', quote: '−7.54° to +6.15°' }],
       },
       {
