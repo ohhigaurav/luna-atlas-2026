@@ -77,3 +77,29 @@ def test_srt_follows_the_final_clock(tmp_path):
 
 def test_srt_time_format():
     assert mdv.srt_time(3723.0456) == "01:02:03,046"
+
+
+def test_cards_can_play_over_footage(tmp_path):
+    data = base()
+    data["title"].update({"file": "bg.mkv", "start": 0.5})
+    shots = mdv.load_shot_list(write(tmp_path, data))
+    assert shots.title.file == tmp_path / "bg.mkv"
+    assert shots.title.start == 0.5
+    assert shots.end.file is None
+    assert shots.seconds == pytest.approx(2 + 4 + 3.5 + 2)
+
+
+def test_card_start_cannot_be_negative(tmp_path):
+    data = base()
+    data["end"].update({"file": "bg.mkv", "start": -1})
+    with pytest.raises(mdv.ShotListError, match="end: start must be 0 or more"):
+        mdv.load_shot_list(write(tmp_path, data))
+
+
+def test_card_over_footage_is_see_through(tmp_path):
+    png = tmp_path / "c.png"
+    mdv.card_image(mdv.Card("T", "s", 2, tmp_path / "bg.mkv"), png)
+    from PIL import Image
+    assert Image.open(png).getpixel((5, 5))[3] < 255
+    mdv.card_image(mdv.Card("T", "s", 2), png)
+    assert Image.open(png).getpixel((5, 5))[3] == 255

@@ -4,7 +4,9 @@
   "title": {
     "text": "Luna Atlas",
     "sub": "Where and when to land at the lunar south pole, checked against NASA data",
-    "seconds": 2.0
+    "seconds": 2.0,
+    "file": "shot0.mkv",
+    "start": 1.0
   },
   "clips": [
     {
@@ -47,6 +49,8 @@
   "end": {
     "text": "Computed live, open source",
     "sub": "Also: Moon weather, best dates, sky chart, landing ellipse, tour · JPL Horizons agreement 0.04 arcsec",
-    "seconds": 2.0
+    "seconds": 2.0,
+    "file": "shot7.mkv",
+    "start": 1.0
   }
 }

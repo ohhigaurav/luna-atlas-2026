@@ -48,9 +48,12 @@ class ShotListError(ValueError):
 
 @dataclass(frozen=True)
 class Card:
+    """A title or end card. With a file, the text sits over that footage under a dark veil."""
     text: str
     sub: str
     seconds: float
+    file: Path | None = None
+    start: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -81,13 +84,17 @@ class ShotList:
         return sum(p.seconds for p in self.parts())
 
 
-def _card(raw: dict | None, name: str) -> Card | None:
+def _card(raw: dict | None, name: str, base: Path) -> Card | None:
     if raw is None:
         return None
     seconds = float(raw.get("seconds", 2.5))
     if not raw.get("text") or seconds <= 0:
         raise ShotListError(f"{name}: needs text and seconds > 0")
-    return Card(str(raw["text"]), str(raw.get("sub", "")), seconds)
+    start = float(raw.get("start", 0.0))
+    if start < 0:
+        raise ShotListError(f"{name}: start must be 0 or more")
+    file = (base / raw["file"]).expanduser() if raw.get("file") else None
+    return Card(str(raw["text"]), str(raw.get("sub", "")), seconds, file, start)
 
 
 def load_shot_list(path: Path) -> ShotList:
@@ -111,9 +118,9 @@ def load_shot_list(path: Path) -> ShotList:
     shots = ShotList(
         output=(base / raw.get("output", "luna_atlas_demo.mp4")).expanduser(),
         max_seconds=float(raw.get("max_seconds", 30)),
-        title=_card(raw.get("title"), "title"),
+        title=_card(raw.get("title"), "title", base),
         clips=tuple(clips),
-        end=_card(raw.get("end"), "end"),
+        end=_card(raw.get("end"), "end", base),
     )
     if shots.seconds > shots.max_seconds + 1e-9:
         raise ShotListError(
@@ -187,13 +194,14 @@ def caption_overlay(text: str, path: Path) -> None:
 
 
 def card_image(card: Card, path: Path) -> None:
-    img = Image.new("RGB", (W, H), BG)
+    """The card's text: on a plain background, or on a see-through veil when it has footage."""
+    img = Image.new("RGBA", (W, H), (*BG, 165) if card.file else (*BG, 255))
     d = ImageDraw.Draw(img)
     big, small = find_font(110), find_font(48)
     d.text((W / 2, H / 2 - 40), card.text, font=big, fill=FG, anchor="ms")
     y = H / 2 + 50
     for line in wrap(d, card.sub, small, W - 300) if card.sub else []:
-        d.text((W / 2, y), line, font=small, fill=MUTED, anchor="ma")
+        d.text((W / 2, y), line, font=small, fill=FG if card.file else MUTED, anchor="ma")
         y += 64
     img.save(path)
 
@@ -227,11 +235,19 @@ def clip_graph(seconds: float, with_fades: bool = True) -> str:
 
 def render_part(part: Card | Clip, work: Path, out: Path) -> None:
     tmp = out.with_name(out.stem + ".part.mp4")
-    if isinstance(part, Card):
+    if isinstance(part, Card) and part.file is None:
         png = work / (out.stem + ".png")
         card_image(part, png)
         vf = f"format=yuv420p,loop=-1:1,trim=duration={part.seconds:.3f},{fades(part.seconds)}"
         run(["ffmpeg", "-y", "-v", "error", "-framerate", str(FPS), "-i", str(png), "-vf", vf, *ENCODE, "-an", str(tmp)])
+    elif isinstance(part, Card):
+        png = work / (out.stem + ".png")
+        card_image(part, png)
+        run([
+            "ffmpeg", "-y", "-v", "error", "-ss", f"{part.start:.3f}", "-t", f"{part.seconds:.3f}",
+            "-i", str(part.file), "-i", str(png), "-filter_complex", clip_graph(part.seconds),
+            *ENCODE, "-an", str(tmp),
+        ])
     else:
         cap = work / (out.stem + ".caption.png")
         caption_overlay(part.caption, cap)
@@ -251,13 +267,16 @@ def write_frames(shots: ShotList, folder: Path) -> list[Path]:
         work = Path(tmpdir)
         for i, part in enumerate(shots.parts(), 1):
             out = folder / f"frame_{i:02d}.jpg"
-            if isinstance(part, Card):
+            if isinstance(part, Card) and part.file is None:
                 png = work / f"{i}.png"
                 card_image(part, png)
                 Image.open(png).convert("RGB").save(out, quality=92)
             else:
                 cap = work / f"{i}.caption.png"
-                caption_overlay(part.caption, cap)
+                if isinstance(part, Card):
+                    card_image(part, cap)
+                else:
+                    caption_overlay(part.caption, cap)
                 mid = part.start + part.seconds / 2
                 run([
                     "ffmpeg", "-y", "-v", "error", "-ss", f"{mid:.3f}", "-i", str(part.file), "-i", str(cap),
@@ -269,12 +288,15 @@ def write_frames(shots: ShotList, folder: Path) -> list[Path]:
 
 
 def build(shots: ShotList) -> Path:
-    for clip in shots.clips:
-        if not clip.file.is_file():
-            raise SystemExit(f"clip not found: {clip.file}")
-        have = probe_seconds(clip.file)
-        if clip.end > have + 0.05:
-            raise SystemExit(f"{clip.file.name}: end {clip.end} s is past the recording's length ({have:.2f} s)")
+    for part in shots.parts():
+        if part.file is None:
+            continue
+        if not part.file.is_file():
+            raise SystemExit(f"clip not found: {part.file}")
+        have = probe_seconds(part.file)
+        end = part.start + part.seconds
+        if end > have + 0.05:
+            raise SystemExit(f"{part.file.name}: end {end:g} s is past the recording's length ({have:.2f} s)")
     shots.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmpdir:
         work = Path(tmpdir)
