@@ -11,7 +11,7 @@
       "file": "shot1.mkv",
       "start": 1.0,
       "end": 7.0,
-      "caption": "Pick a landing site: Moon, south polar region, site. Real terrain, real Sun and Earth positions."
+      "caption": "Pick a site and a date. Real LOLA terrain, real Sun and Earth positions (NASA SPICE), time to sunset and Earthset."
     },
     {
       "file": "shot2.mkv",
@@ -23,18 +23,18 @@
       "file": "shot3.mkv",
       "start": 1.0,
       "end": 7.0,
-      "caption": "Stand at the site in 3D: Sun, shadows and battery through the mission."
+      "caption": "Stand at the site in 3D: the real skyline, the Sun and the shadows through the mission."
     },
     {
       "file": "shot4.mkv",
       "start": 1.0,
       "end": 5.5,
-      "caption": "Check the landing ellipse: how much ground is under your lander's slope limit."
+      "caption": "Compare sites side by side: Sun and Earth now, time to sunset and Earthset, sunlight on a panel (before panel efficiency)."
     }
   ],
   "end": {
     "text": "Computed live",
-    "sub": "Geometry checked against JPL Horizons (0.04 arcsec). Open source: link on the project page.",
+    "sub": "Also: sky chart, landing ellipse, launch-slip check, guided tour. Geometry checked against JPL Horizons (0.04 arcsec).",
     "seconds": 2.5
   }
 }
