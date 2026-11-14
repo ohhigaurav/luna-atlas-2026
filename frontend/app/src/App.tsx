@@ -79,16 +79,20 @@ export default function App() {
   const reducedMotion = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, []);
 
   useEffect(() => {
+    // Only the latest load counts (React's development mode runs this effect twice, and a second
+    // answer arriving late used to reset the clock after a share link had set its date).
+    let current = true;
     loadDataSource().then(
       (d) => {
+        if (!current) return;
         cursorRef.current = d.initialCursorMs; setCursorMs(d.initialCursorMs);
         setSky(d.sky); setData(d); setFollowNow(d.mode === 'live');
       },
-      (e: unknown) => setFatal(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => { if (current) setFatal(e instanceof Error ? e.message : String(e)); },
     );
     const r = () => { setNarrow(window.innerWidth <= 900); };
     window.addEventListener('resize', r);
-    return () => window.removeEventListener('resize', r);
+    return () => { current = false; window.removeEventListener('resize', r); };
   }, []);
 
   const live = data?.mode === 'live';
@@ -556,8 +560,8 @@ export default function App() {
             onNow={goNow} />
         )}
         <nav className="tb-nav" aria-label="Tools">
-          <button type="button" className={comparing ? 'on' : undefined} aria-pressed={comparing} onClick={() => (comparing ? setComparing(false) : startCompare())}>Compare sites</button>
-          <button type="button" className={forecast ? 'on' : undefined} aria-pressed={forecast} onClick={() => (forecast ? closeForecast() : openForecast())}>Moon weather</button>
+          <button type="button" className={comparing ? 'on' : undefined} aria-pressed={comparing} onClick={() => (comparing ? setComparing(false) : startCompare())}>Compare<span className="tb-long"> sites</span></button>
+          <button type="button" className={forecast ? 'on' : undefined} aria-pressed={forecast} onClick={() => (forecast ? closeForecast() : openForecast())}><span className="tb-long">Moon weather</span><span className="tb-short">Weather</span></button>
           <button type="button" onClick={() => setSheet({ kind: 'proof' })}>Evidence</button>
           <button type="button" className={tour ? 'on' : undefined} aria-pressed={!!tour} onClick={() => (tour ? endTour() : startTour('plan'))}>Tour</button>
           <button type="button" className="tb-search" aria-label="Search (Ctrl K)" onClick={() => setCmd(true)}>Search<kbd>Ctrl K</kbd></button>

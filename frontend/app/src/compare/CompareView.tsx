@@ -227,7 +227,7 @@ export function CompareView({ places, live, clockMs, onRemove, onOpen, onJump, o
       {live && places.length > 0 && <LandingSummary places={places} land={land} atMs={clockMs} mission={mission} onJump={onJump} onMission={setMission} />}
 
       {live && shown && (
-        <div className={`la-cmp${st.s === 'loading' ? ' stale' : ''}`} style={{ gridTemplateColumns: `150px repeat(${shown.rows.length}, minmax(132px, 1fr))` }}>
+        <div className={`la-cmp${st.s === 'loading' ? ' stale' : ''}`} style={{ gridTemplateColumns: `var(--cmp-label, 150px) repeat(${shown.rows.length}, minmax(var(--cmp-col, 132px), 1fr))` }}>
           <div className="c-corner"><span className="la-cap">{new Date(shown.at_utc).toISOString().slice(0, 16).replace('T', ' ')} UTC, then {shown.days} days</span></div>
           {shown.rows.map((row) => {
             const p = byKey(row);

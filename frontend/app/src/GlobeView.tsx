@@ -79,6 +79,18 @@ function previewOf(set: TextureSet): { color: string; heights: { url: string; wi
   return { color: `${T}${small.file}`, heights: { url: `${T}lola_4ppd_f16.bin`, width: 1440, height: 720 } };
 }
 
+/** A phone or tablet (touch, small screen, little memory), or a GPU that cannot hold the full height map. */
+function lightDevice(set: TextureSet): boolean {
+  try {
+    const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    const small = Math.min(window.screen?.width ?? 1e4, window.screen?.height ?? 1e4) < 820;
+    const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    return (coarse && small) || (mem !== undefined && mem < 4) || maxTextureSize() < set.heights.width;
+  } catch {
+    return false;
+  }
+}
+
 /** The largest colour map this GPU can hold (8k is sharp to ~20 px per degree). */
 function pickColor(set: TextureSet): string {
   const max = maxTextureSize();
@@ -126,20 +138,29 @@ export function GlobeView({ sites, sky, cursorRef, reducedMotion, onSelect, onIn
     };
     loadTextureSet().then((set) => {
       if (cancelled) return;
+      const light = lightDevice(set);
+      const preview = previewOf(set);
       try {
       engine.current = new GlobeEngine(el, {
         sites,
         sky: sample,
         cursorMs: () => cursorRef.current,
         reducedMotion,
-        textures: {
+        // Phones and small GPUs keep the light maps (about 4 MB) as their final maps: a 5760 px
+        // height map is wider than many phone GPUs allow, and 63 MB is too much on mobile data.
+        ...(light ? { maxPixelRatio: 1.5, sphereSegments: 256, shadowSteps: 12 } : {}),
+        textures: light && preview ? {
+          moonColor: preview.color,
+          moonHeights: preview.heights,
+          earthDay: set.earth ? `${T}${set.earth}` : undefined,
+        } : {
           moonColor: pickColor(set),
           moonHeights: { url: `${T}${set.heights.file}`, width: set.heights.width, height: set.heights.height },
           moonCaps: set.caps
             ? { south: `${T}${set.caps.south}`, north: `${T}${set.caps.north}`, size: set.caps.size, latDeg: set.caps.lat }
             : undefined,
           earthDay: set.earth ? `${T}${set.earth}` : undefined,
-          moonPreview: previewOf(set),
+          moonPreview: preview,
         },
         onSelect: (s) => cb.current.onSelect(s),
         onIntroDone: () => cb.current.onIntroDone(),

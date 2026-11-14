@@ -570,6 +570,7 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .tb-nav button.on { color: #111; background: #f3efe6; }
 .tb-nav button:focus-visible { outline: 2px solid #fff; }
 .tb-nav kbd { font: 500 12px var(--font-ui); border-radius: 5px; }
+.tb-nav .tb-short { display: none; }
 
 /* the date bar */
 .la-datebar { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px 10px; border-radius: 20px;
@@ -924,3 +925,28 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .sc-slip .sl-name { font-weight: 600; color: var(--text); display: flex; gap: 8px; align-items: baseline; }
 .sc-slip .sl-name small { font-weight: 500; color: var(--text-3); font-size: 12.5px; }
 .sc-slip .sl-row .la-btn { justify-self: start; min-height: 32px; font-size: 13.5px; }
+
+/* phones (14 Nov): date on one line, the whole tool bar visible, compare labels kept in view */
+@media (max-width: 600px) {
+  .db-row { flex-wrap: wrap; row-gap: 2px; }
+  .db-date { flex: 1 1 0; min-width: 0; padding: 2px 6px; }
+  .db-date b { white-space: nowrap; font-size: 18px; }
+  .db-sep { flex-basis: 100%; height: 0; margin: 0; background: none; }  /* line break: play, speed and Now go below */
+  .db-now { margin-left: auto; }
+  .db-pop { width: min(360px, calc(100vw - 24px)); }
+  .tb-nav { gap: 2px; padding: 4px; }
+  .tb-nav button { padding: 7px 10px; font-size: 14px; }
+  .tb-nav .tb-long, .tb-nav kbd { display: none; }
+  .tb-nav .tb-short { display: inline; }
+  .la-cmp { --cmp-label: 104px; --cmp-col: 128px; padding: 0 10px 16px; }
+  .la-cmp .c-corner, .la-cmp .c-label { position: sticky; left: 0; z-index: 1; background: var(--bg); padding-right: 8px; }
+  .la-cmp .c-label { font-size: 13.5px; }
+  .la-cmp .c-name { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .la-sheet-head { flex-wrap: wrap; row-gap: 8px; padding: 12px 14px; }
+  .la-sheet-head h2 { font-size: 21px; }
+  .la-tabs { max-width: 100%; overflow-x: auto; }
+  .la-tabs button { white-space: nowrap; }
+}
+@media (max-width: 600px) {
+  .la-toast { top: auto; bottom: 16px; left: 10px; right: 10px; transform: none; max-width: none; }
+}

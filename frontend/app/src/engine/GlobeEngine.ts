@@ -44,6 +44,8 @@ export type EngineOptions = {
   sphereSegments?: number;
   /** Device pixel ratio cap (2 default; 1 for weak GPUs). */
   maxPixelRatio?: number;
+  /** Shadow ray-march steps in the Moon shader (default 24; fewer on phones). */
+  shadowSteps?: number;
   onSelect?: (site: PinSite | null) => void;
   onIntroDone?: () => void;
   onError?: (message: string) => void;
@@ -207,6 +209,7 @@ export class GlobeEngine {
     const mat = createLunarMaterial({
       colorMap: color, dispMap: heights, sunDirMe: s.sunDir, earthDirMe: s.earthDir, earthIllumFrac: s.earthIllumFrac,
       caps: caps && t.moonCaps ? { south: caps[0], north: caps[1], latDeg: t.moonCaps.latDeg } : undefined,
+      shadowSteps: this.opts.shadowSteps,
     });
     mat.uniforms.heightScale.value = (this.opts.reliefExaggeration ?? 1) / MOON_RADIUS_KM;
     const old = this.moonMat;
