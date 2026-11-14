@@ -9,6 +9,7 @@ import type { ReferenceSite } from '../data/source';
 import { terrainText } from '../state/terrain';
 import { BestDate } from './BestDate';
 import { SkyChart } from './SkyChart';
+import { SlipPanel } from './SlipPanel';
 import { staticIndex } from '../data/staticMode';
 import { formatLat, formatLon } from '../state/format';
 import { spanText, type SiteNow } from '../state/siteState';
@@ -35,6 +36,10 @@ type Props = {
   onTry: (lat: number, lon: number, label: string) => void;
   /** The guided tour opens "Details" (for the landing ellipse step); changing the number opens it again. */
   openDetails?: number;
+  /** The catalogue, for "Launch slipped?" (nearest sites). */
+  sites: ReferenceSite[];
+  /** Opens a site with the date bar at ms. */
+  onOpenAt: (s: ReferenceSite, ms: number) => void;
 };
 
 /** Our measured findings live in the repo's validation/evidence folder. */
@@ -73,7 +78,7 @@ export function originTitle(site: ReferenceSite): string {
 const MISSION_CHIPS = [1, 3, 5, 7, 10, 14];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry, openDetails }: Props) {
+export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry, openDetails, sites, onOpenAt }: Props) {
   const [more, setMore] = useState(false);
   useEffect(() => { if (openDetails) setMore(true); }, [openDetails]);
   const [elapsed, setElapsed] = useState(0);
@@ -175,6 +180,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
         <BestDate siteId={site.site_id} cursorMs={cursorMs} missionDays={settings.missionDays} maxSunDeg={settings.maxSunDeg}
           onJump={onJump} onStand={onStand} />
       )}
+      {live && <SlipPanel site={site} sites={sites} cursorMs={cursorMs} missionDays={settings.missionDays} live={live} onOpenAt={onOpenAt} />}
 
       <div className="sc-now">
         <p className="sc-h">On {day(cursorMs)} at {new Date(cursorMs).toISOString().slice(11, 16)} UTC</p>

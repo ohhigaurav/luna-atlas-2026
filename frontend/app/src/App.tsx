@@ -602,6 +602,8 @@ export default function App() {
           onCompare={() => toggleCompare(selected)}
           onClose={() => globe.current?.flyHome()}
           onTry={goPoint}
+          sites={data.sites}
+          onOpenAt={(s, ms) => { jump(ms); if (s.site_id !== selected.site_id) pick(s); }}
           openDetails={tourStep?.action.kind === 'site' && tourStep.action.details ? tourDetails : undefined}
           details={
             <SitePanel site={selected} live={asks} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}

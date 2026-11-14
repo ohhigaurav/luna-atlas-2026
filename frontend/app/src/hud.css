@@ -905,3 +905,22 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-skychart .sk-disc.hid { stroke-dasharray: 2 2; }
 .la-sky .sk-cap { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text-3); }
 .la-skychart .sk-lab, .la-skychart .sk-day { paint-order: stroke; stroke: #000; stroke-width: 4px; stroke-linejoin: round; }
+
+/* "Launch slipped?" (task 5): the soonest window here and nearby after a delay */
+.sc-slip { margin: 0 24px; padding: 10px 0 4px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.sc-slip > .la-btn { align-self: flex-start; }
+.sc-slip .sl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sc-slip .sl-head > span { font: 600 13px var(--font-ui); color: var(--text-3); margin-right: 2px; }
+.sc-slip .sl-head button { all: unset; cursor: pointer; font: 600 13px var(--font-ui); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
+.sc-slip .sl-head button:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.35); }
+.sc-slip .sl-head button.on { background: var(--text); color: #111; border-color: var(--text); }
+.sc-slip .sl-head button:focus-visible { outline: 2px solid var(--select); }
+.sc-slip .sl-head .sl-x { margin-left: auto; border: none; font-size: 18px; padding: 0 6px; }
+.sc-slip p { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.sc-slip .sl-sub { font: 600 12.5px var(--font-ui); color: var(--text-3); margin-top: 4px; }
+.sc-slip .sl-note { font-size: 12.5px; color: var(--text-3); }
+.sc-slip .sl-row { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--text-2); }
+.sc-slip .sl-row.here { border-top: none; padding-top: 0; }
+.sc-slip .sl-name { font-weight: 600; color: var(--text); display: flex; gap: 8px; align-items: baseline; }
+.sc-slip .sl-name small { font-weight: 500; color: var(--text-3); font-size: 12.5px; }
+.sc-slip .sl-row .la-btn { justify-self: start; min-height: 32px; font-size: 13.5px; }
