@@ -6,7 +6,7 @@ import './hud.css';
 import { GlobeView, type GlobeHandle } from './GlobeView';
 import { LandingRing } from './plan/LandingRing';
 import { SitePanel } from './plan/SitePanel';
-import { SEARCH_DAYS, usePlan, utcMidnight } from './plan/usePlan';
+import { DEFAULT_MISSION_DAYS, SEARCH_DAYS, usePlan, utcMidnight } from './plan/usePlan';
 import { loadDataSource, type DataSource, type ReferenceSite } from './data/source';
 import { fetchSkyGeometry, sampleTimesMs, skyAt, type SkyGeometry } from './api/sky';
 import { isoZ } from './api/plan';
@@ -23,7 +23,7 @@ import { appNow, staticIndex } from './data/staticMode';
 import { OutlookProgress } from './ui/OutlookProgress';
 import { ForecastPanel, type Layers, type Probe } from './forecast/ForecastPanel';
 import { earthFrameAt, loadForecast, pixelOf, sunFrameAt, unpackFrame, bitAt, type ForecastData } from './forecast/forecastData';
-import { pointId } from './api/plan';
+import { parsePointId, pointId } from './api/plan';
 import { shortName } from './engine/pins';
 import { OUTLOOK_DAYS, outlookText } from './state/outlook';
 import { CommandBar, type Command } from './ui/CommandBar';
@@ -33,6 +33,7 @@ import { Surface3D } from './surface/Surface3D';
 import { CompareView } from './compare/CompareView';
 import { Tour } from './tour/Tour';
 import { CHAPTERS, TOUR_DATE_UTC, markTourSeen, tourSeen, type Chapter, type TourAction } from './tour/steps';
+import { decodeShare, encodeShare, hasShare } from './state/shareUrl';
 
 const SPEEDS = [3600, 6 * 3600, 86400] as const; // simulated seconds per real second
 const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21600: '6 h/s', 86400: '1 d/s' };
@@ -69,6 +70,10 @@ export default function App() {
   const [tour, setTour] = useState<{ chapter: Chapter['id']; i: number } | null>(null);
   const [tourDetails, setTourDetails] = useState(0);
   const tourSnap = useRef<{ follow: boolean; cursorMs: number; cmp: ReferenceSite[] } | null>(null);
+  // Share link read once at start (state/shareUrl.ts); applied in two steps, then the bar follows the app.
+  const link = useRef(decodeShare(window.location.search));
+  const fromLink = hasShare(link.current);
+  const [linkApplied, setLinkApplied] = useState(!fromLink);
   const cursorRef = useRef(0);
   const globe = useRef<GlobeHandle>(null);
   const reducedMotion = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, []);
@@ -335,14 +340,23 @@ export default function App() {
   }, [comparing, toggleCompare, data]);
   const closeForecast = useCallback(() => { setForecast(false); setPlaying(false); globe.current?.flyHome(); }, []);
 
-  const goPoint = (lat: number, lonDeg: number, label?: string) => {
+  const pointSite = (lat: number, lonDeg: number, label?: string): ReferenceSite => {
     const lon = ((lonDeg % 360) + 360) % 360;
-    const site: ReferenceSite = {
+    return {
       site_id: pointId(lat, lon), latitude_deg: lat, longitude_deg: lon,
       name: label ?? `Point ${Math.abs(lat).toFixed(3)}° ${lat < 0 ? 'S' : 'N'}, ${lon.toFixed(3)}° E`,
     };
+  };
+  const goPoint = (lat: number, lonDeg: number, label?: string) => {
     setForecast(false);
-    globe.current?.flyToSite(site);
+    globe.current?.flyToSite(pointSite(lat, lonDeg, label));
+  };
+  /** A catalogue site or a clicked point from its app ID; null when the ID is unknown. */
+  const siteFromId = (id: string): ReferenceSite | null => {
+    const s = byId(id);
+    if (s) return s;
+    const p = parsePointId(id);
+    return p && Math.abs(p.lat) <= 90 ? pointSite(p.lat, p.lon) : null;
   };
   // A click on the Moon (not on a pin): in the forecast it moves the probe; elsewhere it asks the
   // landing question for that exact point (any point, 240 m terrain; docs/frontend_api.md).
@@ -431,9 +445,49 @@ export default function App() {
     setCmp(snap.cmp);
     if (snap.follow) goNow(); else jump(snap.cursorMs);
   }, [forecast, closeForecast, goNow, jump]);
-  // Shown once, on the first visit, after the intro flight.
+  // Share link, step 1 (as soon as the data is in): the date and mission length; skip the intro flight.
+  const linkDate = useRef(false);
   useEffect(() => {
-    if (!introDone || !data || tourSeen()) return;
+    if (linkDate.current || !fromLink || !data || !span) return;
+    linkDate.current = true;
+    const l = link.current;
+    if (l.ms !== null) jump(l.ms);
+    if (l.missionDays !== null) plan.update({ missionDays: l.missionDays });
+    setTimeout(() => globe.current?.skipIntro(), 0);
+  }, [data, span]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Step 2 (after the intro): the compare set, the site, and the open view.
+  useEffect(() => {
+    if (linkApplied || !introDone || !data) return;
+    const l = link.current;
+    const xs = l.cmp.map(siteFromId).filter((x): x is ReferenceSite => !!x);
+    if (xs.length) setCmp(xs);
+    const s = l.siteId ? siteFromId(l.siteId) : null;
+    if (s) pick(s);
+    if (l.view === 'compare' && xs.length) setSheet({ kind: 'compare' });
+    else if (l.view === 'evidence') setSheet({ kind: 'proof' });
+    else if (!s && xs.length) setComparing(true);
+    setLinkApplied(true);
+  }, [introDone, data, linkApplied]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The address bar follows the app (not during the tour or playback), so it can be copied and shared.
+  const shareSearch = encodeShare({
+    siteId: selected?.site_id ?? null,
+    ms: followNow ? null : Math.floor(cursorMs / 60e3) * 60e3,
+    missionDays: plan.settings.missionDays !== DEFAULT_MISSION_DAYS ? plan.settings.missionDays : null,
+    cmp: cmp.map((x) => x.site_id),
+    view: sheet?.kind === 'compare' ? 'compare' : sheet?.kind === 'proof' ? 'evidence' : null,
+  });
+  useEffect(() => {
+    if (!linkApplied || tour || playing || !data) return;
+    const t = setTimeout(() => {
+      if (window.location.search === shareSearch) return;
+      try { window.history.replaceState(window.history.state, '', `${window.location.pathname}${shareSearch}${window.location.hash}`); } catch { /* some embeds block it */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [shareSearch, linkApplied, tour, playing, data]);
+
+  // Shown once, on the first visit, after the intro flight; not when a share link opened the app.
+  useEffect(() => {
+    if (!introDone || !data || fromLink || tourSeen()) return;
     const t = setTimeout(() => startTour('plan'), 600);
     return () => clearTimeout(t);
   }, [introDone, data]); // eslint-disable-line react-hooks/exhaustive-deps
