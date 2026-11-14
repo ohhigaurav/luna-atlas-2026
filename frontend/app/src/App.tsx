@@ -31,6 +31,8 @@ import { ProofView } from './proof/ProofView';
 import type { MissionCase } from './proof/evidence';
 import { Surface3D } from './surface/Surface3D';
 import { CompareView } from './compare/CompareView';
+import { Tour } from './tour/Tour';
+import { CHAPTERS, TOUR_DATE_UTC, markTourSeen, tourSeen, type Chapter, type TourAction } from './tour/steps';
 
 const SPEEDS = [3600, 6 * 3600, 86400] as const; // simulated seconds per real second
 const SPEED_LABEL: Record<(typeof SPEEDS)[number], string> = { 3600: '1 h/s', 21600: '6 h/s', 86400: '1 d/s' };
@@ -63,6 +65,10 @@ export default function App() {
   const [comparing, setComparing] = useState(false);       // compare mode: pins add to the list
   const [hello, setHello] = useState(true);
   const [probe, setProbe] = useState<Probe>({ lat: -89.45, lon: 222.69, name: null });
+  // Guided tour (C13): which chapter and step; what to put back when it ends.
+  const [tour, setTour] = useState<{ chapter: Chapter['id']; i: number } | null>(null);
+  const [tourDetails, setTourDetails] = useState(0);
+  const tourSnap = useRef<{ follow: boolean; cursorMs: number; cmp: ReferenceSite[] } | null>(null);
   const cursorRef = useRef(0);
   const globe = useRef<GlobeHandle>(null);
   const reducedMotion = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, []);
@@ -378,6 +384,60 @@ export default function App() {
     pick(s);
   }, [byId, loadSky, setCursor, pick]);
 
+  // The tour drives the app through the same callbacks a click uses; it makes no API calls itself.
+  const tourMs = useMemo(() => {
+    const baked = !live ? data?.answers?.bakedTimes[0] : undefined;
+    return Date.parse(baked ?? TOUR_DATE_UTC);
+  }, [live, data]);
+  const tourDo = useRef<(a: TourAction) => void>(() => {});
+  tourDo.current = (a: TourAction) => {
+    const atDate = () => { if (cursorRef.current !== tourMs || followNow) jump(tourMs); };
+    if (a.kind === 'date') {
+      setSheet(null); setForecast(false); setComparing(false); globe.current?.flyHome(); jump(tourMs);
+    } else if (a.kind === 'site') {
+      const s = byId(a.siteId);
+      setSheet(null); setForecast(false); setComparing(false); setPlaying(false); atDate();
+      if (s && selected?.site_id !== s.site_id) pick(s);
+      if (a.details) setTourDetails((n) => n + 1);
+    } else if (a.kind === 'compare') {
+      const xs = a.siteIds.map(byId).filter((x): x is ReferenceSite => !!x);
+      setForecast(false); setComparing(false); atDate();
+      if (xs.length) setCmp(xs);
+      setSheet({ kind: 'compare' });
+    } else if (a.kind === 'evidence') {
+      setForecast(false); setComparing(false); setSheet({ kind: 'proof' });
+    } else if (a.kind === 'forecast') {
+      openForecast();
+    }
+  };
+  const tourChapter = tour ? CHAPTERS.find((c) => c.id === tour.chapter)! : null;
+  const tourStep = tour && tourChapter ? tourChapter.steps[tour.i] : null;
+  useEffect(() => { if (tourStep) tourDo.current(tourStep.action); }, [tourStep]);
+  // The forecast starts playing on its own; outside its step the tour keeps the clock still.
+  useEffect(() => { if (tourStep && tourStep.action.kind !== 'forecast' && playing) setPlaying(false); }, [tourStep, playing]);
+  const startTour = useCallback((chapter: Chapter['id']) => {
+    if (!tourSnap.current) tourSnap.current = { follow: followNow, cursorMs: cursorRef.current, cmp };
+    markTourSeen(); setHello(false); setCmd(false);
+    setTour({ chapter, i: 0 });
+  }, [followNow, cmp]);
+  // Ends the tour and puts the clock and the compare list back; the open site stays open.
+  const endTour = useCallback(() => {
+    markTourSeen(); setTour(null);
+    setSheet(null); setPlaying(false); setComparing(false);
+    if (forecast) closeForecast();
+    const snap = tourSnap.current;
+    tourSnap.current = null;
+    if (!snap) return;
+    setCmp(snap.cmp);
+    if (snap.follow) goNow(); else jump(snap.cursorMs);
+  }, [forecast, closeForecast, goNow, jump]);
+  // Shown once, on the first visit, after the intro flight.
+  useEffect(() => {
+    if (!introDone || !data || tourSeen()) return;
+    const t = setTimeout(() => startTour('plan'), 600);
+    return () => clearTimeout(t);
+  }, [introDone, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (fatal) {
     return <div className="la-app"><div className="la-toast" role="alert">{fatal}</div></div>;
   }
@@ -444,6 +504,7 @@ export default function App() {
           <button type="button" className={comparing ? 'on' : undefined} aria-pressed={comparing} onClick={() => (comparing ? setComparing(false) : startCompare())}>Compare sites</button>
           <button type="button" className={forecast ? 'on' : undefined} aria-pressed={forecast} onClick={() => (forecast ? closeForecast() : openForecast())}>Moon weather</button>
           <button type="button" onClick={() => setSheet({ kind: 'proof' })}>Evidence</button>
+          <button type="button" className={tour ? 'on' : undefined} aria-pressed={!!tour} onClick={() => (tour ? endTour() : startTour('plan'))}>Tour</button>
           <button type="button" className="tb-search" aria-label="Search (Ctrl K)" onClick={() => setCmd(true)}>Search<kbd>Ctrl K</kbd></button>
         </nav>
       </header>
@@ -454,7 +515,10 @@ export default function App() {
             <>
               <h1>When can you land on the Moon?</h1>
               <p>Pick a date at the top, then tap a site. Luna Atlas tells you if the Sun stays up for the mission and Earth is in view.</p>
-              <button type="button" className="la-btn" onClick={() => setHello(false)}>Got it</button>
+              <div className="hl-actions">
+                <button type="button" className="la-btn" onClick={() => setHello(false)}>Got it</button>
+                <button type="button" className="la-btn" onClick={() => startTour('plan')}>Take the tour</button>
+              </div>
             </>
           ) : null}
           <p className="hl-banner">
@@ -484,6 +548,7 @@ export default function App() {
           onCompare={() => toggleCompare(selected)}
           onClose={() => globe.current?.flyHome()}
           onTry={goPoint}
+          openDetails={tourStep?.action.kind === 'site' && tourStep.action.details ? tourDetails : undefined}
           details={
             <SitePanel site={selected} live={asks} now={sel} cursorMs={cursorMs} settings={plan.settings} data={plan.data} answer={plan.answer}
               onSettings={plan.update} onJump={jump} onSurface={(ms) => { jump(ms); setSheet({ kind: 'surface', touchdownMs: ms }); }}
@@ -538,6 +603,10 @@ export default function App() {
           }}
           onJump={jump}
           onClose={() => { setPlaying(false); setSheet(null); }} />
+      )}
+      {tour && tourChapter && (
+        <Tour chapter={tourChapter} index={tour.i} onStep={(i) => setTour({ chapter: tour.chapter, i })}
+          onChapter={(id) => setTour({ chapter: id, i: 0 })} onClose={endTour} />
       )}
       {cmd && <CommandBar sites={data.sites} selectedName={selected?.name ?? null} onRun={runCommand} onClose={() => setCmd(false)} />}
       {error && <div className="la-toast" role="alert" onClick={() => setError(null)}>{error}</div>}

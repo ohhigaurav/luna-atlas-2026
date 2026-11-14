@@ -32,6 +32,8 @@ type Props = {
   onClose: () => void;
   /** Opens a suggested nearby point (analysis_note.suggested_point) as a clicked point. */
   onTry: (lat: number, lon: number, label: string) => void;
+  /** The guided tour opens "Details" (for the landing ellipse step); changing the number opens it again. */
+  openDetails?: number;
 };
 
 /** Our measured findings live in the repo's validation/evidence folder. */
@@ -70,8 +72,9 @@ export function originTitle(site: ReferenceSite): string {
 const MISSION_CHIPS = [1, 3, 5, 7, 10, 14];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry }: Props) {
+export function SiteCard({ site, live, cursorMs, now, settings, data, answer, inCompare, details, onSettings, onJump, onStand, onCompare, onClose, onTry, openDetails }: Props) {
   const [more, setMore] = useState(false);
+  useEffect(() => { if (openDetails) setMore(true); }, [openDetails]);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (data.status !== 'loading') return;
@@ -196,7 +199,7 @@ export function SiteCard({ site, live, cursorMs, now, settings, data, answer, in
         </div>
         {row && <p className="sc-month">Next 30 days ({terrain}): sunlight {(row.period.sun_disc_percent ?? row.period.sunlit_percent).toFixed(0)}%{row.period.sun_disc_percent != null ? ` (any part of the Sun ${row.period.sunlit_percent.toFixed(0)}%)` : ''}, Earth in view {row.period.earth_percent.toFixed(0)}%, longest night {spanText(row.period.longest_darkness_h * 3600e3)}{row.period.longest_darkness_lower_bound ? '+' : ''}.</p>}
         {power && (
-          <p className="sc-month" title={[power.definition, power.not_included && `Not included: ${power.not_included}.`].filter(Boolean).join('. ') || undefined}>
+          <p className="sc-month" data-tour="power" title={[power.definition, power.not_included && `Not included: ${power.not_included}.`].filter(Boolean).join('. ') || undefined}>
             Sunlight on a panel, before panel efficiency: <b>{powerMain(power)}</b> average on a vertical panel facing the Sun ({powerSub(power, 30)}).
             {rise && <> {rise}</>}
           </p>

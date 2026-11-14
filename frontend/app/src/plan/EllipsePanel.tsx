@@ -200,7 +200,7 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
 
   if (!open) {
     return (
-      <section className="la-sec">
+      <section className="la-sec" data-tour="ellipse">
         <button type="button" className="la-btn" onClick={() => setOpen(true)}>Where could you actually come down? Landing ellipse</button>
       </section>
     );
@@ -211,7 +211,7 @@ export function EllipsePanel({ siteId, startMs }: { siteId: string; startMs: num
   const sv: SlopeView | null = r && sOk ? { limit, colour: colourBy === 'slope', best: bestWithin(r.points, limit) } : null;
   const share = sOk && slope!.area?.cdf ? shareAtOrBelow(slope!.area.cdf, limit) : null;
   return (
-    <section className="la-sec la-ellipse" aria-label="Landing ellipse">
+    <section className="la-sec la-ellipse" data-tour="ellipse" aria-label="Landing ellipse">
       <span className="la-cap">Landing ellipse, 14 days from {isoZ(startMs).slice(0, 16).replace('T', ' ')} UTC</span>
       <p className="la-fine" style={{ margin: 0 }}>
         Landers come down somewhere inside an ellipse, not on the target. IM-2 stopped about 250 m from its target in a crater and could not recharge.

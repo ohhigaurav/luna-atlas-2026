@@ -604,6 +604,7 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .la-hello h1 { margin: 0; font: 700 28px/1.12 var(--font-ui); letter-spacing: -0.015em; }
 .la-hello p { margin: 0; font-size: 16px; color: var(--text-2); }
 .la-hello .la-btn { align-self: flex-start; }
+.la-hello .hl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .hl-key { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
 .hl-key .pk-line b { font-weight: 700; }
 .hl-phase { font-size: 14px !important; text-align: left; }
@@ -860,3 +861,25 @@ kbd { font: 500 11.5px var(--font-cond); color: var(--text-3); border: 1px solid
 .tb-brand .tb-name { display: flex; align-items: center; gap: 10px; }
 .tb-brand .tb-name img { width: 28px; height: 28px; flex: none; }
 .tb-brand small { margin-left: 38px; }
+
+/* guided tour (C13, PRD F9): one lit element, a caption beside it; the app stays clickable */
+.la-tour { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+.la-tour .tour-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
+.la-tour .tour-spot { position: absolute; border-radius: 12px; border: 2px solid var(--sun);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease; }
+.la-tour .tour-card { position: absolute; pointer-events: auto; box-sizing: border-box; padding: 16px 18px; border-radius: var(--r);
+  background: var(--glass-2); border: 1px solid var(--edge-2); backdrop-filter: blur(16px); display: flex; flex-direction: column; gap: 10px;
+  color: var(--text); font-family: var(--font-ui); }
+.la-tour .tour-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.la-tour h2 { margin: 0; font: 700 20px/1.2 var(--font-ui); }
+.la-tour p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-2); }
+.la-tour a { color: var(--earth); font-size: 14px; }
+.la-tour .tour-wait { font-size: 13px; color: var(--text-3); }
+.la-tour .tour-skip { all: unset; cursor: pointer; font: 500 13px var(--font-ui); color: var(--text-3); text-decoration: underline; }
+.la-tour .tour-skip:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.la-tour .tour-dots { display: flex; gap: 6px; }
+.la-tour .tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
+.la-tour .tour-dots i.on { background: var(--sun); }
+.la-tour .tour-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.la-tour .tour-nav .la-spacer { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .la-tour .tour-spot { transition: none; } }
