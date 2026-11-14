@@ -9,7 +9,30 @@ This file is the source-of-truth register for third-party software, data, kernel
 | NASA NAIF CSPICE `azlcpo_c` documentation | `azlcpo_c`, Version 1.0.0 (2021-11-01) | NASA NAIF technical reference | `geometry.py` call signature, local topocentric coordinates and output units | 2026-10-25 | https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/azlcpo_c.html |
 | SpiceyPy | 8.3.0 (dependency pin) | Upstream package licence applies; verify against package metadata when lock is generated | Python binding to CSPICE used by `geometry.py` | 2026-10-25 | https://pypi.org/project/spiceypy/ |
 
-No NASA kernels, DEMs, competitor source code, or official candidate-site data are bundled in this prototype. Add each asset's exact URL, product/version, licence, retrieval timestamp, byte size, SHA-256, coordinate/frame conventions, and parser/transform history before use. The dependency lock remains to be generated with registry access.
+The repository does not bundle NASA kernels or terrain files: the server downloads them from the NASA addresses below, and each run records the files it used.
+
+## Licences of third-party software, fonts and images (Space Apps terms: "Use of third-party materials")
+
+Luna Atlas's own code and text are MIT-licensed (`LICENSE`). Everything else it uses is open source or public NASA material:
+
+| Material | Licence | Used for |
+|---|---|---|
+| SpiceyPy (wraps NASA NAIF CSPICE) | MIT; CSPICE is NASA/JPL NAIF software, freely available | Sun and Earth geometry |
+| FastAPI, Starlette | MIT, BSD-3-Clause | Web API |
+| NumPy, SciPy | BSD-3-Clause | Numerics |
+| rasterio, GDAL | BSD-3-Clause, MIT | Reading terrain rasters |
+| pyproj | MIT | Map projections |
+| Pydantic, Uvicorn | MIT, BSD-3-Clause | API models, web server |
+| Pillow (demo-video tool only) | MIT-CMU | Captions in the demo video |
+| React, React DOM | MIT | Web interface |
+| three.js, React Three Fiber, drei | MIT | 3D Moon |
+| Vite | MIT | Front-end build |
+| Instrument Sans font | SIL Open Font License 1.1 (`frontend/app/src/assets/fonts/OFL-Instrument-Sans.txt`) | Interface font |
+| Docker, Caddy | Apache 2.0 | Running and serving the app |
+| NASA SVS CGI Moon Kit, NASA Blue Marble | NASA imagery, free to use with credit | Moon and Earth textures (display only) |
+| NASA LOLA terrain (PGDA), NAIF kernels, LRO camera images (NASA/GSFC/Arizona State University) | NASA data, free to use with credit | Computation and validation |
+
+AI tools: Claude (Anthropic) assisted with code and documentation; the project logo was generated with ChatGPT (OpenAI) image generation and carries a visible "AI-generated" mark, as the Space Apps rules require.
 
 
 ## NASA data sources and attribution
